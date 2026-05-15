@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -17,7 +18,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);display:flex;flex-direction:column}
-.topbar{flex-shrink:0;height:50px;background:var(--bg2);border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:12px}
+.topbar{flex-shrink:0;min-height:50px;background:var(--bg2);border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:12px}
 .logo{font-size:15px;font-weight:700;white-space:nowrap}.logo em{color:var(--gold);font-style:normal}
 .pills{display:flex;gap:6px;flex-wrap:wrap}
 .pill{background:var(--bg3);border:1px solid var(--b1);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--t2)}.pill b{color:var(--gold)}
@@ -201,6 +202,102 @@ table.pt tr:hover td{background:rgba(255,255,255,.012)}
   .cc{break-inside:avoid;margin-bottom:16px}
   body{background:white!important;color:black!important}
   :root{--bg:#fff;--bg2:#f5f5f5;--bg3:#eee;--card:#fff;--b1:#ccc;--b2:#bbb;--t1:#000;--t2:#444;--t3:#666;--gold:#c8920a;--blue:#1a6fd4;--green:#1a8f4a;--preg:#6b4ed6}
+}
+
+/* ── MOBILE ── */
+@media(max-width:700px){
+  html,body{height:auto;overflow:auto}
+
+  /* Topbar mobile */
+  .topbar{height:auto;padding:10px 14px;flex-wrap:wrap;gap:8px}
+  .logo{font-size:13px}
+  .pills{display:none}
+  .export-btn{font-size:10px;padding:5px 9px}
+  .user-badge{font-size:10px;padding:4px 8px}
+  .export-menu{min-width:180px;font-size:12px}
+
+  /* Layout: stack sidebar + content vertically */
+  .layout{grid-template-columns:1fr;height:auto;overflow:visible;display:flex;flex-direction:column}
+
+  /* Sidebar becomes horizontal scrollable pill list */
+  .sb{border-right:none;border-bottom:1px solid var(--b1);flex-direction:column;overflow:visible;max-height:none}
+  .sb-hd{padding:8px 12px 6px}
+  .sb-hd h3{display:none}
+  .sb-wrap{margin-bottom:6px}
+  .sb-list{display:flex;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;padding:4px 8px 8px;gap:6px;flex:none}
+  .sb-list::-webkit-scrollbar{height:3px}
+  .sb-list::-webkit-scrollbar-thumb{background:var(--b2)}
+  .sb-item{flex-shrink:0;padding:8px 14px;border-radius:20px;background:var(--bg3);border:1px solid var(--b1);margin-bottom:0;white-space:nowrap}
+  .sb-item.on{border-color:var(--gold);background:rgba(245,200,66,.12);border-left:1px solid var(--gold);padding-left:14px}
+  .sb-nm{font-size:12px}.sb-mt{font-size:9px}.sb-cd{font-size:9px}
+
+  /* Content */
+  .ct{overflow:visible;height:auto}
+
+  /* Muni header */
+  .mh{padding:12px 14px 10px;flex-direction:column;gap:10px}
+  .mh-t{font-size:22px}
+  .mh-s{font-size:12px}
+  .mh-coord{width:100%}
+
+  /* Stats: 2x2 grid */
+  .stats{padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .sc{min-width:0}
+  .sc .sv{font-size:20px}
+
+  /* Outer tabs */
+  .otabs{padding:0 14px;overflow-x:auto}
+  .otab{padding:10px 12px;font-size:12px}
+
+  /* Body padding */
+  .body{padding:12px 14px}
+
+  /* Commune card header: stack on mobile */
+  .cc-hd{flex-wrap:wrap;gap:8px;padding:12px}
+  .cc-nm{font-size:14px}
+  .cc-r{flex-wrap:wrap;gap:8px;width:100%}
+  .cc-st .v{font-size:15px}.cc-st .l{font-size:9px}
+
+  /* Inner tabs: scrollable */
+  .itabs{overflow-x:auto;flex-wrap:nowrap}
+  .itab{font-size:11px;padding:9px 12px;white-space:nowrap}
+
+  /* Puestos table: card layout instead of table */
+  .tw{padding:8px}
+  table.pt thead{display:none}
+  table.pt tr{display:block;background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px;padding:10px 12px}
+  table.pt td{display:flex;justify-content:space-between;align-items:flex-start;padding:3px 0;border:none;font-size:12px}
+  table.pt td:first-child{display:block;margin-bottom:6px}
+  table.pt td:first-child .pn{font-size:13px}
+  table.pt td:first-child .pd{font-size:11px;margin-top:2px}
+
+  /* Pregoneros panel */
+  .preg-panel{padding:10px 12px}
+  .count-row{gap:8px}
+  .count-badge{font-size:11px}
+  .preg-row{flex-wrap:wrap;gap:5px}
+  .preg-row .pi{min-width:calc(50% - 6px)}
+  .pi-sm{width:calc(50% - 6px)!important}
+
+  /* Testigos */
+  .test-row{flex-wrap:wrap;gap:5px}
+  .test-row .pi{min-width:calc(50% - 6px)}
+
+  /* Movilidad */
+  .mov-panel{padding:10px 12px}
+  .mov-needs-row{flex-direction:column;gap:8px}
+  .mov-vehicles{grid-template-columns:1fr}
+  .mv-card-row{flex-wrap:wrap}
+
+  /* Modal */
+  .mo-box{padding:18px 16px;width:95vw}
+  .mo-box h3{font-size:15px}
+
+  /* Login */
+  .login-box{padding:28px 20px}
+
+  /* Overview grid */
+  #ov-wrap > div > div{grid-template-columns:1fr 1fr!important}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
