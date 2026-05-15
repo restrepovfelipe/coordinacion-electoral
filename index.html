@@ -298,6 +298,11 @@ table.pt tr:hover td{background:rgba(255,255,255,.012)}
 
   /* Overview grid */
   #ov-wrap > div > div{grid-template-columns:1fr 1fr!important}
+
+  /* Export menus: full width on mobile, no left overflow */
+  .export-wrap{position:static}
+  .export-menu{position:fixed;top:auto;left:8px;right:8px;width:auto;min-width:0;max-height:60vh;z-index:600}
+  .topbar > div{flex-wrap:wrap;gap:6px}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
