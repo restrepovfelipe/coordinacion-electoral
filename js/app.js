@@ -16,6 +16,8 @@ function gs(n) {
 
 function _innerPreload() {
   let changed = false;
+
+  // Preload movilidad (carros/motos + responsable) per commune
   for (const [muni, comunas] of Object.entries(MOV_PRELOAD)) {
     for (const [ck, mov] of Object.entries(comunas)) {
       const s = gs(muni);
@@ -30,6 +32,31 @@ function _innerPreload() {
       }
     }
   }
+
+  // Preload commune coordinators
+  for (const [muni, data] of Object.entries(COORD_PRELOAD)) {
+    const s = gs(muni);
+    if (!s.comunas) s.comunas = {};
+    for (const [ck, cd] of Object.entries(data.comunas || {})) {
+      if (!s.comunas[ck]) s.comunas[ck] = {};
+      if (!s.comunas[ck].coord && !s.comunas[ck].phone) {
+        s.comunas[ck].coord = cd.coord || '';
+        s.comunas[ck].phone = cd.phone || '';
+        changed = true;
+      }
+    }
+    // Preload puesto coordinators
+    if (!s.puestos) s.puestos = {};
+    for (const [pk_str, pd] of Object.entries(data.puestos || {})) {
+      if (!s.puestos[pk_str]) s.puestos[pk_str] = {};
+      if (!s.puestos[pk_str].coord && !s.puestos[pk_str].phone) {
+        s.puestos[pk_str].coord = pd.coord || '';
+        s.puestos[pk_str].phone = pd.phone || '';
+        changed = true;
+      }
+    }
+  }
+
   if (changed) saveLocalSt();
 }
 
