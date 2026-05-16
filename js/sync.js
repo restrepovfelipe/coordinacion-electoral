@@ -31,7 +31,7 @@ async function writeField(path, value) {
   try {
     const update = {};
     update[path] = value;
-    await db.collection(FS_COL).doc(FS_DOC).update(update);
+    await db.collection(FS_COL).doc(FS_DOC).set(update, { merge: true });
     _pendingWrites--;
     if (_pendingWrites <= 0) {
       _pendingWrites = 0;
@@ -59,7 +59,7 @@ async function writeFields(updates) {
   _pendingWrites++;
   setSyncBadge('syncing', '🔄 Guardando...');
   try {
-    await db.collection(FS_COL).doc(FS_DOC).update(updates);
+    await db.collection(FS_COL).doc(FS_DOC).set(updates, { merge: true });
     _pendingWrites--;
     if (_pendingWrites <= 0) {
       _pendingWrites = 0;
