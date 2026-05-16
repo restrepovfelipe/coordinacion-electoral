@@ -483,67 +483,103 @@ const firebaseConfig = {
   messagingSenderId: "780534359669",
   appId: "1:780534359669:web:03678820c44d205a8cba3c"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
-// ═══ STATE — local cache + Firebase sync ═══
-let ST = {};
-let _saveTimer = null;
+let _db = null;
 let _initialized = false;
-let _onReadyCallbacks = [];
+let _saveTimer = null;
+let _syncListener = null;
 
-// Load from Firestore on startup
-async function initState() {
+function initFirebase() {
   try {
-    const doc = await db.collection('estado').doc('amva2026').get();
-    if (doc.exists) {
-      ST = doc.data().state || {};
-    } else {
-      // Try localStorage fallback migration
-      try { ST = JSON.parse(localStorage.getItem('amva26v2') || '{}'); } catch(e) { ST = {}; }
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
     }
+    _db = firebase.firestore();
+    return true;
   } catch(e) {
-    console.warn('Firebase load failed, using localStorage:', e);
-    try { ST = JSON.parse(localStorage.getItem('amva26v2') || '{}'); } catch(e2) { ST = {}; }
+    console.warn('Firebase init failed:', e);
+    return false;
   }
-  _initialized = true;
-  _onReadyCallbacks.forEach(fn => fn());
-  _onReadyCallbacks = [];
 }
 
-// Real-time listener for changes from other users
-function startRealtimeSync() {
-  db.collection('estado').doc('amva2026').onSnapshot(doc => {
-    if (doc.exists && doc.metadata.hasPendingWrites === false) {
-      const remoteState = doc.data().state || {};
-      // Merge: remote wins on different keys, but don't overwrite pending local edits
-      ST = remoteState;
-      // Refresh current view if open
-      if (CUR) renderMuni(CUR);
-      buildSB();
-    }
-  }, err => console.warn('Realtime sync error:', err));
+// ═══ STATE — localStorage first, Firebase sync in background ═══
+let ST = {};
+
+function loadLocalSt() {
+  try { return JSON.parse(localStorage.getItem('amva26v2') || '{}'); } catch(e) { return {}; }
+}
+
+function saveLocalSt() {
+  try { localStorage.setItem('amva26v2', JSON.stringify(ST)); } catch(e) {}
 }
 
 function saveSt() {
-  // Save to localStorage immediately as backup
-  try { localStorage.setItem('amva26v2', JSON.stringify(ST)); } catch(e) {}
-  // Debounce Firebase save by 1.5s to avoid too many writes
-  if (_saveTimer) clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(async () => {
+  // Save locally immediately
+  saveLocalSt();
+  // Sync to Firebase in background (debounced)
+  if (_db) {
+    if (_saveTimer) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      try {
+        await _db.collection('estado').doc('amva2026').set({
+          state: ST,
+          updatedAt: new Date().toISOString()
+        });
+      } catch(e) {
+        console.warn('Firebase save failed (using localStorage):', e);
+      }
+    }, 1500);
+  }
+}
+
+async function initState() {
+  // Always load from localStorage first (instant)
+  ST = loadLocalSt();
+  _initialized = true;
+
+  // Then try to load from Firebase and merge
+  if (_db) {
     try {
-      await db.collection('estado').doc('amva2026').set({ state: ST, updatedAt: new Date().toISOString() });
+      const doc = await _db.collection('estado').doc('amva2026').get();
+      if (doc.exists) {
+        const remoteState = doc.data().state || {};
+        // Remote wins (it has latest from all users)
+        ST = remoteState;
+        saveLocalSt(); // cache locally
+      } else if (Object.keys(ST).length > 0) {
+        // Upload local data to Firebase
+        await _db.collection('estado').doc('amva2026').set({
+          state: ST,
+          updatedAt: new Date().toISOString()
+        });
+      }
     } catch(e) {
-      console.warn('Firebase save failed:', e);
+      console.warn('Firebase load failed (using localStorage):', e);
     }
-  }, 1500);
+  }
+}
+
+function startRealtimeSync() {
+  if (!_db) return;
+  try {
+    _syncListener = _db.collection('estado').doc('amva2026').onSnapshot(doc => {
+      if (doc.exists && !doc.metadata.hasPendingWrites) {
+        const remoteState = doc.data().state || {};
+        ST = remoteState;
+        saveLocalSt();
+        if (CUR) renderMuni(CUR);
+        buildSB();
+      }
+    }, err => console.warn('Realtime sync error:', err));
+  } catch(e) {
+    console.warn('Could not start realtime sync:', e);
+  }
 }
 
 function gs(n) {
   if (!ST[n]) ST[n] = {coord:'',phone:'',comunas:{},puestos:{},pregoneros:{},testigos:{},movilidad:{}};
   return ST[n];
 }
-
 // ═══ PRELOAD MOVILIDAD FROM EXCEL ═══
 const MOV_PRELOAD={"MEDELLIN":{"01COMUNA 1 POPULAR":{"motos_nec":50,"carros_nec":32,"motos":[{"nombre":"Diomedes","telefono":""}],"carros":[{"nombre":"Diomedes","telefono":""}]},"02COMUNA 2 SANTA CRUZ":{"motos_nec":30,"carros_nec":12,"motos":[{"nombre":"Cristian Arboleda","telefono":""}],"carros":[{"nombre":"Cristian Arboleda","telefono":""}]},"03COMUNA 3 MANRIQUE":{"motos_nec":16,"carros_nec":10,"motos":[{"nombre":"Dayan - Lina Cifuentes","telefono":""}],"carros":[{"nombre":"Dayan - Lina Cifuentes","telefono":""}]},"04COMUNA 4 ARANJUEZ":{"motos_nec":20,"carros_nec":12,"motos":[{"nombre":"Euclides","telefono":""}],"carros":[{"nombre":"Euclides","telefono":""}]},"05COMUNA 5 CASTILLA":{"motos_nec":20,"carros_nec":20,"motos":[{"nombre":"Jairo Marulanda","telefono":""}],"carros":[{"nombre":"Jairo Marulanda","telefono":""}]},"06COMUNA 6 DOCE DE OCTUBRE":{"motos_nec":24,"carros_nec":12,"motos":[{"nombre":"Luchito / Papa Julian Tamayo / Jonathan","telefono":""}],"carros":[{"nombre":"Luchito / Papa Julian Tamayo / Jonathan","telefono":""}]},"07COMUNA 7 ROBLEDO":{"motos_nec":24,"carros_nec":12,"motos":[{"nombre":"Duvan","telefono":""}],"carros":[{"nombre":"Duvan","telefono":""}]},"08COMUNA 8 VILLA HERMOSA":{"motos_nec":20,"carros_nec":16,"motos":[{"nombre":"Cesar Lopez","telefono":""}],"carros":[{"nombre":"Cesar Lopez","telefono":""}]},"09COMUNA 9 BUENOS AIRES":{"motos_nec":20,"carros_nec":16,"motos":[{"nombre":"Piolo","telefono":""}],"carros":[{"nombre":"Piolo","telefono":""}]},"10COMUNA 10 LA CANDELARIA":{"motos_nec":16,"carros_nec":6,"motos":[{"nombre":"Lazaro","telefono":""}],"carros":[{"nombre":"Lazaro","telefono":""}]},"11COMUNA 11 LAURELES":{"motos_nec":0,"carros_nec":16,"motos":[{"nombre":"Maxi","telefono":""}],"carros":[{"nombre":"Maxi","telefono":""}]},"12COMUNA 12 LA AMERICA":{"motos_nec":0,"carros_nec":10,"motos":[{"nombre":"Carlos zuluaga","telefono":""}],"carros":[{"nombre":"Carlos zuluaga","telefono":""}]},"13COMUNA 13 SAN JAVIER":{"motos_nec":20,"carros_nec":12,"motos":[{"nombre":"Alicia","telefono":""}],"carros":[{"nombre":"Alicia","telefono":""}]},"14COMUNA 14 EL POBLADO":{"motos_nec":0,"carros_nec":8,"motos":[{"nombre":"Alejandro Guerra / Samuel Tobon","telefono":""}],"carros":[{"nombre":"Alejandro Guerra / Samuel Tobon","telefono":""}]},"15COMUNA 15 GUAYABAL":{"motos_nec":8,"carros_nec":12,"motos":[{"nombre":"Jhon emilio","telefono":""}],"carros":[{"nombre":"Jhon emilio","telefono":""}]},"16COMUNA 16 BELEN":{"motos_nec":28,"carros_nec":16,"motos":[{"nombre":"Sebastian Perez / Tesorito","telefono":""}],"carros":[{"nombre":"Sebastian Perez / Tesorito","telefono":""}]},"19CORREGIMIENT O PALMITAS":{"motos_nec":0,"carros_nec":2,"motos":[{"nombre":"William","telefono":""}],"carros":[{"nombre":"William","telefono":""}]},"18CORR. SAN ANTONIO DE PRADO":{"motos_nec":8,"carros_nec":2,"motos":[{"nombre":"Mateo Arango","telefono":""}],"carros":[{"nombre":"Mateo Arango","telefono":""}]},"20CORREGIMIENT O SAN CRISTOBAL":{"motos_nec":8,"carros_nec":14,"motos":[{"nombre":"Maria Eugenia","telefono":""}],"carros":[{"nombre":"Maria Eugenia","telefono":""}]},"21CORREGIMIENT O SANTA ELENA":{"motos_nec":0,"carros_nec":0,"motos":[{"nombre":"Mauricio Londoño","telefono":""}],"carros":[{"nombre":"Mauricio Londoño","telefono":""}]},"17CORREGIMIENT O ALTAVISTA":{"motos_nec":0,"carros_nec":4,"motos":[{"nombre":"Duvalier","telefono":""}],"carros":[{"nombre":"Duvalier","telefono":""}]}},"BELLO":{"SIN COMUNA":{"motos_nec":22,"carros_nec":16,"motos":[],"carros":[]}},"COPACABANA":{"SIN COMUNA":{"motos_nec":8,"carros_nec":4,"motos":[],"carros":[]}},"BARBOSA":{"SIN COMUNA":{"motos_nec":0,"carros_nec":2,"motos":[],"carros":[]}},"GIRARDOTA":{"SIN COMUNA":{"motos_nec":0,"carros_nec":0,"motos":[],"carros":[]}},"CALDAS":{"SIN COMUNA":{"motos_nec":2,"carros_nec":4,"motos":[],"carros":[]}},"SABANETA":{"SIN COMUNA":{"motos_nec":2,"carros_nec":0,"motos":[],"carros":[]}},"LA ESTRELLA":{"SIN COMUNA":{"motos_nec":0,"carros_nec":10,"motos":[],"carros":[]}},"ITAGUI":{"SIN COMUNA":{"motos_nec":0,"carros_nec":8,"motos":[{"nombre":"Andres Grajales","telefono":""}],"carros":[{"nombre":"Andres Grajales","telefono":""}]}},"ENVIGADO":{"SIN COMUNA":{"motos_nec":50,"carros_nec":8,"motos":[],"carros":[]}}};
 // preloadMovilidad called after init
@@ -1434,25 +1470,31 @@ function doLogin(){
     document.getElementById('user-label').textContent=USERS[u].nombre;
     sessionStorage.setItem('amva_user',u);
     err.classList.remove('show');
-    // Connect Firebase after login
-    if(!_initialized){
-      document.getElementById('ct').innerHTML='<div class="empty"><div class="empty-ico">⏳</div><h3 style="color:var(--t1);font-size:16px;margin-bottom:6px">Conectando...</h3></div>';
-      initState().then(()=>{
-        _innerPreload();
-        buildSB();
-        renderOV();
-        buildExportMenu();
-        buildExcelMenu();
-        startRealtimeSync();
-      });
-    } else {
-      buildSB();
-      renderOV();
-    }
+    startApp();
   } else {
     err.classList.add('show');
     document.getElementById('l-pass').value='';
     document.getElementById('l-pass').focus();
+  }
+}
+
+function startApp() {
+  // Load from localStorage immediately so app works right away
+  ST = loadLocalSt();
+  _initialized = true;
+  _innerPreload();
+  buildSB();
+  renderOV();
+  buildExportMenu();
+  buildExcelMenu();
+  // Then sync with Firebase in background
+  if (initFirebase()) {
+    initState().then(() => {
+      buildSB();
+      if (CUR) renderMuni(CUR);
+      else renderOV();
+      startRealtimeSync();
+    }).catch(e => console.warn('Firebase sync failed, using local data:', e));
   }
 }
 
@@ -1470,16 +1512,7 @@ function doLogout(){
   if(u&&USERS[u]){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('user-label').textContent=USERS[u].nombre;
-    // Already logged in - init Firebase
-    document.getElementById('ct').innerHTML='<div class="empty"><div class="empty-ico">⏳</div><h3 style="color:var(--t1);font-size:16px;margin-bottom:6px">Conectando con Firebase...</h3><p style="font-size:12px">Cargando datos compartidos</p></div>';
-    initState().then(()=>{
-      _innerPreload();
-      buildSB();
-      renderOV();
-      buildExportMenu();
-      buildExcelMenu();
-      startRealtimeSync();
-    });
+    startApp();
   }
 })();
 
