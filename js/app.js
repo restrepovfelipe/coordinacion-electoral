@@ -758,80 +758,108 @@ function buildExcelMenu() {
 
 function exportExcel(tipo, muni, ck) {
   document.getElementById('excel-menu').classList.remove('show');
-  const wb = XLSX.utils.book_new();
-  function sheetForComuna(n, comunaKey) {
-    const s = gs(n); const puestos = RAW[n][comunaKey] || [];
-    const sc = (s.comunas || {})[comunaKey] || {};
-    const pregBase = PREG_BASE[n]?.[comunaKey] || {};
-    const mov = s.movilidad?.[comunaKey] || {};
-    const respsE = (mov.responsables || []);
-    const rows = [];
-    rows.push(['ZONA / COMUNA', comunaKey]);
-    rows.push(['Coordinador de zona', sc.coord || '', 'Teléfono', sc.phone || '']);
-    rows.push([]);
-    rows.push(['MOVILIDAD', '', '', '']);
-    rows.push(['Motos necesarias', mov.motos_nec || 0, 'Carros necesarios', mov.carros_nec || 0]);
-    if (respsE.length) {
-      rows.push(['Responsable', 'Teléfono', 'Motos', 'Carros']);
-      respsE.forEach(r => rows.push([r.nombre || '', r.telefono || '', r.motos || 0, r.carros || 0]));
+
+  const TAG_LABELS = { n: 'Sin estado', ok: 'Cubierto', pr: 'Prioritario', pe: 'Pendiente', al: 'Alerta' };
+
+  // Collect flat rows across municipalities (optionally filtered to one commune)
+  function collectData(munis, ckFilter) {
+    const isMulti = munis.length > 1;
+    const rowsCoord = [], rowsPreg = [], rowsTest = [], rowsMov = [];
+
+    for (const n of munis) {
+      if (!RAW[n]) continue;
+      const s = gs(n);
+      const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+      const ckeys = Object.keys(RAW[n]).sort().filter(k => !ckFilter || k === ckFilter);
+
+      for (const comunaKey of ckeys) {
+        const puestos = RAW[n][comunaKey] || [];
+        const sc = (s.comunas || {})[comunaKey] || {};
+        const pregBase = PREG_BASE[n]?.[comunaKey] || {};
+        const mov = s.movilidad?.[comunaKey] || {};
+        const respNombres = (mov.responsables || []).map(r => r.nombre || '').filter(Boolean).join(' / ');
+        const respTels    = (mov.responsables || []).map(r => r.telefono || '').filter(Boolean).join(' / ');
+
+        rowsMov.push([...(isMulti ? [label] : []), comunaKey, sc.coord || '', sc.phone || '',
+          mov.carros_nec || 0, mov.motos_nec || 0, respNombres, respTels]);
+
+        for (const p of puestos) {
+          const k = pk(p);
+          const ps = (s.puestos || {})[k] || {};
+          const pregRows  = (s.pregoneros?.[comunaKey]?.[p.puesto]) || [];
+          const testRows  = (s.testigos?.[comunaKey]?.[p.puesto]) || [];
+          const savedCnts = (s.pregoneros?.[comunaKey]?._counts) || {};
+          const baseCnt   = pregBase[p.puesto] !== undefined ? pregBase[p.puesto] : 0;
+          const cnt       = savedCnts[p.puesto] !== undefined ? savedCnts[p.puesto] : baseCnt;
+          const pregReg   = pregRows.filter(r => r.nombre).length;
+          const testReg   = testRows.filter(r => r.nombre).length;
+          const divipole  = `${String(p.dd).padStart(2,'0')}.${String(p.mm).padStart(3,'0')}.${String(p.zz).padStart(2,'0')}.${String(p.pp).padStart(2,'0')}`;
+
+          rowsCoord.push([...(isMulti ? [label] : []),
+            comunaKey, sc.coord || '', sc.phone || '',
+            p.puesto, p.direccion, divipole, p.mesas || 0, p.total || 0,
+            TAG_LABELS[ps.tag || 'n'], ps.coord || '', ps.phone || '',
+            cnt, pregReg, testReg]);
+
+          for (let i = 0; i < cnt; i++) {
+            const r = pregRows[i] || {};
+            rowsPreg.push([...(isMulti ? [label] : []),
+              comunaKey, p.puesto, i + 1, r.nombre || '', r.cedula || '', r.responsable || '', r.telefono || '']);
+          }
+          testRows.forEach((r, i) => rowsTest.push([...(isMulti ? [label] : []),
+            comunaKey, p.puesto, i + 1, r.nombre || '', r.telefono || '']));
+        }
+      }
     }
-    rows.push([]);
-    puestos.forEach(p => {
-      const k = pk(p); const ps = (s.puestos || {})[k] || {};
-      const pregRows = (s.pregoneros?.[comunaKey]?.[p.puesto]) || [];
-      const testRows = (s.testigos?.[comunaKey]?.[p.puesto]) || [];
-      const savedCnts = (s.pregoneros?.[comunaKey]?._counts) || {};
-      const baseCnt = pregBase[p.puesto] !== undefined ? pregBase[p.puesto] : 0;
-      const cnt = savedCnts[p.puesto] !== undefined ? savedCnts[p.puesto] : baseCnt;
-      const tagLabels = { n: 'Sin estado', ok: 'Cubierto', pr: 'Prioritario', pe: 'Pendiente', al: 'Alerta' };
-      const divipole = `${String(p.dd).padStart(2, '0')}.${String(p.mm).padStart(3, '0')}.${String(p.zz).padStart(2, '0')}.${String(p.pp).padStart(2, '0')}`;
-      rows.push(['PUESTO', p.puesto]);
-      rows.push(['Dirección', p.direccion, 'DIVIPOLE', divipole]);
-      rows.push(['Mesas', p.mesas || 0, 'Votantes', p.total || 0]);
-      rows.push(['Estado', tagLabels[ps.tag || 'n'], 'Coordinador', ps.coord || '', 'Teléfono', ps.phone || '']);
-      if (cnt > 0) {
-        rows.push([]); rows.push(['PREGONEROS', 'Nombre', 'Cédula', 'Responsable', 'Teléfono']);
-        for (let i = 0; i < cnt; i++) { const r = pregRows[i] || {}; rows.push([`${i + 1}`, r.nombre || '', r.cedula || '', r.responsable || '', r.telefono || '']); }
-      }
-      if (testRows.length > 0) {
-        rows.push([]); rows.push(['TESTIGOS', 'Nombre', 'Teléfono', '', '']);
-        testRows.forEach((r, i) => rows.push([`${i + 1}`, r.nombre || '', r.telefono || '', '', '']));
-      }
-      rows.push([]);
-    });
-    return rows;
+    return { rowsCoord, rowsPreg, rowsTest, rowsMov, isMulti };
   }
+
+  function withHeaders({ rowsCoord, rowsPreg, rowsTest, rowsMov, isMulti }) {
+    const m = isMulti ? ['Municipio'] : [];
+    rowsCoord.unshift([...m, 'Zona / Comuna', 'Coord. Zona', 'Tel. Zona', 'Puesto', 'Dirección', 'DIVIPOLE', 'Mesas', 'Votantes', 'Estado', 'Coord. Puesto', 'Tel. Puesto', 'Preg. Asignados', 'Preg. Registrados', 'Testigos Reg.']);
+    rowsPreg.unshift([...m,  'Zona / Comuna', 'Puesto', '#', 'Nombre', 'Cédula', 'Responsable', 'Teléfono']);
+    rowsTest.unshift([...m,  'Zona / Comuna', 'Puesto', '#', 'Nombre', 'Teléfono']);
+    rowsMov.unshift([...m,   'Zona / Comuna', 'Coord. Zona', 'Tel. Zona', 'Carros Nec.', 'Motos Nec.', 'Responsable(s)', 'Tel. Responsable(s)']);
+    return { rowsCoord, rowsPreg, rowsTest, rowsMov };
+  }
+
+  function makeSheet(rows, colWidths) {
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = colWidths.map(wch => ({ wch }));
+    ws['!views'] = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: rows[0].length - 1 } }) };
+    return ws;
+  }
+
+  function build(munis, ckFilter, filename) {
+    const wb = XLSX.utils.book_new();
+    const raw = collectData(munis, ckFilter);
+    const { rowsCoord, rowsPreg, rowsTest, rowsMov } = withHeaders(raw);
+    const { isMulti } = raw;
+    const M = isMulti ? [12] : [];
+
+    XLSX.utils.book_append_sheet(wb,
+      makeSheet(rowsCoord, [...M, 26, 24, 14, 32, 26, 12, 7, 10, 12, 24, 14, 14, 14, 10]), 'Coordinación');
+    if (rowsPreg.length > 1)
+      XLSX.utils.book_append_sheet(wb,
+        makeSheet(rowsPreg, [...M, 26, 32, 4, 28, 14, 26, 14]), 'Pregoneros');
+    if (rowsTest.length > 1)
+      XLSX.utils.book_append_sheet(wb,
+        makeSheet(rowsTest, [...M, 26, 32, 4, 28, 14]), 'Testigos');
+    XLSX.utils.book_append_sheet(wb,
+      makeSheet(rowsMov, [...M, 26, 24, 14, 12, 12, 30, 20]), 'Movilidad');
+
+    XLSX.writeFile(wb, filename);
+  }
+
   if (tipo === 'all') {
-    AMVA.forEach(n => {
-      if (!RAW[n]) return; const s = gs(n); const allRows = [];
-      allRows.push([n === 'MEDELLIN' ? 'MEDELLÍN' : n]);
-      allRows.push(['Coordinador municipal', s.coord || '', 'Teléfono', s.phone || '']);
-      allRows.push([]);
-      Object.keys(RAW[n]).sort().forEach(ck => sheetForComuna(n, ck).forEach(r => allRows.push(r)));
-      const ws = XLSX.utils.aoa_to_sheet(allRows);
-      ws['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 20 }, { wch: 28 }, { wch: 18 }, { wch: 18 }];
-      XLSX.utils.book_append_sheet(wb, ws, (n === 'MEDELLIN' ? 'MEDELLIN' : n).substring(0, 31));
-    });
-    XLSX.writeFile(wb, 'Comando_Electoral_AMVA_2026.xlsx');
+    build(AMVA, null, 'Comando_Electoral_AMVA_2026.xlsx');
   } else if (tipo === 'medellin') {
-    const s = gs('MEDELLIN'); const allRows = [];
-    allRows.push(['MEDELLÍN']); allRows.push(['Coordinador municipal', s.coord || '', 'Teléfono', s.phone || '']); allRows.push([]);
-    Object.keys(RAW['MEDELLIN']).sort().forEach(ck => sheetForComuna('MEDELLIN', ck).forEach(r => allRows.push(r)));
-    const ws = XLSX.utils.aoa_to_sheet(allRows); ws['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 20 }, { wch: 28 }, { wch: 18 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, ws, 'MEDELLÍN');
-    XLSX.writeFile(wb, 'Comando_Electoral_Medellin_2026.xlsx');
-  } else if (tipo === 'comuna') {
-    const rows = sheetForComuna(muni, ck);
-    const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 20 }, { wch: 28 }, { wch: 18 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, ws, ck.substring(0, 31));
-    XLSX.writeFile(wb, 'Comando_' + ck.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40) + '.xlsx');
+    build(['MEDELLIN'], null, 'Comando_Electoral_Medellin_2026.xlsx');
   } else if (tipo === 'muni') {
-    const s = gs(muni); const allRows = [];
-    allRows.push([muni]); allRows.push(['Coordinador municipal', s.coord || '', 'Teléfono', s.phone || '']); allRows.push([]);
-    Object.keys(RAW[muni]).sort().forEach(ck => sheetForComuna(muni, ck).forEach(r => allRows.push(r)));
-    const ws = XLSX.utils.aoa_to_sheet(allRows); ws['!cols'] = [{ wch: 28 }, { wch: 35 }, { wch: 20 }, { wch: 28 }, { wch: 18 }, { wch: 18 }];
-    XLSX.utils.book_append_sheet(wb, ws, muni.substring(0, 31));
-    XLSX.writeFile(wb, 'Comando_Electoral_' + muni + '_2026.xlsx');
+    build([muni], null, 'Comando_Electoral_' + muni + '_2026.xlsx');
+  } else if (tipo === 'comuna') {
+    build([muni], ck, 'Comando_' + ck.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40) + '.xlsx');
   }
 }
 
