@@ -469,6 +469,29 @@ function loadSt(){try{return JSON.parse(localStorage.getItem('amva26v2')||'{}')}
 function saveSt(){try{localStorage.setItem('amva26v2',JSON.stringify(ST))}catch{}}
 let ST=loadSt();
 function gs(n){if(!ST[n])ST[n]={coord:'',phone:'',comunas:{},puestos:{},pregoneros:{},testigos:{},movilidad:{}};return ST[n];}
+
+// ═══ PRELOAD MOVILIDAD FROM EXCEL ═══
+const MOV_PRELOAD={"MEDELLIN":{"01COMUNA 1 POPULAR":{"motos_nec":50,"carros_nec":32,"motos":[{"nombre":"Diomedes","telefono":""}],"carros":[{"nombre":"Diomedes","telefono":""}]},"02COMUNA 2 SANTA CRUZ":{"motos_nec":30,"carros_nec":12,"motos":[{"nombre":"Cristian Arboleda","telefono":""}],"carros":[{"nombre":"Cristian Arboleda","telefono":""}]},"03COMUNA 3 MANRIQUE":{"motos_nec":16,"carros_nec":10,"motos":[{"nombre":"Dayan - Lina Cifuentes","telefono":""}],"carros":[{"nombre":"Dayan - Lina Cifuentes","telefono":""}]},"04COMUNA 4 ARANJUEZ":{"motos_nec":20,"carros_nec":12,"motos":[{"nombre":"Euclides","telefono":""}],"carros":[{"nombre":"Euclides","telefono":""}]},"05COMUNA 5 CASTILLA":{"motos_nec":20,"carros_nec":20,"motos":[{"nombre":"Jairo Marulanda","telefono":""}],"carros":[{"nombre":"Jairo Marulanda","telefono":""}]},"06COMUNA 6 DOCE DE OCTUBRE":{"motos_nec":24,"carros_nec":12,"motos":[{"nombre":"Luchito / Papa Julian Tamayo / Jonathan","telefono":""}],"carros":[{"nombre":"Luchito / Papa Julian Tamayo / Jonathan","telefono":""}]},"07COMUNA 7 ROBLEDO":{"motos_nec":24,"carros_nec":12,"motos":[{"nombre":"Duvan","telefono":""}],"carros":[{"nombre":"Duvan","telefono":""}]},"08COMUNA 8 VILLA HERMOSA":{"motos_nec":20,"carros_nec":16,"motos":[{"nombre":"Cesar Lopez","telefono":""}],"carros":[{"nombre":"Cesar Lopez","telefono":""}]},"09COMUNA 9 BUENOS AIRES":{"motos_nec":20,"carros_nec":16,"motos":[{"nombre":"Piolo","telefono":""}],"carros":[{"nombre":"Piolo","telefono":""}]},"10COMUNA 10 LA CANDELARIA":{"motos_nec":16,"carros_nec":6,"motos":[{"nombre":"Lazaro","telefono":""}],"carros":[{"nombre":"Lazaro","telefono":""}]},"11COMUNA 11 LAURELES":{"motos_nec":0,"carros_nec":16,"motos":[{"nombre":"Maxi","telefono":""}],"carros":[{"nombre":"Maxi","telefono":""}]},"12COMUNA 12 LA AMERICA":{"motos_nec":0,"carros_nec":10,"motos":[{"nombre":"Carlos zuluaga","telefono":""}],"carros":[{"nombre":"Carlos zuluaga","telefono":""}]},"13COMUNA 13 SAN JAVIER":{"motos_nec":20,"carros_nec":12,"motos":[{"nombre":"Alicia","telefono":""}],"carros":[{"nombre":"Alicia","telefono":""}]},"14COMUNA 14 EL POBLADO":{"motos_nec":0,"carros_nec":8,"motos":[{"nombre":"Alejandro Guerra / Samuel Tobon","telefono":""}],"carros":[{"nombre":"Alejandro Guerra / Samuel Tobon","telefono":""}]},"15COMUNA 15 GUAYABAL":{"motos_nec":8,"carros_nec":12,"motos":[{"nombre":"Jhon emilio","telefono":""}],"carros":[{"nombre":"Jhon emilio","telefono":""}]},"16COMUNA 16 BELEN":{"motos_nec":28,"carros_nec":16,"motos":[{"nombre":"Sebastian Perez / Tesorito","telefono":""}],"carros":[{"nombre":"Sebastian Perez / Tesorito","telefono":""}]},"19CORREGIMIENT O PALMITAS":{"motos_nec":0,"carros_nec":2,"motos":[{"nombre":"William","telefono":""}],"carros":[{"nombre":"William","telefono":""}]},"18CORR. SAN ANTONIO DE PRADO":{"motos_nec":8,"carros_nec":2,"motos":[{"nombre":"Mateo Arango","telefono":""}],"carros":[{"nombre":"Mateo Arango","telefono":""}]},"20CORREGIMIENT O SAN CRISTOBAL":{"motos_nec":8,"carros_nec":14,"motos":[{"nombre":"Maria Eugenia","telefono":""}],"carros":[{"nombre":"Maria Eugenia","telefono":""}]},"21CORREGIMIENT O SANTA ELENA":{"motos_nec":0,"carros_nec":0,"motos":[{"nombre":"Mauricio Londoño","telefono":""}],"carros":[{"nombre":"Mauricio Londoño","telefono":""}]},"17CORREGIMIENT O ALTAVISTA":{"motos_nec":0,"carros_nec":4,"motos":[{"nombre":"Duvalier","telefono":""}],"carros":[{"nombre":"Duvalier","telefono":""}]}},"BELLO":{"SIN COMUNA":{"motos_nec":22,"carros_nec":16,"motos":[],"carros":[]}},"COPACABANA":{"SIN COMUNA":{"motos_nec":8,"carros_nec":4,"motos":[],"carros":[]}},"BARBOSA":{"SIN COMUNA":{"motos_nec":0,"carros_nec":2,"motos":[],"carros":[]}},"GIRARDOTA":{"SIN COMUNA":{"motos_nec":0,"carros_nec":0,"motos":[],"carros":[]}},"CALDAS":{"SIN COMUNA":{"motos_nec":2,"carros_nec":4,"motos":[],"carros":[]}},"SABANETA":{"SIN COMUNA":{"motos_nec":2,"carros_nec":0,"motos":[],"carros":[]}},"LA ESTRELLA":{"SIN COMUNA":{"motos_nec":0,"carros_nec":10,"motos":[],"carros":[]}},"ITAGUI":{"SIN COMUNA":{"motos_nec":0,"carros_nec":8,"motos":[{"nombre":"Andres Grajales","telefono":""}],"carros":[{"nombre":"Andres Grajales","telefono":""}]}},"ENVIGADO":{"SIN COMUNA":{"motos_nec":50,"carros_nec":8,"motos":[],"carros":[]}}};
+(function preloadMovilidad(){
+  let changed=false;
+  for(const [muni,comunas] of Object.entries(MOV_PRELOAD)){
+    for(const [ck,mov] of Object.entries(comunas)){
+      const s=gs(muni);
+      if(!s.movilidad)s.movilidad={};
+      // Only preload if this zona has NO movilidad data yet (don't overwrite user edits)
+      if(!s.movilidad[ck]||(!s.movilidad[ck].motos?.length&&!s.movilidad[ck].carros?.length&&!s.movilidad[ck].motos_nec&&!s.movilidad[ck].carros_nec)){
+        s.movilidad[ck]={
+          motos_nec: mov.motos_nec||0,
+          carros_nec: mov.carros_nec||0,
+          motos: mov.motos||[],
+          carros: mov.carros||[]
+        };
+        changed=true;
+      }
+    }
+  }
+  if(changed){try{localStorage.setItem('amva26v2',JSON.stringify(ST));}catch(e){}}
+})();
 function pk(p){return`${p.dd}_${p.mm}_${p.zz}_${p.pp}`}
 function cid(n,ck){return'cc_'+btoa(unescape(encodeURIComponent(n+ck))).replace(/[^a-z0-9]/gi,'')}
 
@@ -729,29 +752,20 @@ function renderPregPanel(n,ck,id){
   if(!s.pregoneros)s.pregoneros={};
   if(!s.pregoneros[ck])s.pregoneros[ck]={};
   const pregBase=PREG_BASE[n]?.[ck]||{};
-  // Build list of puestos for this commune from RAW
   const puestosList=RAW[n][ck]||[];
-  // For each puesto, get pregonero count from base OR saved custom count
-  const savedCounts=s.pregoneros[ck]._counts||{};
+  const savedCounts=(s.pregoneros[ck]._counts)||{};
   const savedData=s.pregoneros[ck];
 
-  const totalNec=Object.keys(pregBase).reduce((a,k)=>{
-    const pName=k;
-    const baseCount=pregBase[pName]||0;
-    return a+(savedCounts[pName]!==undefined?savedCounts[pName]:baseCount);
-  },0);
-  // Also count puestos not in pregBase but in commune (with 0 default)
-  const allPuestosInComm=puestosList.map(p=>p.puesto);
-
-  // Count registered
-  let totalReg=0;
+  // Total counts
+  let totalNec=0, totalReg=0;
   puestosList.forEach(p=>{
     const pName=p.puesto;
+    const baseCnt=pregBase[pName]!==undefined?pregBase[pName]:0;
+    const savedCnt=savedCounts[pName]!==undefined?savedCounts[pName]:baseCnt;
+    totalNec+=savedCnt;
     const rows=savedData[pName]||[];
     totalReg+=rows.filter(r=>r.nombre).length;
   });
-
-  // Global need overrides
   const globalNec=savedData._global_nec||0;
 
   let html=`<div class="preg-panel">
@@ -759,52 +773,64 @@ function renderPregPanel(n,ck,id){
       <div class="count-badge"><span class="lbl">📢 Pregoneros registrados:</span><span class="val" style="color:var(--preg)">${totalReg}</span></div>
       <div class="count-badge">
         <span class="lbl">🎯 Pregoneros necesarios:</span>
-        <input class="count-inp" type="number" min="0" value="${globalNec||totalNec}" 
-          onchange="savePregCount('${n}','${ck.replace(/'/g,"\\'")}','${id}',this.value)" 
-          title="Edita el número total necesario">
+        <input class="count-inp" type="number" min="0" value="${globalNec||totalNec}"
+          onchange="savePregCount('${n}','${ck.replace(/'/g,"\'")}','${id}',this.value)">
       </div>
     </div>`;
 
   puestosList.forEach(p=>{
     const pName=p.puesto;
-    const baseCnt=pregBase[pName]!==undefined?pregBase[pName]:(savedCounts[pName]||0);
+    const baseCnt=pregBase[pName]!==undefined?pregBase[pName]:0;
     const savedCnt=savedCounts[pName]!==undefined?savedCounts[pName]:baseCnt;
     const rows=savedData[pName]||[];
-    // Ensure rows has enough entries
-    while(rows.length<Math.max(savedCnt,1)&&rows.length<savedCnt){rows.push({nombre:'',cedula:'',responsable:'',telefono:''});}
+    while(rows.length<savedCnt){rows.push({nombre:'',cedula:'',responsable:'',telefono:''});}
     const regCnt=rows.filter(r=>r.nombre).length;
+    const testReg=getTestigos(n,ck,pName).filter(t=>t.nombre).length;
     const pKey=encodeURIComponent(pName);
+    const ppid=`${id}-pp-${btoa(pKey).replace(/=/g,'')}`;
+    const coordPuesto=(s.puestos||{})[pk(p)]||{};
 
     html+=`<div class="puesto-preg">
-      <div class="pp-hd">
-        <span class="pp-nm">${pName}</span>
-        <span class="pp-cnt">
-          ${regCnt}/${savedCnt} pregoneros ·
-          Campos: <input class="count-inp" style="width:40px" type="number" min="0" value="${savedCnt}"
-            onchange="setPregCount('${n}','${ck.replace(/'/g,"\\'")}','${id}','${pKey}',this.value)">
-        </span>
+      <div class="pp-hd" onclick="togglePP('${ppid}')">
+        <span class="pp-nm" title="${pName}">${pName}</span>
+        <div class="pp-right">
+          <div class="pp-pills">
+            ${coordPuesto.coord?`<span class="pp-pill" style="color:var(--blue);border-color:rgba(74,158,255,.3)">👤 ${coordPuesto.coord}</span>`:''}
+            <span class="pp-pill ${regCnt>0?'ok':''}">📢 ${regCnt}/${savedCnt}</span>
+            ${testReg>0?`<span class="pp-pill test">🧾 ${testReg}</span>`:''}
+          </div>
+          <span class="pp-chev" id="${ppid}-chev">▾</span>
+        </div>
       </div>
-      <div class="pp-body" id="${id}-pp-${btoa(pKey).replace(/=/g,'')}">
-        ${buildPregRows(n,ck,pName,rows,savedCnt,id,pKey)}
-      </div>
-      <div style="padding:0 12px 8px">
+      <div class="pp-body" id="${ppid}">
+        <div class="pp-campos-row">
+          <label>Nº de campos de pregonero:</label>
+          <input class="count-inp" style="width:50px" type="number" min="0" value="${savedCnt}"
+            onchange="setPregCount('${n}','${ck.replace(/'/g,"\'")}','${id}','${pKey}',this.value)"
+            onclick="event.stopPropagation()">
+          <span style="font-size:9px;color:var(--t3)">${regCnt} registrados de ${savedCnt}</span>
+        </div>
+        <div id="${ppid}-rows">
+          ${buildPregRows(n,ck,pName,rows,savedCnt,id,pKey)}
+        </div>
         <div class="test-section">
-          <h5>🧾 Testigos electorales <span style="color:var(--t3);font-weight:400">(${getTestigos(n,ck,pName).filter(t=>t.nombre).length} registrados)</span></h5>
+          <h5>🧾 Testigos electorales <span style="color:var(--t3);font-weight:400">(${testReg} registrados)</span></h5>
           <div id="${id}-test-${btoa(pKey).replace(/=/g,'')}">
             ${buildTestRows(n,ck,pName,id,pKey)}
           </div>
-          <button class="add-btn" onclick="addTestigo('${n}','${ck.replace(/'/g,"\\'")}','${pKey}','${id}')">+ Agregar testigo</button>
+          <button class="add-btn" onclick="addTestigo('${n}','${ck.replace(/'/g,"\'")}','${pKey}','${id}')">+ Agregar testigo</button>
         </div>
       </div>
     </div>`;
   });
 
-  html+=`<div style="margin-top:8px;display:flex;justify-content:flex-end">
-    <button class="save-btn" onclick="saveAllPreg('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar todo</button>
+  html+=`<div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px">
+    <button class="save-btn" onclick="saveAllPreg('${n}','${ck.replace(/'/g,"\'")}','${id}')">💾 Guardar todo</button>
     <span class="saved-ok" id="${id}-preg-ok">✓ Guardado</span>
   </div></div>`;
   pane.innerHTML=html;
 }
+
 
 function buildPregRows(n,ck,pName,rows,count,id,pKey){
   let html='';
