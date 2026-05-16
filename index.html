@@ -131,27 +131,35 @@ table.pt tr:hover td{background:rgba(255,255,255,.012)}
 .del-btn:hover{color:var(--red)}
 /* MOVILIDAD */
 .mov-panel{padding:14px 16px}
-.mov-panel h4{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--t3);margin-bottom:14px}
-.mov-needs-row{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:10px 14px;align-items:center}
-.mov-need{display:flex;align-items:center;gap:8px;font-size:11px}
-.mov-need .lbl{color:var(--t2)}.mov-need b{font-weight:700}
-.mov-need.mo b{color:var(--moto)}.mov-need.ca b{color:var(--car)}
-.mov-count{font-size:10px;color:var(--t3);margin-left:4px}
-.mov-vehicles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.mv-col{display:flex;flex-direction:column;gap:8px}
-.mv-col-hd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
-.mo-hd{color:var(--moto)}.ca-hd{color:var(--car)}
-.mv-card{border-radius:var(--r);padding:10px 12px;border:1px solid}
-.mv-card.mo{background:rgba(255,119,51,.06);border-color:rgba(255,119,51,.22)}
-.mv-card.ca{background:rgba(58,143,255,.06);border-color:rgba(58,143,255,.22)}
-.mv-card-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.mv-card-row:last-child{margin-bottom:0}
-.mv-inp{flex:1;background:var(--bg);border:1px solid var(--b2);border-radius:5px;padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;outline:none}
-.mo .mv-inp:focus{border-color:var(--moto)}.ca .mv-inp:focus{border-color:var(--car)}
-.mv-add{background:none;border:1px dashed var(--b2);border-radius:5px;color:var(--t2);font-size:10px;padding:4px 10px;cursor:pointer;font-family:inherit;transition:all .12s;width:100%;text-align:left;margin-top:4px}
-.mo .mv-add:hover{border-color:var(--moto);color:var(--moto)}
-.ca .mv-add:hover{border-color:var(--car);color:var(--car)}
-.mv-save-all{background:var(--gold);border:none;border-radius:6px;padding:6px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:#000;transition:opacity .12s;margin-top:12px}
+.mov-totals-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:10px 14px;align-items:center}
+.mov-total{display:flex;align-items:center;gap:8px;font-size:11px}
+.mov-total .lbl{color:var(--t2);font-size:10px}
+.mov-total .tot-val{font-weight:700;font-size:14px}
+.mov-total.mo .tot-val{color:var(--moto)}.mov-total.ca .tot-val{color:var(--car)}
+.mov-total .sep{color:var(--t3);font-size:10px}
+.mov-total .nec-inp{background:var(--bg);border:1px solid var(--b2);border-radius:5px;padding:3px 7px;color:var(--t1);font-size:12px;font-family:inherit;width:55px;outline:none;text-align:center;font-weight:700}
+.mov-total.mo .nec-inp:focus{border-color:var(--moto)}.mov-total.ca .nec-inp:focus{border-color:var(--car)}
+/* Responsables */
+.resp-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.resp-card{background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);overflow:hidden}
+.resp-hd{display:flex;align-items:center;padding:8px 12px;gap:8px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--b1)}
+.resp-num{font-size:9px;font-weight:700;color:var(--t3);min-width:20px}
+.resp-name-inp{flex:1;background:var(--bg);border:1px solid var(--b2);border-radius:5px;padding:5px 8px;color:var(--t1);font-size:12px;font-family:inherit;outline:none;font-weight:600}
+.resp-name-inp:focus{border-color:var(--gold)}
+.resp-phone-inp{background:var(--bg);border:1px solid var(--b2);border-radius:5px;padding:5px 8px;color:var(--t1);font-size:12px;font-family:inherit;outline:none;width:140px}
+.resp-phone-inp:focus{border-color:var(--gold)}
+.resp-body{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px}
+.resp-veh{border-radius:6px;padding:8px 10px;border:1px solid;display:flex;align-items:center;gap:6px}
+.resp-veh.mo{background:rgba(255,119,51,.06);border-color:rgba(255,119,51,.22)}
+.resp-veh.ca{background:rgba(58,143,255,.06);border-color:rgba(58,143,255,.22)}
+.resp-veh-icon{font-size:14px}
+.resp-veh-lbl{font-size:9px;color:var(--t2);flex:1}
+.resp-veh-inp{background:var(--bg);border:1px solid var(--b2);border-radius:5px;padding:4px 7px;color:var(--t1);font-size:13px;font-family:inherit;font-weight:700;width:60px;text-align:center;outline:none}
+.resp-veh.mo .resp-veh-inp:focus{border-color:var(--moto)}
+.resp-veh.ca .resp-veh-inp:focus{border-color:var(--car)}
+.resp-add-btn{background:none;border:1px dashed var(--b2);border-radius:var(--r);color:var(--t2);font-size:11px;padding:8px 14px;cursor:pointer;font-family:inherit;transition:all .12s;width:100%;text-align:center;margin-bottom:10px}
+.resp-add-btn:hover{border-color:var(--gold);color:var(--gold)}
+.mv-save-all{background:var(--gold);border:none;border-radius:6px;padding:7px 18px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:#000;transition:opacity .12s}
 .mv-save-all:hover{opacity:.85}
 .mv-ok{font-size:9px;color:var(--green);margin-left:8px;display:none}.mv-ok.show{display:inline}
 /* MODAL */
@@ -480,11 +488,11 @@ const MOV_PRELOAD={"MEDELLIN":{"01COMUNA 1 POPULAR":{"motos_nec":50,"carros_nec"
       if(!s.movilidad)s.movilidad={};
       // Only preload if this zona has NO movilidad data yet (don't overwrite user edits)
       if(!s.movilidad[ck]||(!s.movilidad[ck].motos?.length&&!s.movilidad[ck].carros?.length&&!s.movilidad[ck].motos_nec&&!s.movilidad[ck].carros_nec)){
+        const respNombre=mov.motos&&mov.motos[0]?mov.motos[0].nombre:'';
         s.movilidad[ck]={
           motos_nec: mov.motos_nec||0,
           carros_nec: mov.carros_nec||0,
-          motos: mov.motos||[],
-          carros: mov.carros||[]
+          responsables: respNombre?[{nombre:respNombre,telefono:'',motos:mov.motos_nec||0,carros:mov.carros_nec||0}]:[]
         };
         changed=true;
       }
@@ -564,7 +572,8 @@ function renderCCs(n){
     const totalPregReg=Object.values(savedPreg).reduce((a,rows)=>a+(Array.isArray(rows)?rows.filter(r=>r.nombre).length:0),0);
     // Movilidad counts
     const mov=s.movilidad?.[ck]||{};
-    const motoList=mov.motos||[];const carList=mov.carros||[];
+    const resps=(mov.responsables)||[];
+    const motoList=resps.filter(r=>r.motos>0);const carList=resps.filter(r=>r.carros>0);
     card.innerHTML=`
       <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g,"\\'").replace(/\\/g,'\\\\')}')">
         <div>
@@ -579,8 +588,8 @@ function renderCCs(n){
         <div class="cc-r">
           <div class="cc-st"><div class="v">${puestos.length}</div><div class="l">puestos</div></div>
           <div class="cc-st"><div class="v" style="color:var(--preg)">${totalPregReg}/${totalPregNec}</div><div class="l">pregoneros</div></div>
-          <div class="cc-st"><div class="v" style="color:var(--moto)">${motoList.filter(m=>m.nombre).length}</div><div class="l">motos</div></div>
-          <div class="cc-st"><div class="v" style="color:var(--car)">${carList.filter(c=>c.nombre).length}</div><div class="l">carros</div></div>
+          <div class="cc-st"><div class="v" style="color:var(--moto)">${resps.reduce((a,r)=>a+(parseInt(r.motos)||0),0)}</div><div class="l">motos</div></div>
+          <div class="cc-st"><div class="v" style="color:var(--car)">${resps.reduce((a,r)=>a+(parseInt(r.carros)||0),0)}</div><div class="l">carros</div></div>
           <div class="chev${isOpen?' op':''}">▾</div>
         </div>
       </div>
@@ -933,80 +942,120 @@ function delTestigo(n,ck,pKey,idx,id){
 function renderMovPanel(n,ck,id){
   const pane=document.getElementById(id+'-mov');
   const s=gs(n);
-  if(!s.movilidad)s.movilidad={};if(!s.movilidad[ck])s.movilidad[ck]={motos:[],carros:[]};
+  if(!s.movilidad)s.movilidad={};
+  if(!s.movilidad[ck])s.movilidad[ck]={responsables:[],motos_nec:0,carros_nec:0};
   const mov=s.movilidad[ck];
-  if(!mov.motos)mov.motos=[];if(!mov.carros)mov.carros=[];
-  const motos=mov.motos;const carros=mov.carros;
-  const motosNec=mov.motos_nec||0;const carrosNec=mov.carros_nec||0;
-  const motosReg=motos.filter(m=>m.nombre).length;
-  const carrosReg=carros.filter(c=>c.nombre).length;
 
-  const buildVehicleCards=(list,tipo,color)=>list.map((v,i)=>`
-    <div class="mv-card ${tipo}" style="margin-bottom:8px">
-      <div class="mv-card-row">
-        <span style="font-size:9px;color:${color};font-weight:700;min-width:18px">#${i+1}</span>
-        <input class="mv-inp" type="text" placeholder="Nombre del responsable" value="${v.nombre||''}"
-          onchange="updateVehicle('${n}','${ck.replace(/'/g,"\\'")}','${tipo}s',${i},'nombre',this.value)">
-        <button class="del-btn" onclick="delVehicle('${n}','${ck.replace(/'/g,"\\'")}','${tipo}s',${i},'${id}')">×</button>
-      </div>
-      <div class="mv-card-row">
-        <span style="min-width:18px"></span>
-        <input class="mv-inp" type="text" placeholder="Teléfono / WhatsApp" value="${v.telefono||''}"
-          onchange="updateVehicle('${n}','${ck.replace(/'/g,"\\'")}','${tipo}s',${i},'telefono',this.value)">
-      </div>
-    </div>`).join('');
+  // Migrate old format (motos/carros arrays) to new responsables format
+  if(!mov.responsables){
+    const oldMotos=mov.motos||[];const oldCarros=mov.carros||[];
+    const maxLen=Math.max(oldMotos.length,oldCarros.length);
+    mov.responsables=[];
+    for(let i=0;i<maxLen;i++){
+      const m=oldMotos[i]||{};const c=oldCarros[i]||{};
+      mov.responsables.push({
+        nombre:m.nombre||c.nombre||'',
+        telefono:m.telefono||c.telefono||'',
+        motos:m.nombre?1:0,
+        carros:c.nombre?1:0
+      });
+    }
+    delete mov.motos;delete mov.carros;
+  }
+
+  const resps=mov.responsables;
+  const totalMotosReg=resps.reduce((a,r)=>a+(parseInt(r.motos)||0),0);
+  const totalCarrosReg=resps.reduce((a,r)=>a+(parseInt(r.carros)||0),0);
+  const motosNec=mov.motos_nec||0;
+  const carrosNec=mov.carros_nec||0;
+
+  function buildRespCards(){
+    if(!resps.length) return '<div style="font-size:11px;color:var(--t3);padding:6px 0;text-align:center">Sin responsables aún</div>';
+    return resps.map((r,i)=>`
+      <div class="resp-card" id="${id}-resp-${i}">
+        <div class="resp-hd">
+          <span class="resp-num">#${i+1}</span>
+          <input class="resp-name-inp" type="text" placeholder="Nombre del responsable" value="${r.nombre||''}"
+            onchange="updateResp('${n}','${ck.replace(/'/g,"\'")}',${i},'nombre',this.value,'${id}')">
+          <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${r.telefono||''}"
+            onchange="updateResp('${n}','${ck.replace(/'/g,"\'")}',${i},'telefono',this.value,'${id}')">
+          <button class="del-btn" onclick="delResp('${n}','${ck.replace(/'/g,"\'")}',${i},'${id}')">×</button>
+        </div>
+        <div class="resp-body">
+          <div class="resp-veh mo">
+            <span class="resp-veh-icon">🏍</span>
+            <span class="resp-veh-lbl">Motos</span>
+            <input class="resp-veh-inp" type="number" min="0" value="${r.motos||0}"
+              onchange="updateResp('${n}','${ck.replace(/'/g,"\'")}',${i},'motos',this.value,'${id}')">
+          </div>
+          <div class="resp-veh ca">
+            <span class="resp-veh-icon">🚗</span>
+            <span class="resp-veh-lbl">Carros</span>
+            <input class="resp-veh-inp" type="number" min="0" value="${r.carros||0}"
+              onchange="updateResp('${n}','${ck.replace(/'/g,"\'")}',${i},'carros',this.value,'${id}')">
+          </div>
+        </div>
+      </div>`).join('');
+  }
 
   pane.innerHTML=`<div class="mov-panel">
-    <div class="mov-needs-row">
-      <div class="mov-need mo">🏍 <b>Motos:</b> <span class="mov-count">${motosReg} registradas /</span>
-        necesarias: <input class="count-inp" type="number" min="0" value="${motosNec}"
-          onchange="saveMovNec('${n}','${ck.replace(/'/g,"\\'")}','motos_nec',this.value,'${id}')">
+    <div class="mov-totals-row">
+      <div class="mov-total mo">
+        <span class="lbl">🏍 Motos registradas:</span>
+        <span class="tot-val" id="${id}-tot-mo">${totalMotosReg}</span>
+        <span class="sep">/ necesarias:</span>
+        <input class="nec-inp" type="number" min="0" value="${motosNec}"
+          onchange="saveMovNec('${n}','${ck.replace(/'/g,"\'")}','motos_nec',this.value,'${id}')">
       </div>
-      <div class="mov-need ca">🚗 <b>Carros:</b> <span class="mov-count">${carrosReg} registrados /</span>
-        necesarios: <input class="count-inp" type="number" min="0" value="${carrosNec}"
-          onchange="saveMovNec('${n}','${ck.replace(/'/g,"\\'")}','carros_nec',this.value,'${id}')">
-      </div>
-    </div>
-    <div class="mov-vehicles">
-      <div class="mv-col mo">
-        <div class="mv-col-hd mo-hd">🏍 Motos <span style="color:var(--t3);font-size:9px">${motosReg}/${motosNec||'?'}</span></div>
-        <div id="${id}-motos">${buildVehicleCards(motos,'moto','var(--moto)')}</div>
-        <button class="mv-add mo" onclick="addVehicle('${n}','${ck.replace(/'/g,"\\'")}','motos','${id}')">+ Agregar moto</button>
-      </div>
-      <div class="mv-col ca">
-        <div class="mv-col-hd ca-hd">🚗 Carros <span style="color:var(--t3);font-size:9px">${carrosReg}/${carrosNec||'?'}</span></div>
-        <div id="${id}-carros">${buildVehicleCards(carros,'carro','var(--car)')}</div>
-        <button class="mv-add ca" onclick="addVehicle('${n}','${ck.replace(/'/g,"\\'")}','carros','${id}')">+ Agregar carro</button>
+      <div class="mov-total ca">
+        <span class="lbl">🚗 Carros registrados:</span>
+        <span class="tot-val" id="${id}-tot-ca">${totalCarrosReg}</span>
+        <span class="sep">/ necesarios:</span>
+        <input class="nec-inp" type="number" min="0" value="${carrosNec}"
+          onchange="saveMovNec('${n}','${ck.replace(/'/g,"\'")}','carros_nec',this.value,'${id}')">
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
-      <button class="mv-save-all" onclick="saveMovAll('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar movilidad</button>
+    <div class="resp-list" id="${id}-resp-list">
+      ${buildRespCards()}
+    </div>
+    <button class="resp-add-btn" onclick="addResp('${n}','${ck.replace(/'/g,"\'")}','${id}')">+ Agregar responsable de movilidad</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="mv-save-all" onclick="saveMovAll('${n}','${ck.replace(/'/g,"\'")}','${id}')">💾 Guardar movilidad</button>
       <span class="mv-ok" id="${id}-mov-ok">✓ Guardado</span>
     </div>
   </div>`;
 }
 
-function updateVehicle(n,ck,tipo,idx,field,val){
-  const s=gs(n);if(!s.movilidad)s.movilidad={};if(!s.movilidad[ck])s.movilidad[ck]={motos:[],carros:[]};
-  if(!s.movilidad[ck][tipo])s.movilidad[ck][tipo]=[];
-  if(!s.movilidad[ck][tipo][idx])s.movilidad[ck][tipo][idx]={nombre:'',telefono:''};
-  s.movilidad[ck][tipo][idx][field]=val;saveSt();
+function updateResp(n,ck,idx,field,val,id){
+  const s=gs(n);
+  if(!s.movilidad[ck].responsables[idx])return;
+  s.movilidad[ck].responsables[idx][field]=field==='motos'||field==='carros'?parseInt(val)||0:val;
+  saveSt();
+  // Update totals live
+  const resps=s.movilidad[ck].responsables;
+  const mo=resps.reduce((a,r)=>a+(parseInt(r.motos)||0),0);
+  const ca=resps.reduce((a,r)=>a+(parseInt(r.carros)||0),0);
+  const moEl=document.getElementById(id+'-tot-mo');if(moEl)moEl.textContent=mo;
+  const caEl=document.getElementById(id+'-tot-ca');if(caEl)caEl.textContent=ca;
 }
 
-function addVehicle(n,ck,tipo,id){
-  const s=gs(n);if(!s.movilidad)s.movilidad={};if(!s.movilidad[ck])s.movilidad[ck]={motos:[],carros:[]};
-  if(!s.movilidad[ck][tipo])s.movilidad[ck][tipo]=[];
-  s.movilidad[ck][tipo].push({nombre:'',telefono:''});saveSt();
+function addResp(n,ck,id){
+  const s=gs(n);
+  if(!s.movilidad[ck].responsables)s.movilidad[ck].responsables=[];
+  s.movilidad[ck].responsables.push({nombre:'',telefono:'',motos:0,carros:0});
+  saveSt();
   renderMovPanel(n,ck,id);
 }
 
-function delVehicle(n,ck,tipo,idx,id){
-  const s=gs(n);s.movilidad[ck][tipo].splice(idx,1);saveSt();
+function delResp(n,ck,idx,id){
+  const s=gs(n);
+  s.movilidad[ck].responsables.splice(idx,1);
+  saveSt();
   renderMovPanel(n,ck,id);
 }
 
 function saveMovNec(n,ck,field,val,id){
-  const s=gs(n);if(!s.movilidad)s.movilidad={};if(!s.movilidad[ck])s.movilidad[ck]={motos:[],carros:[]};
+  const s=gs(n);if(!s.movilidad)s.movilidad={};if(!s.movilidad[ck])s.movilidad[ck]={responsables:[],motos_nec:0,carros_nec:0};
   s.movilidad[ck][field]=parseInt(val)||0;saveSt();
 }
 
@@ -1015,6 +1064,7 @@ function saveMovAll(n,ck,id){
   const ok=document.getElementById(id+'-mov-ok');
   if(ok){ok.classList.add('show');setTimeout(()=>ok.classList.remove('show'),2000);}
 }
+
 
 // ═══ MODAL ═══
 let MCX=null,SEL_T='n';
@@ -1203,9 +1253,8 @@ function exportExcel(tipo, muni, ck){
     rows.push(['MOVILIDAD','','','']);
     rows.push(['Motos necesarias', mov.motos_nec||0, 'Carros necesarios', mov.carros_nec||0]);
     if(motos.length||carros.length){
-      rows.push(['Tipo','Responsable','Teléfono','']);
-      motos.forEach(m=>rows.push(['🏍 Moto', m.nombre||'', m.telefono||'','']));
-      carros.forEach(c=>rows.push(['🚗 Carro', c.nombre||'', c.telefono||'','']));
+      rows.push(['Responsable','Teléfono','Motos','Carros']);
+      respsE.forEach(r=>rows.push([r.nombre||'', r.telefono||'', r.motos||0, r.carros||0]));
     }
     rows.push([]);
 
@@ -1390,8 +1439,9 @@ function buildPrintHTML(tipo,muni,ck){
     const sc=(s.comunas||{})[comunaKey]||{};
     const pregBase=PREG_BASE[n]?.[comunaKey]||{};
     const mov=s.movilidad?.[comunaKey]||{};
-    const motos=(mov.motos||[]).filter(m=>m.nombre);
-    const carros=(mov.carros||[]).filter(c=>c.nombre);
+    const respsE=(mov.responsables||[]);
+    const motos=respsE.filter(r=>r.nombre&&r.motos>0);
+    const carros=respsE.filter(r=>r.nombre&&r.carros>0);
     const motosNec=mov.motos_nec||0;const carrosNec=mov.carros_nec||0;
 
     let puestosHTML='';
@@ -1445,8 +1495,7 @@ function buildPrintHTML(tipo,muni,ck){
     const movHTML=(motos.length||carros.length)?`
       <div style="margin-top:8px;padding:8px;background:#fff8e6;border:1px solid #f5c842;border-radius:6px;font-size:11px">
         <b>Movilidad:</b>
-        ${motos.length?`🏍 Motos (${motos.length}/${motosNec}): ${motos.map(m=>m.nombre+(m.telefono?' '+m.telefono:'')).join(' · ')}`:''}
-        ${carros.length?`&nbsp;&nbsp;🚗 Carros (${carros.length}/${carrosNec}): ${carros.map(c=>c.nombre+(c.telefono?' '+c.telefono:'')).join(' · ')}`:''}
+        ${respsP.length?`<table style="font-size:10px;border-collapse:collapse;width:100%;margin-top:4px"><tr style="background:#f0f0f0"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Responsable</th><th style="padding:3px 6px;border:1px solid #ddd">Teléfono</th><th style="padding:3px 6px;border:1px solid #ddd">🏍</th><th style="padding:3px 6px;border:1px solid #ddd">🚗</th></tr>${respsP.map(r=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${r.nombre||''}</td><td style="padding:3px 6px;border:1px solid #ddd">${r.telefono||''}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.motos||0}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.carros||0}</td></tr>`).join('')}</table>`:'Sin responsables registrados'}
       </div>`:'';
 
     return`<div style="margin-bottom:24px;page-break-inside:avoid">
