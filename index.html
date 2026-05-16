@@ -1267,17 +1267,7 @@ function exportDirectorioPDF(){
   win.document.close();win.focus();setTimeout(()=>win.print(),600);
 }
 
-// Show loading state
-document.getElementById('ct').innerHTML = '<div class="empty"><div class="empty-ico">⏳</div><h3 style="color:var(--t1);font-size:16px;margin-bottom:6px">Conectando con Firebase...</h3><p style="font-size:12px">Cargando datos compartidos</p></div>';
-
-initState().then(() => {
-  _innerPreload();
-  buildSB();
-  renderOV();
-  buildExportMenu();
-  buildExcelMenu();
-  startRealtimeSync();
-});
+// Firebase init happens after login - see doLogin()
 
 function toggleExcelMenu(){
   document.getElementById('excel-menu').classList.toggle('show');
@@ -1444,6 +1434,21 @@ function doLogin(){
     document.getElementById('user-label').textContent=USERS[u].nombre;
     sessionStorage.setItem('amva_user',u);
     err.classList.remove('show');
+    // Connect Firebase after login
+    if(!_initialized){
+      document.getElementById('ct').innerHTML='<div class="empty"><div class="empty-ico">⏳</div><h3 style="color:var(--t1);font-size:16px;margin-bottom:6px">Conectando...</h3></div>';
+      initState().then(()=>{
+        _innerPreload();
+        buildSB();
+        renderOV();
+        buildExportMenu();
+        buildExcelMenu();
+        startRealtimeSync();
+      });
+    } else {
+      buildSB();
+      renderOV();
+    }
   } else {
     err.classList.add('show');
     document.getElementById('l-pass').value='';
@@ -1465,6 +1470,16 @@ function doLogout(){
   if(u&&USERS[u]){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('user-label').textContent=USERS[u].nombre;
+    // Already logged in - init Firebase
+    document.getElementById('ct').innerHTML='<div class="empty"><div class="empty-ico">⏳</div><h3 style="color:var(--t1);font-size:16px;margin-bottom:6px">Conectando con Firebase...</h3><p style="font-size:12px">Cargando datos compartidos</p></div>';
+    initState().then(()=>{
+      _innerPreload();
+      buildSB();
+      renderOV();
+      buildExportMenu();
+      buildExcelMenu();
+      startRealtimeSync();
+    });
   }
 })();
 
