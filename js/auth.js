@@ -53,7 +53,8 @@ async function doLogin() {
 }
 
 function doLogout() {
-  if (typeof _unsubscribeSnapshot === 'function') _unsubscribeSnapshot();
+  _unsubscribers.forEach(unsub => typeof unsub === 'function' && unsub());
+  _unsubscribers = [];
   sessionStorage.removeItem('amva_user');
   CURRENT_USER = null;
   document.getElementById('login-screen').style.display = 'flex';

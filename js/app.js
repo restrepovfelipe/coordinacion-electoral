@@ -63,33 +63,15 @@ function _innerPreload() {
 function pk(p) { return `${p.dd}_${p.mm}_${p.zz}_${p.pp}`; }
 function cid(n, ck) { return 'cc_' + btoa(unescape(encodeURIComponent(n + ck))).replace(/[^a-z0-9]/gi, ''); }
 
-// Flatten nested object into Firestore dot-notation paths (skips empty objects, keeps arrays as-is)
-function flattenForFirestore(obj, prefix, result) {
-  prefix = prefix || ''; result = result || {};
-  for (const key of Object.keys(obj)) {
-    const path = prefix ? prefix + '.' + key : key;
-    const val = obj[key];
-    if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0) {
-      flattenForFirestore(val, path, result);
-    } else if (val !== null && val !== undefined) {
-      result[path] = val;
+// Push full in-memory state to Firestore on startup (migrates localStorage data)
+async function pushAllToFirestore() {
+  const munis = AMVA.filter(n => RAW[n]);
+  for (const n of munis) {
+    try {
+      await db.collection(FS_COL).doc(n).set(JSON.parse(JSON.stringify(gs(n))));
+    } catch (e) {
+      console.error('Migration push error [' + n + ']:', e);
     }
-  }
-  return result;
-}
-
-// Push the full in-memory ST to Firestore (migration + preload sync)
-async function pushSTToFirestore() {
-  try {
-    const flat = flattenForFirestore(ST);
-    const entries = Object.entries(flat);
-    if (!entries.length) return;
-    for (let i = 0; i < entries.length; i += 400) {
-      const chunk = Object.fromEntries(entries.slice(i, i + 400));
-      await db.collection(FS_COL).doc(FS_DOC).set(chunk, { merge: true });
-    }
-  } catch (e) {
-    console.error('Migration push error:', e);
   }
 }
 
@@ -353,12 +335,7 @@ async function savePCard(n, k, ck, pcid) {
   const tag = document.getElementById(pcid + '-tag').value;
   s.puestos[k] = { ...((s.puestos[k]) || {}), coord, phone, tag };
   saveLocalSt();
-  // Write only the changed puesto fields
-  await writeFields({
-    [`${n}.puestos.${k}.coord`]: coord,
-    [`${n}.puestos.${k}.phone`]: phone,
-    [`${n}.puestos.${k}.tag`]: tag
-  });
+  await writeMuni(n);
   const tg = TAGS[tag] || TAGS.n;
   const tagBtn = document.querySelector(`#${pcid} .tbtn`);
   if (tagBtn) { tagBtn.className = tg.cls + ' tbtn'; tagBtn.textContent = tg.lbl; }
@@ -523,7 +500,7 @@ function updatePregField(n, ck, pKey, idx, field, val) {
   while (s.pregoneros[ck][pName].length <= idx) s.pregoneros[ck][pName].push({ nombre: '', cedula: '', responsable: '', telefono: '' });
   s.pregoneros[ck][pName][idx][field] = val;
   saveLocalSt();
-  writeFieldDebounced(`${n}.pregoneros.${ck}`, s.pregoneros[ck], 700);
+  writeDebounced(n, 700);
 }
 
 function setPregCount(n, ck, id, pKey, val) {
@@ -534,7 +511,7 @@ function setPregCount(n, ck, id, pKey, val) {
   if (!s.pregoneros[ck][pName]) s.pregoneros[ck][pName] = [];
   while (s.pregoneros[ck][pName].length < cnt) s.pregoneros[ck][pName].push({ nombre: '', cedula: '', responsable: '', telefono: '' });
   saveLocalSt();
-  writeFieldDebounced(`${n}.pregoneros.${ck}._counts.${pName}`, cnt);
+  writeDebounced(n, 400);
   const ppid = `${id}-pp-${btoa(pKey).replace(/=/g, '')}`;
   const rowsEl = document.getElementById(ppid + '-rows');
   if (rowsEl) rowsEl.innerHTML = buildPregRows(n, ck, pName, s.pregoneros[ck][pName], cnt, id, pKey);
@@ -544,14 +521,13 @@ function savePregCount(n, ck, id, val) {
   const s = gs(n); const cnt = parseInt(val) || 0;
   if (!s.pregoneros) s.pregoneros = {}; if (!s.pregoneros[ck]) s.pregoneros[ck] = {};
   s.pregoneros[ck]._global_nec = cnt; saveLocalSt();
-  writeFieldDebounced(`${n}.pregoneros.${ck}._global_nec`, cnt);
+  writeDebounced(n, 400);
 }
 
 async function saveAllPreg(n, ck, id) {
   const s = gs(n);
   saveLocalSt();
-  // Write entire pregoneros[ck] as a single field update
-  await writeField(`${n}.pregoneros.${ck}`, s.pregoneros?.[ck] || {});
+  await writeMuni(n);
   const ok = document.getElementById(id + '-preg-ok');
   if (ok) { ok.classList.add('show'); setTimeout(() => ok.classList.remove('show'), 2000); }
   renderCCs(n);
@@ -562,7 +538,7 @@ function addTestigo(n, ck, pKey, id) {
   if (!s.testigos) s.testigos = {}; if (!s.testigos[ck]) s.testigos[ck] = {};
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
   s.testigos[ck][pName].push({ nombre: '', telefono: '' }); saveLocalSt();
-  writeField(`${n}.testigos.${ck}`, s.testigos[ck]);
+  writeMuni(n);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
   if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
 }
@@ -573,13 +549,13 @@ function updateTestigo(n, ck, pKey, idx, field, val) {
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
   if (!s.testigos[ck][pName][idx]) s.testigos[ck][pName][idx] = { nombre: '', telefono: '' };
   s.testigos[ck][pName][idx][field] = val; saveLocalSt();
-  writeFieldDebounced(`${n}.testigos.${ck}`, s.testigos[ck]);
+  writeDebounced(n);
 }
 
 function delTestigo(n, ck, pKey, idx, id) {
   const s = gs(n); const pName = decodeURIComponent(pKey);
   s.testigos[ck][pName].splice(idx, 1); saveLocalSt();
-  writeField(`${n}.testigos.${ck}`, s.testigos[ck]);
+  writeMuni(n);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
   if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
 }
@@ -660,7 +636,7 @@ function updateResp(n, ck, idx, field, val, id) {
   if (!s.movilidad[ck].responsables[idx]) return;
   s.movilidad[ck].responsables[idx][field] = field === 'motos' || field === 'carros' ? parseInt(val) || 0 : val;
   saveLocalSt();
-  writeFieldDebounced(`${n}.movilidad.${ck}`, s.movilidad[ck], 700);
+  writeDebounced(n, 700);
   const resps = s.movilidad[ck].responsables;
   const mo = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const ca = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
@@ -672,24 +648,24 @@ async function addResp(n, ck, id) {
   if (!s.movilidad[ck].responsables) s.movilidad[ck].responsables = [];
   s.movilidad[ck].responsables.push({ nombre: '', telefono: '', motos: 0, carros: 0 });
   saveLocalSt();
-  await writeField(`${n}.movilidad.${ck}`, s.movilidad[ck]);
+  await writeMuni(n);
   renderMovPanel(n, ck, id);
 }
 async function delResp(n, ck, idx, id) {
   const s = gs(n); s.movilidad[ck].responsables.splice(idx, 1);
   saveLocalSt();
-  await writeField(`${n}.movilidad.${ck}`, s.movilidad[ck]);
+  await writeMuni(n);
   renderMovPanel(n, ck, id);
 }
 function saveMovNec(n, ck, field, val) {
   const s = gs(n); if (!s.movilidad) s.movilidad = {}; if (!s.movilidad[ck]) s.movilidad[ck] = { responsables: [], motos_nec: 0, carros_nec: 0 };
   s.movilidad[ck][field] = parseInt(val) || 0; saveLocalSt();
-  writeFieldDebounced(`${n}.movilidad.${ck}`, s.movilidad[ck], 500);
+  writeDebounced(n, 500);
 }
 async function saveMovAll(n, ck, id) {
   const s = gs(n);
   saveLocalSt();
-  await writeField(`${n}.movilidad.${ck}`, s.movilidad?.[ck] || {});
+  await writeMuni(n);
   renderCCs(n);
   const ok = document.getElementById(id + '-mov-ok');
   if (ok) { ok.classList.add('show'); setTimeout(() => ok.classList.remove('show'), 2000); }
@@ -719,25 +695,20 @@ async function saveM() {
   if (MCX.type === 'muni') {
     s.coord = coord; s.phone = phone;
     saveLocalSt();
-    await writeFields({ [`${MCX.n}.coord`]: coord, [`${MCX.n}.phone`]: phone });
+    await writeMuni(MCX.n);
   } else if (MCX.type === 'cc') {
     if (!s.comunas) s.comunas = {}; s.comunas[MCX.ck] = { coord, phone };
     saveLocalSt();
-    await writeFields({ [`${MCX.n}.comunas.${MCX.ck}.coord`]: coord, [`${MCX.n}.comunas.${MCX.ck}.phone`]: phone });
+    await writeMuni(MCX.n);
   } else if (MCX.type === 'p') {
     if (!s.puestos) s.puestos = {}; s.puestos[MCX.k] = { coord, phone, tag: SEL_T, notes };
     saveLocalSt();
-    await writeFields({
-      [`${MCX.n}.puestos.${MCX.k}.coord`]: coord,
-      [`${MCX.n}.puestos.${MCX.k}.phone`]: phone,
-      [`${MCX.n}.puestos.${MCX.k}.tag`]: SEL_T,
-      [`${MCX.n}.puestos.${MCX.k}.notes`]: notes
-    });
+    await writeMuni(MCX.n);
   } else if (MCX.type === 'zona') {
     if (!s.zonas) s.zonas = {};
     s.zonas[MCX.zonaNombre] = { coord, phone };
     saveLocalSt();
-    await writeFields({ [`${MCX.n}.zonas.${MCX.zonaNombre}.coord`]: coord, [`${MCX.n}.zonas.${MCX.zonaNombre}.phone`]: phone });
+    await writeMuni(MCX.n);
   }
   if (MCX.type === 'muni') {
     const el = document.getElementById('mh-cv'); if (el) el.textContent = coord || '—'; buildSB();
@@ -839,10 +810,8 @@ async function startApp() {
   setSyncBadge('syncing', '⏳ Cargando...');
   await loadFromFirestore();
   _innerPreload();
-  // Push full merged state (localStorage + Firestore + preloads) to Firestore once per session.
-  // This migrates any data that only existed locally and syncs preloaded coordinator data.
   setSyncBadge('syncing', '⏳ Sincronizando...');
-  await pushSTToFirestore();
+  await pushAllToFirestore();
   setSyncBadge('synced', '✓ Datos sincronizados');
   setTimeout(() => setSyncBadge('', 'Sin cambios'), 3000);
   _initialized = true;

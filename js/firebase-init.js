@@ -11,4 +11,3 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 const FS_COL = 'estado';
-const FS_DOC = 'amva26v2';

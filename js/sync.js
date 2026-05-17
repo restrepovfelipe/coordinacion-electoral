@@ -21,84 +21,90 @@ function deepMerge(a, b) {
   return result;
 }
 
-// ─── FIELD-LEVEL WRITE (eliminates full-doc overwrite collisions) ───
+// ─── WRITE COUNTER ───
 let _pendingWrites = 0;
 let _syncBadgeTimer = null;
 
-async function writeField(path, value) {
+function _writeDone() {
+  _pendingWrites = Math.max(0, _pendingWrites - 1);
+  if (_pendingWrites === 0) {
+    setSyncBadge('synced', '✓ Sincronizado');
+    clearTimeout(_syncBadgeTimer);
+    _syncBadgeTimer = setTimeout(() => setSyncBadge('', 'Sin cambios'), 3000);
+  }
+}
+
+// ─── WRITE FULL MUNICIPALITY TO ITS OWN DOC ───
+// Writes gs(n) as a clean nested object to estado/{n}.
+// No dot-notation paths — avoids the Firebase set() literal-key bug.
+async function writeMuni(n) {
   _pendingWrites++;
   setSyncBadge('syncing', '🔄 Guardando...');
   try {
-    const update = {};
-    update[path] = value;
-    await db.collection(FS_COL).doc(FS_DOC).set(update, { merge: true });
-    _pendingWrites--;
-    if (_pendingWrites <= 0) {
-      _pendingWrites = 0;
-      setSyncBadge('synced', '✓ Sincronizado');
-      clearTimeout(_syncBadgeTimer);
-      _syncBadgeTimer = setTimeout(() => setSyncBadge('', 'Sin cambios'), 3000);
-    }
+    const data = JSON.parse(JSON.stringify(gs(n)));
+    await db.collection(FS_COL).doc(n).set(data);
+    _writeDone();
   } catch (e) {
     _pendingWrites = Math.max(0, _pendingWrites - 1);
-    console.error('Firestore write error:', e);
+    console.error('Firestore write error [' + n + ']:', e);
     setSyncBadge('error', '⚠ Error al guardar');
   }
 }
 
-// ─── DEBOUNCED WRITE for text inputs ───
-const _debounceTimers = {};
-function writeFieldDebounced(path, value, ms = 400) {
+// ─── DEBOUNCED WRITE (for keystroke inputs) ───
+const _muniWriteTimers = {};
+function writeDebounced(n, ms) {
   setSyncBadge('syncing', '🔄 Guardando...');
-  clearTimeout(_debounceTimers[path]);
-  _debounceTimers[path] = setTimeout(() => writeField(path, value), ms);
+  clearTimeout(_muniWriteTimers[n]);
+  _muniWriteTimers[n] = setTimeout(() => writeMuni(n), ms || 600);
 }
 
-// ─── BATCH WRITE for multiple fields atomically ───
-async function writeFields(updates) {
-  _pendingWrites++;
-  setSyncBadge('syncing', '🔄 Guardando...');
-  try {
-    await db.collection(FS_COL).doc(FS_DOC).set(updates, { merge: true });
-    _pendingWrites--;
-    if (_pendingWrites <= 0) {
-      _pendingWrites = 0;
-      setSyncBadge('synced', '✓ Sincronizado');
-      clearTimeout(_syncBadgeTimer);
-      _syncBadgeTimer = setTimeout(() => setSyncBadge('', 'Sin cambios'), 3000);
-    }
-  } catch (e) {
-    _pendingWrites = Math.max(0, _pendingWrites - 1);
-    console.error('Firestore write error:', e);
-    setSyncBadge('error', '⚠ Error al guardar');
-  }
-}
-
-// ─── REALTIME LISTENER ───
-let _unsubscribeSnapshot = null;
-let _lastSnapshotData = null;
+// ─── REALTIME LISTENERS (one per municipality) ───
+let _unsubscribers = [];
 
 function startListener() {
-  _unsubscribeSnapshot = db.collection(FS_COL).doc(FS_DOC).onSnapshot(doc => {
-    if (!doc.exists) return;
-    const remote = doc.data();
-    _lastSnapshotData = remote;
-    ST = deepMerge(ST, remote);
-    saveLocalSt();
-    rerenderIfNotEditing();
-  }, err => {
-    console.error('Snapshot error', err);
-    setSyncBadge('error', '⚠ Error sync');
+  AMVA.filter(n => RAW[n]).forEach(n => {
+    const unsub = db.collection(FS_COL).doc(n).onSnapshot(doc => {
+      if (!doc.exists) return;
+      const remote = doc.data();
+      if (!ST[n]) ST[n] = {};
+      ST[n] = deepMerge(ST[n], remote);
+      saveLocalSt();
+      rerenderIfNotEditing();
+    }, err => {
+      console.error('Snapshot error [' + n + ']:', err);
+      setSyncBadge('error', '⚠ Error sync');
+    });
+    _unsubscribers.push(unsub);
   });
 }
 
-// Re-render active view while preserving focused input
+// ─── INITIAL LOAD ───
+async function loadFromFirestore() {
+  try {
+    const munis = AMVA.filter(n => RAW[n]);
+    const docs = await Promise.all(munis.map(n => db.collection(FS_COL).doc(n).get()));
+    let loaded = false;
+    docs.forEach((doc, i) => {
+      if (!doc.exists) return;
+      const n = munis[i];
+      if (!ST[n]) ST[n] = {};
+      ST[n] = deepMerge(ST[n], doc.data());
+      loaded = true;
+    });
+    if (loaded) saveLocalSt();
+    return loaded;
+  } catch (e) {
+    console.error('Firestore load error:', e);
+    return false;
+  }
+}
+
+// ─── RE-RENDER WITHOUT LOSING FOCUS ───
 function rerenderIfNotEditing() {
   const active = document.activeElement;
   const activeId = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') ? active.id : null;
   const activeValue = activeId ? active.value : null;
-
-  // Re-render the current municipality view if one is selected
   if (typeof CUR !== 'undefined' && CUR) {
     const otTodos = document.getElementById('ot-todos');
     if (otTodos && otTodos.classList.contains('on')) {
@@ -108,30 +114,11 @@ function rerenderIfNotEditing() {
     }
     buildSB();
   }
-
-  // Restore focus and value to the active element if it was re-mounted
   if (activeId) {
     const restored = document.getElementById(activeId);
     if (restored && restored !== active) {
       restored.value = activeValue;
       restored.focus();
     }
-  }
-}
-
-// ─── INITIAL LOAD (one-shot, before listener starts) ───
-async function loadFromFirestore() {
-  try {
-    const doc = await db.collection(FS_COL).doc(FS_DOC).get();
-    if (doc.exists) {
-      const remote = doc.data();
-      ST = deepMerge(ST, remote);
-      saveLocalSt();
-      return true;
-    }
-    return false;
-  } catch (e) {
-    console.error('Firestore load error:', e);
-    return false;
   }
 }
