@@ -41,7 +41,7 @@ async function writeMuni(n) {
   _pendingWrites++;
   setSyncBadge('syncing', '🔄 Guardando...');
   try {
-    const data = JSON.parse(JSON.stringify(gs(n)));
+    const data = Object.assign(JSON.parse(JSON.stringify(gs(n))), { _v: 2 });
     await db.collection(FS_COL).doc(n).set(data);
     _writeDone();
   } catch (e) {
@@ -62,11 +62,15 @@ function writeDebounced(n, ms) {
 // ─── REALTIME LISTENERS (one per municipality) ───
 let _unsubscribers = [];
 
+// hasPendingWrites=true means this snapshot is an echo of our own in-flight write.
+// Skip re-render in that case to avoid flicker; only re-render on server-confirmed changes.
 function startListener() {
   AMVA.filter(n => RAW[n]).forEach(n => {
-    const unsub = db.collection(FS_COL).doc(n).onSnapshot(doc => {
+    const unsub = db.collection(FS_COL).doc(n).onSnapshot({ includeMetadataChanges: true }, doc => {
       if (!doc.exists) return;
-      const remote = doc.data();
+      if (doc.metadata.hasPendingWrites) return;
+      const remote = Object.assign({}, doc.data());
+      delete remote._v;
       if (!ST[n]) ST[n] = {};
       ST[n] = deepMerge(ST[n], remote);
       saveLocalSt();
@@ -80,23 +84,29 @@ function startListener() {
 }
 
 // ─── INITIAL LOAD ───
+// Returns array of municipality names that need to be pushed to Firestore
+// (missing or from old architecture — no _v:2 stamp).
 async function loadFromFirestore() {
   try {
     const munis = AMVA.filter(n => RAW[n]);
     const docs = await Promise.all(munis.map(n => db.collection(FS_COL).doc(n).get()));
-    let loaded = false;
+    const needsMigration = [];
     docs.forEach((doc, i) => {
-      if (!doc.exists) return;
       const n = munis[i];
-      if (!ST[n]) ST[n] = {};
-      ST[n] = deepMerge(ST[n], doc.data());
-      loaded = true;
+      if (doc.exists && doc.data()._v === 2) {
+        if (!ST[n]) ST[n] = {};
+        const remote = doc.data();
+        delete remote._v;
+        ST[n] = deepMerge(ST[n], remote);
+      } else {
+        needsMigration.push(n);
+      }
     });
-    if (loaded) saveLocalSt();
-    return loaded;
+    saveLocalSt();
+    return needsMigration;
   } catch (e) {
     console.error('Firestore load error:', e);
-    return false;
+    return AMVA.filter(n => RAW[n]); // on error push everything
   }
 }
 

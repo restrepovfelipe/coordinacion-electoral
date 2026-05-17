@@ -63,16 +63,15 @@ function _innerPreload() {
 function pk(p) { return `${p.dd}_${p.mm}_${p.zz}_${p.pp}`; }
 function cid(n, ck) { return 'cc_' + btoa(unescape(encodeURIComponent(n + ck))).replace(/[^a-z0-9]/gi, ''); }
 
-// Push full in-memory state to Firestore on startup (migrates localStorage data)
-async function pushAllToFirestore() {
-  const munis = AMVA.filter(n => RAW[n]);
-  for (const n of munis) {
-    try {
-      await db.collection(FS_COL).doc(n).set(JSON.parse(JSON.stringify(gs(n))));
-    } catch (e) {
-      console.error('Migration push error [' + n + ']:', e);
-    }
-  }
+// Push municipalities to Firestore in parallel. Stamps _v:2 so future loads
+// know the doc is in the correct per-municipality nested format.
+async function pushAllToFirestore(munis) {
+  munis = munis || AMVA.filter(n => RAW[n]);
+  await Promise.all(munis.map(n => {
+    const data = Object.assign(JSON.parse(JSON.stringify(gs(n))), { _v: 2 });
+    return db.collection(FS_COL).doc(n).set(data)
+      .catch(e => console.error('Push error [' + n + ']:', e));
+  }));
 }
 
 // ═══ SIDEBAR ═══
@@ -808,12 +807,18 @@ function exportDirectorioPDF() {
 async function startApp() {
   ST = loadLocalSt();
   setSyncBadge('syncing', '⏳ Cargando...');
-  await loadFromFirestore();
+  const needsMigration = await loadFromFirestore();
   _innerPreload();
-  setSyncBadge('syncing', '⏳ Sincronizando...');
-  await pushAllToFirestore();
-  setSyncBadge('synced', '✓ Datos sincronizados');
-  setTimeout(() => setSyncBadge('', 'Sin cambios'), 3000);
+  saveLocalSt();
+  if (needsMigration.length > 0) {
+    setSyncBadge('syncing', '⏳ Sincronizando...');
+    await pushAllToFirestore(needsMigration);
+    setSyncBadge('synced', '✓ Listo');
+    setTimeout(() => setSyncBadge('', 'Sin cambios'), 2000);
+  } else {
+    setSyncBadge('synced', '✓ Datos cargados');
+    setTimeout(() => setSyncBadge('', 'Sin cambios'), 2000);
+  }
   _initialized = true;
   buildSB();
   renderOV();
