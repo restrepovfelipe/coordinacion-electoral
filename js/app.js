@@ -522,7 +522,8 @@ function updatePregField(n, ck, pKey, idx, field, val) {
   if (!s.pregoneros[ck][pName]) s.pregoneros[ck][pName] = [];
   while (s.pregoneros[ck][pName].length <= idx) s.pregoneros[ck][pName].push({ nombre: '', cedula: '', responsable: '', telefono: '' });
   s.pregoneros[ck][pName][idx][field] = val;
-  saveLocalSt(); // local only while typing; full save on button
+  saveLocalSt();
+  writeFieldDebounced(`${n}.pregoneros.${ck}`, s.pregoneros[ck], 700);
 }
 
 function setPregCount(n, ck, id, pKey, val) {
@@ -659,25 +660,31 @@ function updateResp(n, ck, idx, field, val, id) {
   if (!s.movilidad[ck].responsables[idx]) return;
   s.movilidad[ck].responsables[idx][field] = field === 'motos' || field === 'carros' ? parseInt(val) || 0 : val;
   saveLocalSt();
+  writeFieldDebounced(`${n}.movilidad.${ck}`, s.movilidad[ck], 700);
   const resps = s.movilidad[ck].responsables;
   const mo = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const ca = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
   const moEl = document.getElementById(id + '-tot-mo'); if (moEl) moEl.textContent = mo;
   const caEl = document.getElementById(id + '-tot-ca'); if (caEl) caEl.textContent = ca;
 }
-function addResp(n, ck, id) {
+async function addResp(n, ck, id) {
   const s = gs(n);
   if (!s.movilidad[ck].responsables) s.movilidad[ck].responsables = [];
   s.movilidad[ck].responsables.push({ nombre: '', telefono: '', motos: 0, carros: 0 });
-  saveLocalSt(); renderMovPanel(n, ck, id);
+  saveLocalSt();
+  await writeField(`${n}.movilidad.${ck}`, s.movilidad[ck]);
+  renderMovPanel(n, ck, id);
 }
-function delResp(n, ck, idx, id) {
+async function delResp(n, ck, idx, id) {
   const s = gs(n); s.movilidad[ck].responsables.splice(idx, 1);
-  saveLocalSt(); renderMovPanel(n, ck, id);
+  saveLocalSt();
+  await writeField(`${n}.movilidad.${ck}`, s.movilidad[ck]);
+  renderMovPanel(n, ck, id);
 }
 function saveMovNec(n, ck, field, val) {
   const s = gs(n); if (!s.movilidad) s.movilidad = {}; if (!s.movilidad[ck]) s.movilidad[ck] = { responsables: [], motos_nec: 0, carros_nec: 0 };
   s.movilidad[ck][field] = parseInt(val) || 0; saveLocalSt();
+  writeFieldDebounced(`${n}.movilidad.${ck}`, s.movilidad[ck], 500);
 }
 async function saveMovAll(n, ck, id) {
   const s = gs(n);
