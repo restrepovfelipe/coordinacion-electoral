@@ -290,9 +290,15 @@ function editPCard(n, k, ck) {
 }
 function renderAllPuestos(n) {
   const body = document.getElementById('at-body'); let html = '';
+  const s = gs(n);
   Object.entries(RAW[n]).sort(([a], [b]) => a.localeCompare(b)).forEach(([ck, puestos]) => {
+    const sc = (s.comunas || {})[ck] || {};
     html += `<div style="margin-bottom:14px">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">${ck}</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${ck}</div>
+        ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${sc.coord}${sc.phone ? ' · ' + sc.phone : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
+        <button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>
+      </div>
       ${buildPT(n, puestos, ck)}
     </div>`;
   });
@@ -616,6 +622,7 @@ async function saveM() {
     const el = document.getElementById('mh-cv'); if (el) el.textContent = coord || '—'; buildSB();
   } else if (MCX.type === 'cc') {
     const el = document.getElementById(cid(MCX.n, MCX.ck) + '-cv'); if (el) el.textContent = coord || '—';
+    if (document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(MCX.n);
   } else if (MCX.type === 'p') {
     if (document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(MCX.n);
     else renderCCs(MCX.n);
