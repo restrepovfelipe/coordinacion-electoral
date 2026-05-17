@@ -63,6 +63,36 @@ function _innerPreload() {
 function pk(p) { return `${p.dd}_${p.mm}_${p.zz}_${p.pp}`; }
 function cid(n, ck) { return 'cc_' + btoa(unescape(encodeURIComponent(n + ck))).replace(/[^a-z0-9]/gi, ''); }
 
+// Flatten nested object into Firestore dot-notation paths (skips empty objects, keeps arrays as-is)
+function flattenForFirestore(obj, prefix, result) {
+  prefix = prefix || ''; result = result || {};
+  for (const key of Object.keys(obj)) {
+    const path = prefix ? prefix + '.' + key : key;
+    const val = obj[key];
+    if (val !== null && val !== undefined && typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length > 0) {
+      flattenForFirestore(val, path, result);
+    } else if (val !== null && val !== undefined) {
+      result[path] = val;
+    }
+  }
+  return result;
+}
+
+// Push the full in-memory ST to Firestore (migration + preload sync)
+async function pushSTToFirestore() {
+  try {
+    const flat = flattenForFirestore(ST);
+    const entries = Object.entries(flat);
+    if (!entries.length) return;
+    for (let i = 0; i < entries.length; i += 400) {
+      const chunk = Object.fromEntries(entries.slice(i, i + 400));
+      await db.collection(FS_COL).doc(FS_DOC).set(chunk, { merge: true });
+    }
+  } catch (e) {
+    console.error('Migration push error:', e);
+  }
+}
+
 // ═══ SIDEBAR ═══
 let CUR = null, OPEN_CC = new Set(), OPEN_Z = new Set();
 function filterSB(q) { const ql = (q || '').toUpperCase(); document.querySelectorAll('.sb-item').forEach(el => { el.style.display = el.dataset.nm.includes(ql) ? '' : 'none'; }); }
@@ -335,8 +365,7 @@ async function savePCard(n, k, ck, pcid) {
   const coordPills = document.querySelectorAll(`#${pcid} .pc-pill.coord, #${pcid} .pc-pill.nocoord`);
   coordPills.forEach(el => {
     el.className = coord ? 'pc-pill coord' : 'pc-pill nocoord';
-    el.textContent = coord ? '👤 ' + coord : '+ Coord. puesto';
-    el.title = phone || '';
+    el.textContent = coord ? '👤 ' + coord + (phone ? ' · ' + phone : '') : '+ Coord. puesto';
   });
   const btn = document.querySelector(`#${pcid} .pc-save`);
   if (btn) { const orig = btn.textContent; btn.textContent = '✓ Guardado'; btn.style.background = 'var(--green)'; setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1800); }
@@ -504,6 +533,7 @@ function setPregCount(n, ck, id, pKey, val) {
   if (!s.pregoneros[ck][pName]) s.pregoneros[ck][pName] = [];
   while (s.pregoneros[ck][pName].length < cnt) s.pregoneros[ck][pName].push({ nombre: '', cedula: '', responsable: '', telefono: '' });
   saveLocalSt();
+  writeFieldDebounced(`${n}.pregoneros.${ck}._counts.${pName}`, cnt);
   const ppid = `${id}-pp-${btoa(pKey).replace(/=/g, '')}`;
   const rowsEl = document.getElementById(ppid + '-rows');
   if (rowsEl) rowsEl.innerHTML = buildPregRows(n, ck, pName, s.pregoneros[ck][pName], cnt, id, pKey);
@@ -513,6 +543,7 @@ function savePregCount(n, ck, id, val) {
   const s = gs(n); const cnt = parseInt(val) || 0;
   if (!s.pregoneros) s.pregoneros = {}; if (!s.pregoneros[ck]) s.pregoneros[ck] = {};
   s.pregoneros[ck]._global_nec = cnt; saveLocalSt();
+  writeFieldDebounced(`${n}.pregoneros.${ck}._global_nec`, cnt);
 }
 
 async function saveAllPreg(n, ck, id) {
@@ -530,6 +561,7 @@ function addTestigo(n, ck, pKey, id) {
   if (!s.testigos) s.testigos = {}; if (!s.testigos[ck]) s.testigos[ck] = {};
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
   s.testigos[ck][pName].push({ nombre: '', telefono: '' }); saveLocalSt();
+  writeField(`${n}.testigos.${ck}`, s.testigos[ck]);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
   if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
 }
@@ -540,11 +572,13 @@ function updateTestigo(n, ck, pKey, idx, field, val) {
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
   if (!s.testigos[ck][pName][idx]) s.testigos[ck][pName][idx] = { nombre: '', telefono: '' };
   s.testigos[ck][pName][idx][field] = val; saveLocalSt();
+  writeFieldDebounced(`${n}.testigos.${ck}`, s.testigos[ck]);
 }
 
 function delTestigo(n, ck, pKey, idx, id) {
   const s = gs(n); const pName = decodeURIComponent(pKey);
   s.testigos[ck][pName].splice(idx, 1); saveLocalSt();
+  writeField(`${n}.testigos.${ck}`, s.testigos[ck]);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
   if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
 }
@@ -796,11 +830,15 @@ function exportDirectorioPDF() {
 async function startApp() {
   ST = loadLocalSt();
   setSyncBadge('syncing', '⏳ Cargando...');
-  const loaded = await loadFromFirestore();
-  setSyncBadge(loaded ? 'synced' : '', loaded ? '✓ Datos cargados' : 'Sin cambios');
+  await loadFromFirestore();
+  _innerPreload();
+  // Push full merged state (localStorage + Firestore + preloads) to Firestore once per session.
+  // This migrates any data that only existed locally and syncs preloaded coordinator data.
+  setSyncBadge('syncing', '⏳ Sincronizando...');
+  await pushSTToFirestore();
+  setSyncBadge('synced', '✓ Datos sincronizados');
   setTimeout(() => setSyncBadge('', 'Sin cambios'), 3000);
   _initialized = true;
-  _innerPreload();
   buildSB();
   renderOV();
   buildExportMenu();
