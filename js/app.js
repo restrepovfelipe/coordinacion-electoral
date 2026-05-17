@@ -64,7 +64,7 @@ function pk(p) { return `${p.dd}_${p.mm}_${p.zz}_${p.pp}`; }
 function cid(n, ck) { return 'cc_' + btoa(unescape(encodeURIComponent(n + ck))).replace(/[^a-z0-9]/gi, ''); }
 
 // ═══ SIDEBAR ═══
-let CUR = null, OPEN_CC = new Set();
+let CUR = null, OPEN_CC = new Set(), OPEN_Z = new Set();
 function filterSB(q) { const ql = (q || '').toUpperCase(); document.querySelectorAll('.sb-item').forEach(el => { el.style.display = el.dataset.nm.includes(ql) ? '' : 'none'; }); }
 function buildSB() {
   const list = document.getElementById('sb-list'); list.innerHTML = '';
@@ -113,6 +113,50 @@ function switchOTab(el, id) {
   document.querySelectorAll('.opane').forEach(p => p.classList.remove('on'));
   el.classList.add('on'); document.getElementById(id).classList.add('on');
   if (id === 'ot-todos') renderAllPuestos(CUR);
+}
+
+// ═══ ZONA CARDS ═══
+function buildZonaCard(n, zona) {
+  const s = gs(n); const sz = (s.zonas || {})[zona.nombre] || {};
+  let totPuestos = 0, totPregNec = 0, totPregReg = 0, totMotos = 0, totCarros = 0, totCov = 0;
+  zona.comunas.forEach(ck => {
+    const puestos = RAW[n][ck] || [];
+    totPuestos += puestos.length;
+    totPregNec += Object.values(PREG_BASE[n]?.[ck] || {}).reduce((a, v) => a + (v || 0), 0);
+    const sp = s.pregoneros?.[ck] || {};
+    totPregReg += Object.values(sp).reduce((a, rows) => a + (Array.isArray(rows) ? rows.filter(r => r.nombre).length : 0), 0);
+    const resps = (s.movilidad?.[ck]?.responsables) || [];
+    totMotos += resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
+    totCarros += resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
+    totCov += puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
+  });
+  const pct = totPuestos ? Math.round(totCov / totPuestos * 100) : 0;
+  const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
+  const isOpen = OPEN_Z.has(n + zona.nombre);
+  const el = document.createElement('div'); el.className = 'zona-card'; el.id = zid;
+  el.innerHTML = `
+    <div class="zona-card-hd" onclick="toggleZ('${n}','${zona.nombre.replace(/'/g, "\\'")}')">
+      <div class="zona-card-left">
+        <div class="zona-card-nm">${zona.nombre}</div>
+        <div class="zona-card-coord">
+          <span>Coord:</span><span id="${zid}-cv">${sz.coord || '—'}</span>
+          ${sz.phone ? `<span>· ${sz.phone}</span>` : ''}
+          <button class="zona-ced" onclick="event.stopPropagation();editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
+        </div>
+      </div>
+      <div class="cc-r">
+        <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">puestos</div></div>
+        <div class="cc-st"><div class="v" style="color:var(--preg)">${totPregReg}/${totPregNec}</div><div class="l">pregoneros</div></div>
+        <div class="cc-st"><div class="v" style="color:var(--moto)">${totMotos}</div><div class="l">motos</div></div>
+        <div class="cc-st"><div class="v" style="color:var(--car)">${totCarros}</div><div class="l">carros</div></div>
+        <div class="chev${isOpen ? ' op' : ''}">▾</div>
+      </div>
+    </div>
+    <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
+    <div class="zona-card-bd${isOpen ? ' op' : ''}" id="${zid}-bd"></div>`;
+  const bd = el.querySelector('#' + zid + '-bd');
+  zona.comunas.forEach(ck => { if (RAW[n][ck]) bd.appendChild(buildCCCard(n, ck)); });
+  return el;
 }
 
 // ═══ COMMUNE CARDS ═══
@@ -164,11 +208,7 @@ function buildCCCard(n, ck) {
 function renderCCs(n) {
   const body = document.getElementById('cc-body'); body.innerHTML = '';
   if (n === 'MEDELLIN') {
-    MEDELLIN_ZONAS.forEach(zona => {
-      const hdr = document.createElement('div'); hdr.className = 'zona-hdr'; hdr.textContent = zona.nombre;
-      body.appendChild(hdr);
-      zona.comunas.forEach(ck => { if (RAW[n][ck]) body.appendChild(buildCCCard(n, ck)); });
-    });
+    MEDELLIN_ZONAS.forEach(zona => body.appendChild(buildZonaCard(n, zona)));
   } else {
     Object.keys(RAW[n]).sort().forEach(ck => body.appendChild(buildCCCard(n, ck)));
   }
@@ -185,6 +225,14 @@ function toggleCC(n, ck) {
   if (!bd) return;
   if (OPEN_CC.has(key)) { OPEN_CC.delete(key); bd.classList.remove('op'); if (chev) chev.classList.remove('op'); }
   else { OPEN_CC.add(key); bd.classList.add('op'); if (chev) chev.classList.add('op'); }
+}
+function toggleZ(n, zonaNombre) {
+  const key = n + zonaNombre;
+  const zid = 'z_' + btoa(unescape(encodeURIComponent(zonaNombre))).replace(/[^a-z0-9]/gi, '');
+  const bd = document.getElementById(zid + '-bd'); const chev = document.querySelector('#' + zid + ' .chev');
+  if (!bd) return;
+  if (OPEN_Z.has(key)) { OPEN_Z.delete(key); bd.classList.remove('op'); if (chev) chev.classList.remove('op'); }
+  else { OPEN_Z.add(key); bd.classList.add('op'); if (chev) chev.classList.add('op'); }
 }
 
 // ═══ PUESTOS ═══
@@ -221,7 +269,10 @@ function buildPT(n, puestos, ckKey) {
             ${map}
           </div>
         </div>
-        <div class="pc-right"><div class="pc-chev" id="${pcid}-chev">▾</div></div>
+        <div class="pc-right">
+          <button class="pc-edit-btn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')" title="Editar coordinador">✎</button>
+          <div class="pc-chev" id="${pcid}-chev">▾</div>
+        </div>
       </div>
       <div class="pc-body" id="${pcid}-body">
         <div class="pc-section">
@@ -313,7 +364,12 @@ function renderAllPuestos(n) {
   const s = gs(n);
   if (n === 'MEDELLIN') {
     MEDELLIN_ZONAS.forEach(zona => {
-      html += `<div class="zona-hdr">${zona.nombre}</div>`;
+      const sz = (s.zonas || {})[zona.nombre] || {};
+      html += `<div class="zona-hdr">
+        <span style="flex:1">${zona.nombre}</span>
+        ${sz.coord ? `<span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--blue);font-weight:600">👤 ${sz.coord}${sz.phone ? ' · ' + sz.phone : ''}</span>` : ''}
+        <button class="zona-ced" onclick="editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
+      </div>`;
       zona.comunas.forEach(ck => { if (RAW[n][ck]) html += buildAllPuestosSection(n, ck, RAW[n][ck], s); });
     });
   } else {
@@ -636,6 +692,11 @@ async function saveM() {
       [`${MCX.n}.puestos.${MCX.k}.tag`]: SEL_T,
       [`${MCX.n}.puestos.${MCX.k}.notes`]: notes
     });
+  } else if (MCX.type === 'zona') {
+    if (!s.zonas) s.zonas = {};
+    s.zonas[MCX.zonaNombre] = { coord, phone };
+    saveLocalSt();
+    await writeFields({ [`${MCX.n}.zonas.${MCX.zonaNombre}.coord`]: coord, [`${MCX.n}.zonas.${MCX.zonaNombre}.phone`]: phone });
   }
   if (MCX.type === 'muni') {
     const el = document.getElementById('mh-cv'); if (el) el.textContent = coord || '—'; buildSB();
@@ -645,11 +706,16 @@ async function saveM() {
   } else if (MCX.type === 'p') {
     if (document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(MCX.n);
     else renderCCs(MCX.n);
+  } else if (MCX.type === 'zona') {
+    const zid = 'z_' + btoa(unescape(encodeURIComponent(MCX.zonaNombre))).replace(/[^a-z0-9]/gi, '');
+    const el = document.getElementById(zid + '-cv'); if (el) el.textContent = coord || '—';
+    if (document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(MCX.n);
   }
   closeM();
 }
 function editMuni(n) { const s = gs(n); openM(`Coordinador — ${n === 'MEDELLIN' ? 'MEDELLÍN' : n}`, 'Coordinador principal', { type: 'muni', n }, { coord: s.coord, phone: s.phone }); }
 function editCC(n, ck) { const s = gs(n); const sc = (s.comunas || {})[ck] || {}; openM('Coordinador de zona', ck, { type: 'cc', n, ck }, { coord: sc.coord, phone: sc.phone }); }
+function editZona(n, zonaNombre) { const s = gs(n); const sz = (s.zonas || {})[zonaNombre] || {}; openM('Coordinador de zona geográfica', zonaNombre, { type: 'zona', n, zonaNombre }, { coord: sz.coord, phone: sz.phone }); }
 function editP(n, k, ck) { if (ck !== undefined) { editPCard(n, k, ck); return; } const s = gs(n); const ps = (s.puestos || {})[k] || {}; openM('Puesto de votación', k.replace(/_/g, ' '), { type: 'p', n, k }, { coord: ps.coord, phone: ps.phone, tag: ps.tag || 'n', notes: ps.notes, showTag: true, showNotes: true }); }
 
 // ═══ OVERVIEW ═══
@@ -754,11 +820,16 @@ document.addEventListener('click', function (e) {
 
 function buildExportMenu() {
   const list = document.getElementById('export-comuni-list'); if (!list) return;
-  let html = '';
+  const sep = `<div style="height:1px;background:var(--b1);margin:4px 0"></div>`;
+  const lbl = t => `<div style="font-size:9px;color:var(--t3);padding:3px 10px;text-transform:uppercase;letter-spacing:1px">${t}</div>`;
+  let html = lbl('Por zona — Medellín');
+  MEDELLIN_ZONAS.forEach(z => {
+    html += `<div class="export-item" onclick="exportPDF('zona','MEDELLIN','${z.nombre.replace(/'/g, "\\'")}')">🗺 ${z.nombre}</div>`;
+  });
   if (RAW['MEDELLIN']) {
+    html += sep + lbl('Por comuna — Medellín');
     Object.keys(RAW['MEDELLIN']).sort().forEach(ck => {
-      const safe = ck.replace(/'/g, "\\'");
-      html += `<div class="export-item" onclick="exportPDF('comuna','MEDELLIN','${safe}')">📑 MED · ${ck}</div>`;
+      html += `<div class="export-item" onclick="exportPDF('comuna','MEDELLIN','${ck.replace(/'/g, "\\'")}')">📑 ${ck}</div>`;
     });
   }
   AMVA.filter(n => n !== 'MEDELLIN').forEach(n => {
@@ -769,11 +840,16 @@ function buildExportMenu() {
 
 function buildExcelMenu() {
   const list = document.getElementById('excel-comuni-list'); if (!list) return;
-  let html = '';
+  const sep = `<div style="height:1px;background:var(--b1);margin:4px 0"></div>`;
+  const lbl = t => `<div style="font-size:9px;color:var(--t3);padding:3px 10px;text-transform:uppercase;letter-spacing:1px">${t}</div>`;
+  let html = lbl('Por zona — Medellín');
+  MEDELLIN_ZONAS.forEach(z => {
+    html += `<div class="export-item" onclick="exportExcel('zona','MEDELLIN','${z.nombre.replace(/'/g, "\\'")}')">🗺 ${z.nombre}</div>`;
+  });
   if (RAW['MEDELLIN']) {
+    html += sep + lbl('Por comuna — Medellín');
     Object.keys(RAW['MEDELLIN']).sort().forEach(ck => {
-      const safe = ck.replace(/'/g, "\\'");
-      html += `<div class="export-item" onclick="exportExcel('comuna','MEDELLIN','${safe}')">📑 MED · ${ck}</div>`;
+      html += `<div class="export-item" onclick="exportExcel('comuna','MEDELLIN','${ck.replace(/'/g, "\\'")}')">📑 ${ck}</div>`;
     });
   }
   AMVA.filter(n => n !== 'MEDELLIN').forEach(n => {
@@ -796,7 +872,7 @@ function exportExcel(tipo, muni, ck) {
       if (!RAW[n]) continue;
       const s = gs(n);
       const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
-      const ckeys = Object.keys(RAW[n]).sort().filter(k => !ckFilter || k === ckFilter);
+      const ckeys = Object.keys(RAW[n]).sort().filter(k => !ckFilter || (Array.isArray(ckFilter) ? ckFilter.includes(k) : k === ckFilter));
 
       for (const comunaKey of ckeys) {
         const puestos = RAW[n][comunaKey] || [];
@@ -886,6 +962,9 @@ function exportExcel(tipo, muni, ck) {
     build([muni], null, 'Comando_Electoral_' + muni + '_2026.xlsx');
   } else if (tipo === 'comuna') {
     build([muni], ck, 'Comando_' + ck.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40) + '.xlsx');
+  } else if (tipo === 'zona') {
+    const zona = MEDELLIN_ZONAS.find(z => z.nombre === ck);
+    if (zona) build(['MEDELLIN'], zona.comunas, 'Comando_Medellin_' + ck.replace(/[^a-zA-Z0-9]/g, '_') + '_2026.xlsx');
   }
 }
 
@@ -960,6 +1039,14 @@ function buildPrintHTML(tipo, muni, ck) {
         <h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n} — Coordinador: ${s.coord || 'Sin asignar'}${s.phone ? ' · ' + s.phone : ''}</h2>
         ${Object.keys(RAW[n]).sort().map(ck => sectionForComuna(n, ck)).join('')}</div>`;
     });
+  } else if (tipo === 'zona') {
+    const zona = MEDELLIN_ZONAS.find(z => z.nombre === ck);
+    if (zona) {
+      const s = gs('MEDELLIN'); const sz = (s.zonas || {})[ck] || {};
+      title = `Reporte — MEDELLÍN · ${ck}`;
+      sections = `<div><h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${ck}${sz.coord ? ' — Coord: ' + sz.coord + (sz.phone ? ' · ' + sz.phone : '') : ''}</h2>
+        ${zona.comunas.filter(c => RAW['MEDELLIN'][c]).map(c => sectionForComuna('MEDELLIN', c)).join('')}</div>`;
+    }
   } else if (tipo === 'comuna') {
     const s = gs(muni); title = `Reporte — MEDELLÍN · ${ck}`; sections = sectionForComuna(muni, ck);
   } else {

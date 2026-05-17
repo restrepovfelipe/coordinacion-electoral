@@ -180,8 +180,21 @@ table.pt tr:hover td{background:rgba(255,255,255,.012)}
 .pc-pill.nocoord{color:var(--t3);border-style:dashed;cursor:pointer}
 .pc-pill.nocoord:hover{border-color:var(--gold);color:var(--gold)}
 .pc-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.zona-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--gold);padding:14px 8px 6px;margin-top:4px;border-bottom:2px solid rgba(212,175,55,.25)}
+.zona-hdr{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--gold);padding:14px 8px 6px;margin-top:4px;border-bottom:2px solid rgba(212,175,55,.25)}
 .zona-hdr:first-child{margin-top:0;padding-top:6px}
+.zona-card{background:var(--card);border:1px solid rgba(212,175,55,.35);border-radius:var(--r);margin-bottom:14px;overflow:hidden}
+.zona-card-hd{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;user-select:none;gap:10px;background:rgba(212,175,55,.07)}
+.zona-card-left{flex:1;min-width:0}
+.zona-card-nm{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.4px}
+.zona-card-coord{display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap}
+.zona-card-coord>span:first-child{font-size:9px;color:var(--t3)}
+.zona-card-coord>span:nth-child(2){font-size:11px;color:var(--blue);font-weight:600}
+.zona-card-coord>span:nth-child(3){font-size:9px;color:var(--t2)}
+.zona-ced{background:none;border:1px dashed var(--b2);border-radius:4px;color:var(--t3);font-size:9px;padding:2px 5px;cursor:pointer;font-family:inherit;transition:all .12s}
+.zona-ced:hover{border-color:var(--gold);color:var(--gold)}
+.zona-card-bd{display:none;padding:10px 10px 4px}.zona-card-bd.op{display:block}
+.pc-edit-btn{background:none;border:1px solid var(--b2);border-radius:4px;color:var(--t3);font-size:10px;padding:2px 6px;cursor:pointer;font-family:inherit;flex-shrink:0;transition:all .12s;margin-right:4px}
+.pc-edit-btn:hover{border-color:var(--gold);color:var(--gold)}
 .pc-chev{color:var(--t3);font-size:14px;transition:transform .2s}
 .pc-chev.op{transform:rotate(180deg);color:var(--gold)}
 .pc-body{display:none;border-top:1px solid var(--b1);padding:12px}
