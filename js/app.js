@@ -16,6 +16,7 @@ function gs(n) {
 
 function _innerPreload() {
   let changed = false;
+  const forceUpdate = !ST._preload_version || ST._preload_version < PRELOAD_VERSION;
 
   // Preload movilidad (carros/motos + responsable) per commune
   for (const [muni, comunas] of Object.entries(MOV_PRELOAD)) {
@@ -33,23 +34,34 @@ function _innerPreload() {
     }
   }
 
-  // Preload commune coordinators
+  // Preload zone, commune, and puesto coordinators
   for (const [muni, data] of Object.entries(COORD_PRELOAD)) {
     const s = gs(muni);
+    // Zone coordinators (Medellín zonas geográficas)
+    if (!s.zonas) s.zonas = {};
+    for (const [zonaNombre, zd] of Object.entries(data.zonas || {})) {
+      if (!s.zonas[zonaNombre]) s.zonas[zonaNombre] = {};
+      if (forceUpdate || (!s.zonas[zonaNombre].coord && !s.zonas[zonaNombre].phone)) {
+        s.zonas[zonaNombre].coord = zd.coord || '';
+        s.zonas[zonaNombre].phone = zd.phone || '';
+        changed = true;
+      }
+    }
+    // Commune coordinators
     if (!s.comunas) s.comunas = {};
     for (const [ck, cd] of Object.entries(data.comunas || {})) {
       if (!s.comunas[ck]) s.comunas[ck] = {};
-      if (!s.comunas[ck].coord && !s.comunas[ck].phone) {
+      if (forceUpdate || (!s.comunas[ck].coord && !s.comunas[ck].phone)) {
         s.comunas[ck].coord = cd.coord || '';
         s.comunas[ck].phone = cd.phone || '';
         changed = true;
       }
     }
-    // Preload puesto coordinators
+    // Puesto coordinators
     if (!s.puestos) s.puestos = {};
     for (const [pk_str, pd] of Object.entries(data.puestos || {})) {
       if (!s.puestos[pk_str]) s.puestos[pk_str] = {};
-      if (!s.puestos[pk_str].coord && !s.puestos[pk_str].phone) {
+      if (forceUpdate || (!s.puestos[pk_str].coord && !s.puestos[pk_str].phone)) {
         s.puestos[pk_str].coord = pd.coord || '';
         s.puestos[pk_str].phone = pd.phone || '';
         changed = true;
@@ -57,7 +69,9 @@ function _innerPreload() {
     }
   }
 
+  if (forceUpdate) { ST._preload_version = PRELOAD_VERSION; changed = true; }
   if (changed) saveLocalSt();
+  return forceUpdate;
 }
 
 function pk(p) { return `${p.dd}_${p.mm}_${p.zz}_${p.pp}`; }
@@ -808,11 +822,12 @@ async function startApp() {
   ST = loadLocalSt();
   setSyncBadge('syncing', '⏳ Cargando...');
   const needsMigration = await loadFromFirestore();
-  _innerPreload();
+  const preloadForced = _innerPreload();
   saveLocalSt();
-  if (needsMigration.length > 0) {
+  if (preloadForced || needsMigration.length > 0) {
     setSyncBadge('syncing', '⏳ Sincronizando...');
-    await pushAllToFirestore(needsMigration);
+    const munisToPush = preloadForced ? AMVA.filter(n => RAW[n]) : needsMigration;
+    await pushAllToFirestore(munisToPush);
     setSyncBadge('synced', '✓ Listo');
     setTimeout(() => setSyncBadge('', 'Sin cambios'), 2000);
   } else {

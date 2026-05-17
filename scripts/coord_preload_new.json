@@ -1,0 +1,396 @@
+{
+  "MEDELLIN": {
+    "comunas": {
+      "01COMUNA 1 POPULAR": {
+        "coord": "Francisco Robledo (Jaiberth)",
+        "phone": "3042688931"
+      },
+      "02COMUNA 2 SANTA CRUZ": {
+        "coord": "Andrés Cano (Sebastián Arboleda)",
+        "phone": "3207328365"
+      },
+      "03COMUNA 3 MANRIQUE": {
+        "coord": "DAYAN MARULANDA",
+        "phone": "3217315809"
+      },
+      "04COMUNA 4 ARANJUEZ": {
+        "coord": "WILMER PELAEZ (Deporte)",
+        "phone": "3217315809"
+      },
+      "05COMUNA 5 CASTILLA": {
+        "coord": "JAIRO MARULANDA",
+        "phone": "3127072644"
+      },
+      "06COMUNA 6 DOCE DE OCTUBRE": {
+        "coord": "LUIS RAMOS",
+        "phone": "3012628358"
+      },
+      "07COMUNA 7 ROBLEDO": {
+        "coord": "DUVAN MEJIA",
+        "phone": "3016827690"
+      },
+      "08COMUNA 8 VILLA HERMOSA": {
+        "coord": "Isodoro Manco (Jaiberth)",
+        "phone": "3193036630"
+      },
+      "09COMUNA 9 BUENOS AIRES": {
+        "coord": "JUAN CAMILO GAVIRIA",
+        "phone": "3194628101"
+      },
+      "10COMUNA 10 LA CANDELARIA": {
+        "coord": "LAZARO ALEJANDRO MORALES",
+        "phone": "3205523977"
+      },
+      "11COMUNA 11 LAURELES": {
+        "coord": "MAXIMILIANO NAVARRO",
+        "phone": "3043909292"
+      },
+      "12COMUNA 12 LA AMERICA": {
+        "coord": "SANDRA ZAPATA",
+        "phone": "3204710737"
+      },
+      "13COMUNA 13 SAN JAVIER": {
+        "coord": "FREDY SOMBATÍ",
+        "phone": "3006788054"
+      },
+      "14COMUNA 14 EL POBLADO": {
+        "coord": "ALEJANDRO GUERRA",
+        "phone": "3502974533"
+      },
+      "15COMUNA 15 GUAYABAL": {
+        "coord": "Alonso Aguirre (JAIBERTH)",
+        "phone": "3182210067"
+      },
+      "16COMUNA 16 BELEN": {
+        "coord": "SEBASTAIN PEREZ",
+        "phone": "3027569126"
+      },
+      "17CORREGIMIENT O ALTAVISTA": {
+        "coord": "DUVALIER MARULANDA",
+        "phone": "3127576836"
+      },
+      "19CORREGIMIENT O PALMITAS": {
+        "coord": "WILLIAM PIEDRAHITA",
+        "phone": "3024460777"
+      },
+      "21CORREGIMIENT O SANTA ELENA": {
+        "coord": "MAURICIO LONDOÑO",
+        "phone": "3206262785"
+      },
+      "18CORR. SAN ANTONIO DE PRADO": {
+        "coord": "Guillermo Leon Henao (Jaiberth)",
+        "phone": "3117372097"
+      },
+      "20CORREGIMIENT O SAN CRISTOBAL": {
+        "coord": "MAURIA EUGENIA BEDOYA",
+        "phone": "3022503174"
+      }
+    },
+    "puestos": {
+      "1_1_10_3": {
+        "coord": "Valentino (Jaiberth)",
+        "phone": "3237933338"
+      },
+      "1_1_11_4": {
+        "coord": "Claudia Flores (Jaiberth)",
+        "phone": "3122030958"
+      },
+      "1_1_12_1": {
+        "coord": "Alexander Giraldo (Jaiberth)",
+        "phone": "3217831729"
+      },
+      "1_1_12_7": {
+        "coord": "Luz Elcy Loaiza (Jaiberth)",
+        "phone": "3052742348"
+      },
+      "1_1_13_5": {
+        "coord": "Carlos Marquez (Jaiberth)",
+        "phone": "3005737044"
+      },
+      "1_1_14_7": {
+        "coord": "Andrés Rodríguez (Jaiberth)",
+        "phone": "3113423447"
+      },
+      "1_1_26_1": {
+        "coord": "MAURICIO ÁLVAREZ",
+        "phone": "3162970470"
+      },
+      "1_1_7_3": {
+        "coord": "Pedro Zapata (Jaiberth)",
+        "phone": "3226805440"
+      },
+      "1_1_7_4": {
+        "coord": "Angela María Ibarbo (Jaiberth)",
+        "phone": "3127840719"
+      },
+      "1_1_7_5": {
+        "coord": "Marta Cecilia Leal (Jaiberth)",
+        "phone": "3150660602"
+      },
+      "1_1_8_4": {
+        "coord": "Claudia Fundación (Jaiberth)",
+        "phone": "3192321137"
+      },
+      "1_1_8_8": {
+        "coord": "Pedro Zapata (Jaiberth)",
+        "phone": "3226805440"
+      },
+      "1_1_99_A1": {
+        "coord": "JHON FERNANDO CARDONA",
+        "phone": "3194996149"
+      },
+      "1_1_99_A2": {
+        "coord": "Eduardo Castro Pineda (jaiberth)",
+        "phone": "3052458014"
+      },
+      "1_1_9_2": {
+        "coord": "Edwin Loaiza (Jaiberth)",
+        "phone": "3046352174"
+      },
+      "1_1_1_1": {
+        "coord": "Francisco Robledo",
+        "phone": "3042688931"
+      },
+      "1_1_3_3": {
+        "coord": "Lina Díaz",
+        "phone": "3148841014"
+      },
+      "1_1_6_2": {
+        "coord": "Sergio Angar",
+        "phone": "3216446647"
+      },
+      "1_1_99_B2": {
+        "coord": "Álvaro López",
+        "phone": "3116303559"
+      },
+      "1_1_99_B3": {
+        "coord": "Johnatan Agustín",
+        "phone": "3247873840"
+      },
+      "1_1_15_1": {
+        "coord": "Isodoro Manco",
+        "phone": "3193036630"
+      },
+      "1_1_16_5": {
+        "coord": "Fernando Soto",
+        "phone": "3246468717"
+      },
+      "1_1_17_1": {
+        "coord": "Mauricio Mora",
+        "phone": "3043481746"
+      },
+      "1_1_17_3": {
+        "coord": "Jairo Patiño",
+        "phone": "3127398595"
+      },
+      "1_1_99_34": {
+        "coord": "Víctor Julio",
+        "phone": "3147085827"
+      },
+      "1_1_18_3": {
+        "coord": "Numan",
+        "phone": "3127179900"
+      },
+      "1_1_99_33": {
+        "coord": "María Elena",
+        "phone": "3145482495"
+      },
+      "1_1_22_4": {
+        "coord": "Juan Pablo Macíaz",
+        "phone": "3013143882"
+      },
+      "1_1_22_1": {
+        "coord": "Maximiliano Navarro",
+        "phone": "3043909292"
+      },
+      "1_1_24_7": {
+        "coord": "Paulo Gómez",
+        "phone": "3006971106"
+      },
+      "1_1_21_2": {
+        "coord": "Marisol Ciprian",
+        "phone": "3216032853"
+      },
+      "1_1_24_3": {
+        "coord": "Valentina",
+        "phone": "3148943618"
+      },
+      "1_1_21_3": {
+        "coord": "Diana Cano",
+        "phone": "3004360333"
+      },
+      "1_1_25_7": {
+        "coord": "Lady",
+        "phone": "3136047757"
+      },
+      "1_1_22_5": {
+        "coord": "Cesar García",
+        "phone": "3202723679"
+      },
+      "1_1_22_3": {
+        "coord": "Andrés Zuluaga",
+        "phone": "3137428385"
+      },
+      "1_1_32_2": {
+        "coord": "Luis Fernando Álvarez",
+        "phone": "3113394935"
+      },
+      "1_1_25_4": {
+        "coord": "Adolfo Peláez",
+        "phone": "3145069212"
+      },
+      "1_1_25_3": {
+        "coord": "Sandra Piedrahita",
+        "phone": "3188048479"
+      },
+      "1_1_26_6": {
+        "coord": "Lady Poso",
+        "phone": "3216939100"
+      },
+      "1_1_27_2": {
+        "coord": "Roman Espinoza",
+        "phone": "3165282982"
+      },
+      "1_1_28_2": {
+        "coord": "Laura Hurtado",
+        "phone": "3246840673"
+      },
+      "1_1_29_7": {
+        "coord": "Juan Camilo",
+        "phone": "3122084143"
+      },
+      "1_1_28_1": {
+        "coord": "Verónica Hernández",
+        "phone": "3116028862"
+      },
+      "1_1_29_6": {
+        "coord": "Jennifer Cardona",
+        "phone": "3226113625"
+      },
+      "1_1_29_1": {
+        "coord": "Alonso Aguirre",
+        "phone": "3182210067"
+      },
+      "1_1_29_3": {
+        "coord": "Wilson Restrepo",
+        "phone": "3162968504"
+      },
+      "1_1_30_3": {
+        "coord": "Sebastián Pérez",
+        "phone": "3027569126"
+      },
+      "1_1_31_1": {
+        "coord": "Liliana",
+        "phone": "3114865049"
+      },
+      "1_1_30_4": {
+        "coord": "Sara María Giraldo",
+        "phone": "3137379546"
+      },
+      "1_1_99_2": {
+        "coord": "Edite Hernández",
+        "phone": "3127899497"
+      },
+      "1_1_30_8": {
+        "coord": "Juan Camilo Londoño",
+        "phone": "3043796548"
+      },
+      "1_1_99_1": {
+        "coord": "Guillermo León Henao",
+        "phone": "3117372097"
+      },
+      "1_1_5_1": {
+        "coord": "Pedro Nel",
+        "phone": ""
+      },
+      "1_1_14_5": {
+        "coord": "Luz Dary Loaiza",
+        "phone": ""
+      },
+      "1_1_2_1": {
+        "coord": "Camilo Guzman",
+        "phone": ""
+      },
+      "1_1_17_6": {
+        "coord": "Yamile",
+        "phone": ""
+      },
+      "1_1_27_4": {
+        "coord": "Mónica Gómez",
+        "phone": ""
+      },
+      "1_1_25_2": {
+        "coord": "Patricia",
+        "phone": ""
+      },
+      "1_1_29_2": {
+        "coord": "Brayan",
+        "phone": ""
+      },
+      "1_1_24_1": {
+        "coord": "Fredy Granada",
+        "phone": ""
+      },
+      "1_1_23_1": {
+        "coord": "Carlos Aritza",
+        "phone": ""
+      },
+      "1_1_26_2": {
+        "coord": "Verónica Fernández",
+        "phone": ""
+      },
+      "1_1_4_2": {
+        "coord": "Dani Gonzales",
+        "phone": ""
+      },
+      "1_1_22_2": {
+        "coord": "Edwin Torrez",
+        "phone": "3046352174"
+      },
+      "1_1_23_4": {
+        "coord": "Andrés",
+        "phone": ""
+      },
+      "1_1_16_4": {
+        "coord": "Jairo",
+        "phone": ""
+      }
+    },
+    "zonas": {
+      "Zona Nororiental": {
+        "coord": "SERGIO ANGAR",
+        "phone": "3216446647"
+      },
+      "Zona Centro Oriental": {
+        "coord": "CESAR LOPEZ",
+        "phone": "3046761773"
+      },
+      "Zona Centro Occidental": {
+        "coord": "CARLOS ALBERTO ZULUAGA",
+        "phone": "3102695051"
+      },
+      "Zona Sur Oriental": {
+        "coord": "MÓNICA GÓMEZ",
+        "phone": "3207328365"
+      },
+      "Zona Sur Occidental": {
+        "coord": "JUAN CAMILO",
+        "phone": "3122084143"
+      }
+    }
+  },
+  "ENVIGADO": {
+    "comunas": {},
+    "puestos": {
+      "1_121_1_3": {
+        "coord": "Fabián R",
+        "phone": ""
+      },
+      "1_121_1_2": {
+        "coord": "Lina María",
+        "phone": ""
+      }
+    },
+    "zonas": {}
+  }
+}
