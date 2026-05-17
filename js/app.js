@@ -91,7 +91,7 @@ async function pushAllToFirestore(munis) {
 // ═══ SIDEBAR ═══
 let CUR = null, OPEN_CC = new Set(), OPEN_Z = new Set();
 function filterSB(q) { const ql = (q || '').toUpperCase(); document.querySelectorAll('.sb-item').forEach(el => { el.style.display = el.dataset.nm.includes(ql) ? '' : 'none'; }); }
-function toggleSB() { const sb = document.querySelector('.sb'); const btn = document.getElementById('sb-toggle-btn'); const collapsed = sb.classList.toggle('collapsed'); if (btn) btn.textContent = collapsed ? '☰' : '✕'; }
+function toggleSB() { const sb = document.querySelector('.sb'); const collapsed = sb.classList.toggle('collapsed'); document.querySelectorAll('.sb-toggle').forEach(btn => { btn.textContent = collapsed ? '☰' : '✕'; }); }
 function buildSB() {
   const list = document.getElementById('sb-list'); list.innerHTML = '';
   AMVA.forEach(n => {
