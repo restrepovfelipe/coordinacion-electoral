@@ -66,6 +66,7 @@ function cid(n, ck) { return 'cc_' + btoa(unescape(encodeURIComponent(n + ck))).
 // ═══ SIDEBAR ═══
 let CUR = null, OPEN_CC = new Set(), OPEN_Z = new Set();
 function filterSB(q) { const ql = (q || '').toUpperCase(); document.querySelectorAll('.sb-item').forEach(el => { el.style.display = el.dataset.nm.includes(ql) ? '' : 'none'; }); }
+function toggleSB() { const sb = document.querySelector('.sb'); const btn = document.getElementById('sb-toggle-btn'); const collapsed = sb.classList.toggle('collapsed'); if (btn) btn.textContent = collapsed ? '☰' : '✕'; }
 function buildSB() {
   const list = document.getElementById('sb-list'); list.innerHTML = '';
   AMVA.forEach(n => {
@@ -243,7 +244,7 @@ function buildPT(n, puestos, ckKey) {
   return puestos.map(p => {
     const k = pk(p); const ps = (s.puestos || {})[k] || {};
     const t = ps.tag || 'n'; const tg = TAGS[t] || TAGS.n;
-    const map = p.lat && p.lon ? `<a class="map-a" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">🗺</a>` : '';
+    const map = p.lat && p.lon ? `<a class="map-a" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">Ver mapa</a>` : '';
     const baseCnt = pregBase[p.puesto] !== undefined ? pregBase[p.puesto] : 0;
     const pregCnt = savedCnts[p.puesto] !== undefined ? savedCnts[p.puesto] : baseCnt;
     const pregReg = ((s.pregoneros?.[ckKey]?.[p.puesto]) || []).filter(r => r.nombre).length;
@@ -251,7 +252,7 @@ function buildPT(n, puestos, ckKey) {
     const divipole = `${String(p.dd).padStart(2, '0')}.${String(p.mm).padStart(3, '0')}.${String(p.zz).padStart(2, '0')}.${String(p.pp).padStart(2, '0')}`;
     const pcid = 'pc_' + k + '_' + btoa(unescape(encodeURIComponent(ckKey))).replace(/[^a-z0-9]/gi, '');
     const coordPill = ps.coord
-      ? `<span class="pc-pill coord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')" title="${ps.phone || ''}">👤 ${ps.coord}</span>`
+      ? `<span class="pc-pill coord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">👤 ${ps.coord}${ps.phone ? ' · ' + ps.phone : ''}</span>`
       : `<span class="pc-pill nocoord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">+ Coord. puesto</span>`;
     return `<div class="pc" id="${pcid}">
       <div class="pc-hd" onclick="togglePC('${pcid}')">
@@ -259,13 +260,12 @@ function buildPT(n, puestos, ckKey) {
           <div class="pc-nm">${p.puesto}</div>
           <div class="pc-dir">${p.direccion}</div>
           <div class="pc-pills">
-            <span class="pcode">${divipole}</span>
             <span class="pc-pill">${p.mesas || 0} mesas</span>
             <span class="pc-pill">${(p.total || 0).toLocaleString('es-CO')} v.</span>
             <button class="${tg.cls} tbtn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}');">${tg.lbl}</button>
             ${coordPill}
-            ${pregCnt > 0 ? `<span class="pc-pill" style="color:var(--preg);border-color:rgba(167,139,250,.3)">📢 ${pregReg}/${pregCnt}</span>` : ''}
-            ${testReg > 0 ? `<span class="pc-pill" style="color:var(--green);border-color:rgba(46,216,122,.3)">🧾 ${testReg}</span>` : ''}
+            ${pregCnt > 0 ? `<span class="pc-pill" style="color:var(--preg);border-color:rgba(167,139,250,.3)">Preg. ${pregReg}/${pregCnt}</span>` : ''}
+            ${testReg > 0 ? `<span class="pc-pill" style="color:var(--green);border-color:rgba(46,216,122,.3)">Test. ${testReg}</span>` : ''}
             ${map}
           </div>
         </div>
@@ -401,8 +401,8 @@ function renderPregPanel(n, ck, id) {
   const globalNec = savedData._global_nec || 0;
   let html = `<div class="preg-panel">
     <div class="count-row">
-      <div class="count-badge"><span class="lbl">📢 Registrados:</span><span class="val" style="color:var(--preg)">${totalReg}</span></div>
-      <div class="count-badge"><span class="lbl">🎯 Necesarios:</span>
+      <div class="count-badge"><span class="lbl">Registrados:</span><span class="val" style="color:var(--preg)">${totalReg}</span></div>
+      <div class="count-badge"><span class="lbl">Necesarios:</span>
         <input class="count-inp" type="number" min="0" value="${globalNec || totalNec}"
           onchange="savePregCount('${n}','${ck.replace(/'/g, "\\'")}','${id}',this.value)">
       </div>
