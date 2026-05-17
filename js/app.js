@@ -116,53 +116,62 @@ function switchOTab(el, id) {
 }
 
 // ═══ COMMUNE CARDS ═══
-function renderCCs(n) {
-  const body = document.getElementById('cc-body'); body.innerHTML = '';
-  Object.keys(RAW[n]).sort().forEach(ck => {
-    const puestos = RAW[n][ck]; const s = gs(n); const sc = (s.comunas || {})[ck] || {};
-    const totM = puestos.reduce((a, p) => a + (p.mesas || 0), 0); const totV = puestos.reduce((a, p) => a + (p.total || 0), 0);
-    const cov = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
-    const pct = puestos.length ? Math.round(cov / puestos.length * 100) : 0;
-    const id = cid(n, ck); const isOpen = OPEN_CC.has(n + ck);
-    const card = document.createElement('div'); card.className = 'cc'; card.id = id;
-    const pregBase = PREG_BASE[n]?.[ck] || {};
-    const totalPregNec = Object.values(pregBase).reduce((a, v) => a + (v || 0), 0);
-    const savedPreg = s.pregoneros?.[ck] || {};
-    const totalPregReg = Object.values(savedPreg).reduce((a, rows) => a + (Array.isArray(rows) ? rows.filter(r => r.nombre).length : 0), 0);
-    const mov = s.movilidad?.[ck] || {};
-    const resps = (mov.responsables) || [];
-    card.innerHTML = `
-      <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
-        <div>
-          <div class="cc-nm">${ck}</div>
-          <div class="cc-crd-row">
-            <span class="cc-crd-lbl">Coord:</span>
-            <span class="cc-crd-val" id="${id}-cv">${sc.coord || '—'}</span>
-            ${sc.phone ? `<span class="cc-crd-ph">· ${sc.phone}</span>` : ''}
-            <button class="cc-ced" onclick="event.stopPropagation();editCC('${n}','${ck.replace(/'/g, "\\'")}')">✎</button>
-          </div>
-        </div>
-        <div class="cc-r">
-          <div class="cc-st"><div class="v">${puestos.length}</div><div class="l">puestos</div></div>
-          <div class="cc-st"><div class="v" style="color:var(--preg)">${totalPregReg}/${totalPregNec}</div><div class="l">pregoneros</div></div>
-          <div class="cc-st"><div class="v" style="color:var(--moto)">${resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0)}</div><div class="l">motos</div></div>
-          <div class="cc-st"><div class="v" style="color:var(--car)">${resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0)}</div><div class="l">carros</div></div>
-          <div class="chev${isOpen ? ' op' : ''}">▾</div>
+function buildCCCard(n, ck) {
+  const puestos = RAW[n][ck]; const s = gs(n); const sc = (s.comunas || {})[ck] || {};
+  const totM = puestos.reduce((a, p) => a + (p.mesas || 0), 0); const totV = puestos.reduce((a, p) => a + (p.total || 0), 0);
+  const cov = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
+  const pct = puestos.length ? Math.round(cov / puestos.length * 100) : 0;
+  const id = cid(n, ck); const isOpen = OPEN_CC.has(n + ck);
+  const card = document.createElement('div'); card.className = 'cc'; card.id = id;
+  const pregBase = PREG_BASE[n]?.[ck] || {};
+  const totalPregNec = Object.values(pregBase).reduce((a, v) => a + (v || 0), 0);
+  const savedPreg = s.pregoneros?.[ck] || {};
+  const totalPregReg = Object.values(savedPreg).reduce((a, rows) => a + (Array.isArray(rows) ? rows.filter(r => r.nombre).length : 0), 0);
+  const mov = s.movilidad?.[ck] || {};
+  const resps = (mov.responsables) || [];
+  card.innerHTML = `
+    <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
+      <div>
+        <div class="cc-nm">${ck}</div>
+        <div class="cc-crd-row">
+          <span class="cc-crd-lbl">Coord:</span>
+          <span class="cc-crd-val" id="${id}-cv">${sc.coord || '—'}</span>
+          ${sc.phone ? `<span class="cc-crd-ph">· ${sc.phone}</span>` : ''}
+          <button class="cc-ced" onclick="event.stopPropagation();editCC('${n}','${ck.replace(/'/g, "\\'")}')">✎</button>
         </div>
       </div>
-      <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
-      <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
-        <div class="itabs">
-          <div class="itab on" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
-          <div class="itab" onclick="switchIT(this,'${id}-preg');renderPregPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">📢 Pregoneros / Testigos</div>
-          <div class="itab" onclick="switchIT(this,'${id}-mov');renderMovPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🚗 Movilidad</div>
-        </div>
-        <div class="ipane on" id="${id}-puestos"><div style="padding:8px">${buildPT(n, puestos, ck)}</div></div>
-        <div class="ipane" id="${id}-preg"></div>
-        <div class="ipane" id="${id}-mov"></div>
-      </div>`;
-    body.appendChild(card);
-  });
+      <div class="cc-r">
+        <div class="cc-st"><div class="v">${puestos.length}</div><div class="l">puestos</div></div>
+        <div class="cc-st"><div class="v" style="color:var(--preg)">${totalPregReg}/${totalPregNec}</div><div class="l">pregoneros</div></div>
+        <div class="cc-st"><div class="v" style="color:var(--moto)">${resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0)}</div><div class="l">motos</div></div>
+        <div class="cc-st"><div class="v" style="color:var(--car)">${resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0)}</div><div class="l">carros</div></div>
+        <div class="chev${isOpen ? ' op' : ''}">▾</div>
+      </div>
+    </div>
+    <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
+    <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
+      <div class="itabs">
+        <div class="itab on" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
+        <div class="itab" onclick="switchIT(this,'${id}-preg');renderPregPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">📢 Pregoneros / Testigos</div>
+        <div class="itab" onclick="switchIT(this,'${id}-mov');renderMovPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🚗 Movilidad</div>
+      </div>
+      <div class="ipane on" id="${id}-puestos"><div style="padding:8px">${buildPT(n, puestos, ck)}</div></div>
+      <div class="ipane" id="${id}-preg"></div>
+      <div class="ipane" id="${id}-mov"></div>
+    </div>`;
+  return card;
+}
+function renderCCs(n) {
+  const body = document.getElementById('cc-body'); body.innerHTML = '';
+  if (n === 'MEDELLIN') {
+    MEDELLIN_ZONAS.forEach(zona => {
+      const hdr = document.createElement('div'); hdr.className = 'zona-hdr'; hdr.textContent = zona.nombre;
+      body.appendChild(hdr);
+      zona.comunas.forEach(ck => { if (RAW[n][ck]) body.appendChild(buildCCCard(n, ck)); });
+    });
+  } else {
+    Object.keys(RAW[n]).sort().forEach(ck => body.appendChild(buildCCCard(n, ck)));
+  }
 }
 function switchIT(el, paneid) {
   const bd = el.closest('.cc-bd');
@@ -288,20 +297,30 @@ function editPCard(n, k, ck) {
   if (!OPEN_PC.has(pcid)) togglePC(pcid);
   setTimeout(() => { const el = document.getElementById(pcid + '-coord'); if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }, 100);
 }
+function buildAllPuestosSection(n, ck, puestos, s) {
+  const sc = (s.comunas || {})[ck] || {};
+  return `<div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${ck}</div>
+      ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${sc.coord}${sc.phone ? ' · ' + sc.phone : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
+      <button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>
+    </div>
+    ${buildPT(n, puestos, ck)}
+  </div>`;
+}
 function renderAllPuestos(n) {
   const body = document.getElementById('at-body'); let html = '';
   const s = gs(n);
-  Object.entries(RAW[n]).sort(([a], [b]) => a.localeCompare(b)).forEach(([ck, puestos]) => {
-    const sc = (s.comunas || {})[ck] || {};
-    html += `<div style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${ck}</div>
-        ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${sc.coord}${sc.phone ? ' · ' + sc.phone : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
-        <button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>
-      </div>
-      ${buildPT(n, puestos, ck)}
-    </div>`;
-  });
+  if (n === 'MEDELLIN') {
+    MEDELLIN_ZONAS.forEach(zona => {
+      html += `<div class="zona-hdr">${zona.nombre}</div>`;
+      zona.comunas.forEach(ck => { if (RAW[n][ck]) html += buildAllPuestosSection(n, ck, RAW[n][ck], s); });
+    });
+  } else {
+    Object.entries(RAW[n]).sort(([a], [b]) => a.localeCompare(b)).forEach(([ck, puestos]) => {
+      html += buildAllPuestosSection(n, ck, puestos, s);
+    });
+  }
   body.innerHTML = html;
 }
 

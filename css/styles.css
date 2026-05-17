@@ -180,6 +180,8 @@ table.pt tr:hover td{background:rgba(255,255,255,.012)}
 .pc-pill.nocoord{color:var(--t3);border-style:dashed;cursor:pointer}
 .pc-pill.nocoord:hover{border-color:var(--gold);color:var(--gold)}
 .pc-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.zona-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--gold);padding:14px 8px 6px;margin-top:4px;border-bottom:2px solid rgba(212,175,55,.25)}
+.zona-hdr:first-child{margin-top:0;padding-top:6px}
 .pc-chev{color:var(--t3);font-size:14px;transition:transform .2s}
 .pc-chev.op{transform:rotate(180deg);color:var(--gold)}
 .pc-body{display:none;border-top:1px solid var(--b1);padding:12px}
