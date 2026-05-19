@@ -1,6 +1,8 @@
 // ═══ STATE ═══
 let ST = {};
 let _initialized = false;
+const ALL_MUNIS = Object.values(REGIONES).flat();
+let CLOSED_REGIONS = new Set();
 
 function loadLocalSt() {
   try { return JSON.parse(localStorage.getItem('amva26v2') || '{}'); } catch (e) { return {}; }
@@ -80,7 +82,7 @@ function cid(n, ck) { return 'cc_' + btoa(unescape(encodeURIComponent(n + ck))).
 // Push municipalities to Firestore in parallel. Stamps _v:2 so future loads
 // know the doc is in the correct per-municipality nested format.
 async function pushAllToFirestore(munis) {
-  munis = munis || AMVA.filter(n => RAW[n]);
+  munis = munis || ALL_MUNIS.filter(n => RAW[n]);
   await Promise.all(munis.map(n => {
     const data = Object.assign(JSON.parse(JSON.stringify(gs(n))), { _v: 2 });
     return db.collection(FS_COL).doc(n).set(data)
@@ -90,18 +92,39 @@ async function pushAllToFirestore(munis) {
 
 // ═══ SIDEBAR ═══
 let CUR = null, OPEN_CC = new Set(), OPEN_Z = new Set();
-function filterSB(q) { const ql = (q || '').toUpperCase(); document.querySelectorAll('.sb-item').forEach(el => { el.style.display = el.dataset.nm.includes(ql) ? '' : 'none'; }); }
+function filterSB(q) {
+  const ql = (q || '').toUpperCase();
+  document.querySelectorAll('.sb-item').forEach(el => { el.style.display = el.dataset.nm.includes(ql) ? '' : 'none'; });
+  document.querySelectorAll('.sb-region-header').forEach(rh => {
+    const anyVisible = [...rh.nextElementSibling?.querySelectorAll('.sb-item') || []].some(el => el.style.display !== 'none');
+    rh.style.display = (ql && !anyVisible) ? 'none' : '';
+    if (rh.nextElementSibling) rh.nextElementSibling.style.display = (ql && !anyVisible) ? 'none' : '';
+  });
+}
 function toggleSB() { const sb = document.querySelector('.sb'); const collapsed = sb.classList.toggle('collapsed'); document.querySelectorAll('.sb-toggle').forEach(btn => { btn.textContent = collapsed ? '☰' : '✕'; }); }
 function buildSB() {
   const list = document.getElementById('sb-list'); list.innerHTML = '';
-  AMVA.forEach(n => {
-    if (!RAW[n]) return;
-    const s = gs(n);
-    const totP = Object.values(RAW[n]).reduce((a, c) => a + c.length, 0);
-    const d = document.createElement('div');
-    d.className = 'sb-item' + (n === CUR ? ' on' : ''); d.dataset.nm = n; d.onclick = () => selMuni(n);
-    d.innerHTML = `<div class="sb-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div><div class="sb-mt">${totP} puestos</div>${s.coord ? `<div class="sb-cd">👤 ${s.coord}</div>` : ''}`;
-    list.appendChild(d);
+  Object.entries(REGIONES).forEach(([region, munis]) => {
+    const validMusis = munis.filter(n => RAW[n]);
+    if (!validMusis.length) return;
+    const isOpen = !CLOSED_REGIONS.has(region);
+    const rh = document.createElement('div');
+    rh.className = 'sb-region-header' + (isOpen ? ' open' : '');
+    rh.innerHTML = `<span>${region}</span><span class="sb-region-toggle">${isOpen ? '▾' : '▸'}</span>`;
+    rh.onclick = () => { if (CLOSED_REGIONS.has(region)) CLOSED_REGIONS.delete(region); else CLOSED_REGIONS.add(region); buildSB(); };
+    list.appendChild(rh);
+    const grp = document.createElement('div');
+    grp.className = 'sb-region-group';
+    if (!isOpen) grp.style.display = 'none';
+    validMusis.forEach(n => {
+      const s = gs(n);
+      const totP = Object.values(RAW[n]).reduce((a, c) => a + c.length, 0);
+      const d = document.createElement('div');
+      d.className = 'sb-item' + (n === CUR ? ' on' : ''); d.dataset.nm = n; d.onclick = () => selMuni(n);
+      d.innerHTML = `<div class="sb-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div><div class="sb-mt">${totP} puestos</div>${s.coord ? `<div class="sb-cd">👤 ${s.coord}</div>` : ''}`;
+      grp.appendChild(d);
+    });
+    list.appendChild(grp);
   });
 }
 function selMuni(n) { CUR = n; buildSB(); renderMuni(n); }
@@ -746,17 +769,24 @@ function editP(n, k, ck) { if (ck !== undefined) { editPCard(n, k, ck); return; 
 // ═══ OVERVIEW ═══
 function renderOV() {
   const wrap = document.getElementById('ov-wrap'); if (!wrap) return;
-  let html = `<div class="sec-t">10 Municipios del Área Metropolitana</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px">`;
-  AMVA.forEach(n => {
-    if (!RAW[n]) return; const s = gs(n);
-    const totP = Object.values(RAW[n]).reduce((a, c) => a + c.length, 0);
-    html += `<div style="background:var(--card);border:1px solid var(--b1);border-radius:var(--r);padding:13px;cursor:pointer;transition:all .12s" onclick="selMuni('${n}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--b1)'">
-      <div style="font-size:13px;font-weight:700">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
-      <div style="font-size:9px;color:var(--t3);margin-top:2px">${Object.keys(RAW[n]).length} zonas · ${totP} puestos</div>
-      ${s.coord ? `<div style="font-size:9px;color:var(--blue);margin-top:5px">👤 ${s.coord}</div>` : `<div style="font-size:9px;color:var(--t3);font-style:italic;margin-top:5px">Sin coordinador asignado</div>`}
-    </div>`;
+  let html = '';
+  Object.entries(REGIONES).forEach(([region, munis]) => {
+    const validMusis = munis.filter(n => RAW[n]);
+    if (!validMusis.length) return;
+    html += `<div class="sec-t" style="margin-top:18px">${region} — ${validMusis.length} municipios</div>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px;margin-bottom:8px">`;
+    validMusis.forEach(n => {
+      const s = gs(n);
+      const totP = Object.values(RAW[n]).reduce((a, c) => a + c.length, 0);
+      html += `<div style="background:var(--card);border:1px solid var(--b1);border-radius:var(--r);padding:13px;cursor:pointer;transition:all .12s" onclick="selMuni('${n}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--b1)'">
+        <div style="font-size:13px;font-weight:700">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:2px">${Object.keys(RAW[n]).length} zonas · ${totP} puestos</div>
+        ${s.coord ? `<div style="font-size:9px;color:var(--blue);margin-top:5px">👤 ${s.coord}</div>` : `<div style="font-size:9px;color:var(--t3);font-style:italic;margin-top:5px">Sin coordinador asignado</div>`}
+      </div>`;
+    });
+    html += '</div>';
   });
-  html += '</div>'; wrap.innerHTML = html;
+  wrap.innerHTML = html;
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeM();
@@ -768,7 +798,7 @@ function openDirectorio() { document.getElementById('dir-modal').style.display =
 function closeDirectorio() { document.getElementById('dir-modal').style.display = 'none'; }
 function renderDirectorio() {
   const el = document.getElementById('dir-content'); let html = '';
-  AMVA.forEach(n => {
+  ALL_MUNIS.forEach(n => {
     if (!RAW[n]) return; const s = gs(n); const items = [];
     if (s.coord) items.push({ rol: `Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}`, nombre: s.coord, phone: s.phone || '', zona: '' });
     Object.keys(RAW[n]).sort().forEach(ck => {
@@ -791,7 +821,7 @@ function renderDirectorio() {
 }
 function exportDirectorioPDF() {
   const now = new Date().toLocaleString('es-CO'); let sections = '';
-  AMVA.forEach(n => {
+  ALL_MUNIS.forEach(n => {
     if (!RAW[n]) return; const s = gs(n); const items = [];
     if (s.coord) items.push({ rol: `Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}`, nombre: s.coord, phone: s.phone || '', zona: '' });
     Object.keys(RAW[n]).sort().forEach(ck => {
@@ -826,7 +856,7 @@ async function startApp() {
   saveLocalSt();
   if (preloadForced || needsMigration.length > 0) {
     setSyncBadge('syncing', '⏳ Sincronizando...');
-    const munisToPush = preloadForced ? AMVA.filter(n => RAW[n]) : needsMigration;
+    const munisToPush = preloadForced ? ALL_MUNIS.filter(n => RAW[n]) : needsMigration;
     await pushAllToFirestore(munisToPush);
     setSyncBadge('synced', '✓ Listo');
     setTimeout(() => setSyncBadge('', 'Sin cambios'), 2000);
@@ -866,8 +896,11 @@ function buildExportMenu() {
       html += `<div class="export-item" onclick="exportPDF('comuna','MEDELLIN','${ck.replace(/'/g, "\\'")}')">📑 ${ck}</div>`;
     });
   }
-  AMVA.filter(n => n !== 'MEDELLIN').forEach(n => {
-    if (RAW[n]) html += `<div class="export-item" onclick="exportPDF('muni','${n}','')">🏙️ ${n}</div>`;
+  Object.entries(REGIONES).filter(([r]) => r !== 'AMVA').forEach(([region, munis]) => {
+    const valid = munis.filter(n => RAW[n]);
+    if (!valid.length) return;
+    html += sep + lbl(region);
+    valid.forEach(n => { html += `<div class="export-item" onclick="exportPDF('muni','${n}','')">🏙️ ${n}</div>`; });
   });
   list.innerHTML = html;
 }
@@ -886,8 +919,11 @@ function buildExcelMenu() {
       html += `<div class="export-item" onclick="exportExcel('comuna','MEDELLIN','${ck.replace(/'/g, "\\'")}')">📑 ${ck}</div>`;
     });
   }
-  AMVA.filter(n => n !== 'MEDELLIN').forEach(n => {
-    if (RAW[n]) html += `<div class="export-item" onclick="exportExcel('muni','${n}')">🏙️ ${n}</div>`;
+  Object.entries(REGIONES).filter(([r]) => r !== 'AMVA').forEach(([region, munis]) => {
+    const valid = munis.filter(n => RAW[n]);
+    if (!valid.length) return;
+    html += sep + lbl(region);
+    valid.forEach(n => { html += `<div class="export-item" onclick="exportExcel('muni','${n}')">🏙️ ${n}</div>`; });
   });
   list.innerHTML = html;
 }
@@ -1066,8 +1102,8 @@ function buildPrintHTML(tipo, muni, ck) {
       </div>${movHTML}<div style="margin-top:10px">${puestosHTML}</div></div>`;
   }
   if (tipo === 'all') {
-    title = 'Reporte Completo — Área Metropolitana Valle de Aburrá';
-    AMVA.forEach(n => {
+    title = 'Reporte Completo — Antioquia';
+    ALL_MUNIS.forEach(n => {
       if (!RAW[n]) return; const s = gs(n);
       sections += `<div style="page-break-before:always;padding-top:16px">
         <h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n} — Coordinador: ${s.coord || 'Sin asignar'}${s.phone ? ' · ' + s.phone : ''}</h2>
