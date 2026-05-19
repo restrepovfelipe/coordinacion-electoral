@@ -2,7 +2,7 @@
 let ST = {};
 let _initialized = false;
 const ALL_MUNIS = Object.values(REGIONES).flat();
-let CLOSED_REGIONS = new Set();
+let CLOSED_REGIONS = new Set(Object.keys(REGIONES));
 
 function loadLocalSt() {
   try { return JSON.parse(localStorage.getItem('amva26v2') || '{}'); } catch (e) { return {}; }
