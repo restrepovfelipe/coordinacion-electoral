@@ -1,7 +1,8 @@
 const USERS = {
   'coordinador1': { pass: 'Cord1.2026*', nombre: 'Coordinador 1' },
   'coordinador2': { pass: 'Cord2.2026*', nombre: 'Coordinador 2' },
-  'coordinador3': { pass: 'Cord3.2026*', nombre: 'Coordinador 3' }
+  'coordinador3': { pass: 'Cord3.2026*', nombre: 'Coordinador 3' },
+  'coordinador4': { pass: 'Cord4.2026*', nombre: 'Coordinador 4' }
 };
 
 let CURRENT_USER = null;
