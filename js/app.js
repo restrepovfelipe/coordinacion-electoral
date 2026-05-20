@@ -523,6 +523,17 @@ function renderPregPanel(n, ck, id) {
     <span class="saved-ok" id="${id}-preg-ok">✓ Guardado</span>
   </div></div>`;
   pane.innerHTML = html;
+  // Restore open puestos after rebuild
+  puestosList.forEach(p => {
+    const pKey2 = encodeURIComponent(p.puesto);
+    const ppid = `${id}-pp-${btoa(pKey2).replace(/=/g, '')}`;
+    if (OPEN_PP.has(ppid)) {
+      const body2 = document.getElementById(ppid);
+      const chev2 = document.getElementById(ppid + '-chev');
+      if (body2) body2.classList.add('op');
+      if (chev2) chev2.classList.add('op');
+    }
+  });
 }
 
 function buildPregRows(n, ck, pName, rows, count, id, pKey) {
