@@ -668,6 +668,7 @@ function renderMovPanel(n, ck, id) {
             onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'nombre',this.value,'${id}')">
           <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${r.telefono || ''}"
             onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'telefono',this.value,'${id}')">
+          ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
           <button class="del-btn" onclick="delResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'${id}')">×</button>
         </div>
         <div class="resp-body">
