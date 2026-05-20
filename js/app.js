@@ -233,16 +233,16 @@ function buildZonaCard(n, zona) {
           <button class="zona-ced" onclick="event.stopPropagation();editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
         </div>
       </div>
-      <div class="cc-r">
-        <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">puestos</div></div>
-        <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">mesas</div></div>
-        <div class="cc-st"><div class="v">${totPregReg}</div><div class="l">pregoneros</div></div>
-        <div class="cc-st${totPregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totPregFalt}</div><div class="l">preg. falt.</div></div>
-        <div class="cc-st"><div class="v">${totTestReg}</div><div class="l">testigos</div></div>
-        <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totTestFalt}</div><div class="l">test. falt.</div></div>
-        <div class="cc-st"><div class="v">${pct}%</div><div class="l">cobertura</div></div>
-        <div class="chev${isOpen ? ' op' : ''}">▾</div>
-      </div>
+      <div class="chev${isOpen ? ' op' : ''}">▾</div>
+    </div>
+    <div class="cc-stats-bar">
+      <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
+      <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
+      <div class="cc-st"><div class="v">${totPregReg}</div><div class="l">Pregoneros</div></div>
+      <div class="cc-st${totPregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totPregFalt}</div><div class="l">Preg. faltantes</div></div>
+      <div class="cc-st"><div class="v">${totTestReg}</div><div class="l">Testigos</div></div>
+      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totTestFalt}</div><div class="l">Test. faltantes</div></div>
+      <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
     <div class="zona-card-bd${isOpen ? ' op' : ''}" id="${zid}-bd"></div>`;
@@ -269,16 +269,16 @@ function buildCCCard(n, ck) {
           <button class="cc-ced" onclick="event.stopPropagation();editCC('${n}','${ck.replace(/'/g, "\\'")}')">✎</button>
         </div>
       </div>
-      <div class="cc-r">
-        <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">puestos</div></div>
-        <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">mesas</div></div>
-        <div class="cc-st"><div class="v">${pregReg}</div><div class="l">pregoneros</div></div>
-        <div class="cc-st${pregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${pregFalt}</div><div class="l">preg. falt.</div></div>
-        <div class="cc-st"><div class="v">${testReg}</div><div class="l">testigos</div></div>
-        <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${testFalt}</div><div class="l">test. falt.</div></div>
-        <div class="cc-st"><div class="v">${pct}%</div><div class="l">cobertura</div></div>
-        <div class="chev${isOpen ? ' op' : ''}">▾</div>
-      </div>
+      <div class="chev${isOpen ? ' op' : ''}">▾</div>
+    </div>
+    <div class="cc-stats-bar">
+      <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
+      <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
+      <div class="cc-st"><div class="v">${pregReg}</div><div class="l">Pregoneros</div></div>
+      <div class="cc-st${pregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${pregFalt}</div><div class="l">Preg. faltantes</div></div>
+      <div class="cc-st"><div class="v">${testReg}</div><div class="l">Testigos</div></div>
+      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${testFalt}</div><div class="l">Test. faltantes</div></div>
+      <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
     <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
