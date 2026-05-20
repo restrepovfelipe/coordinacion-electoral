@@ -1324,73 +1324,85 @@ function renderMapPanel(n, ck, id) {
   }, 50);
 }
 
-// ═══ DIRECTORIO TESTIGOS / ABOGADOS (punto 3) ═══
-let _dtaTab = 'test';
-function openDirTestAbog(tab) { _dtaTab = tab || 'test'; document.getElementById('dir-testabog-modal').style.display = 'flex'; switchDTATab(_dtaTab); }
-function closeDirTestAbog() { document.getElementById('dir-testabog-modal').style.display = 'none'; }
-function switchDTATab(tab) {
-  _dtaTab = tab;
-  document.getElementById('dta-tab-test').classList.toggle('on', tab === 'test');
-  document.getElementById('dta-tab-abog').classList.toggle('on', tab === 'abog');
-  renderDirTestAbog();
-}
-function renderDirTestAbog() {
-  const el = document.getElementById('dir-testabog-content'); let html = '';
+// ═══ DIRECTORIO TESTIGOS (punto 3) ═══
+function openDirTestigos() { document.getElementById('dir-testigos-modal').style.display = 'flex'; renderDirTestigos(); }
+function closeDirTestigos() { document.getElementById('dir-testigos-modal').style.display = 'none'; }
+function renderDirTestigos() {
+  const el = document.getElementById('dir-testigos-content'); let html = '';
   ALL_MUNIS.forEach(n => {
     if (!RAW[n]) return;
-    const s = gs(n);
-    let muniHtml = '';
+    const s = gs(n); let muniHtml = '';
     Object.keys(RAW[n]).sort().forEach(ck => {
-      if (_dtaTab === 'test') {
-        const testByCk = s.testigos?.[ck] || {};
-        const items = [];
-        Object.entries(testByCk).forEach(([puesto, rows]) => {
-          if (!Array.isArray(rows)) return;
-          rows.filter(r => r.nombre).forEach(r => items.push({ puesto, nombre: r.nombre, telefono: r.telefono || '' }));
-        });
-        if (!items.length) return;
-        muniHtml += `<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:4px">${ck}</div>
-          ${items.map(it => `<div class="dir-row"><div><div class="dir-name">${it.nombre}</div><div class="dir-role">Testigo · ${it.puesto}</div></div>
-            <div class="dir-phone">${it.telefono ? `<a class="wa-btn" href="https://wa.me/57${it.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${it.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`).join('')}</div>`;
-      } else {
-        const ab = s.abogados?.[ck];
-        if (!ab || !ab.nombre) return;
-        muniHtml += `<div class="dir-row" style="margin-bottom:6px"><div><div class="dir-name">${ab.nombre}</div><div class="dir-role">⚖️ Abogado · ${ck}${ab.firma ? ' · ' + ab.firma : ''}</div></div>
-          <div class="dir-phone">${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${ab.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`;
-      }
+      const testByCk = s.testigos?.[ck] || {};
+      const items = [];
+      Object.entries(testByCk).forEach(([puesto, rows]) => {
+        if (!Array.isArray(rows)) return;
+        rows.filter(r => r.nombre).forEach(r => items.push({ puesto, nombre: r.nombre, telefono: r.telefono || '' }));
+      });
+      if (!items.length) return;
+      muniHtml += `<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:4px">${ck}</div>
+        ${items.map(it => `<div class="dir-row"><div><div class="dir-name">${it.nombre}</div><div class="dir-role">Testigo · ${it.puesto}</div></div>
+          <div class="dir-phone">${it.telefono ? `<a class="wa-btn" href="https://wa.me/57${it.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${it.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`).join('')}</div>`;
     });
     if (!muniHtml) return;
     html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>${muniHtml}</div>`;
   });
-  if (!html) html = `<div class="dir-empty">Sin ${_dtaTab === 'test' ? 'testigos' : 'abogados'} registrados aún.</div>`;
-  el.innerHTML = html;
+  el.innerHTML = html || '<div class="dir-empty">Sin testigos registrados aún.</div>';
 }
-function exportDirTestAbogPDF() {
-  const now = new Date().toLocaleString('es-CO');
-  const title = _dtaTab === 'test' ? 'Directorio de Testigos Electorales' : 'Directorio de Abogados';
-  let sections = '';
+function exportDirTestigosPDF() {
+  const now = new Date().toLocaleString('es-CO'); let sections = '';
   ALL_MUNIS.forEach(n => {
     if (!RAW[n]) return;
     const s = gs(n); let muniRows = '';
     Object.keys(RAW[n]).sort().forEach(ck => {
-      if (_dtaTab === 'test') {
-        const testByCk = s.testigos?.[ck] || {};
-        Object.entries(testByCk).forEach(([puesto, rows]) => {
-          if (!Array.isArray(rows)) return;
-          rows.filter(r => r.nombre).forEach(r => {
-            muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${puesto}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.telefono||'—'}</td></tr>`;
-          });
+      const testByCk = s.testigos?.[ck] || {};
+      Object.entries(testByCk).forEach(([puesto, rows]) => {
+        if (!Array.isArray(rows)) return;
+        rows.filter(r => r.nombre).forEach(r => {
+          muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${puesto}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.telefono||'—'}</td></tr>`;
         });
-      } else {
-        const ab = s.abogados?.[ck];
-        if (ab && ab.nombre) muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.firma||'—'}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono||'—'}</td></tr>`;
-      }
+      });
     });
     if (!muniRows) return;
-    const cols = _dtaTab === 'test' ? '<tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Puesto</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>' : '<tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Firma</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>';
-    sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px">${cols}${muniRows}</table></div>`;
+    sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Puesto</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>${muniRows}</table></div>`;
   });
   const win = window.open('', '_blank', 'width=900,height=700');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body><h1 style="font-size:16px;color:#1a2030">${title}</h1><div style="font-size:11px;color:#666;margin-bottom:20px">Generado: ${now}</div>${sections||'<p>Sin datos registrados.</p>'}</body></html>`);
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body><h1 style="font-size:16px;color:#1a2030">Directorio de Testigos Electorales</h1><div style="font-size:11px;color:#666;margin-bottom:20px">Generado: ${now}</div>${sections||'<p>Sin testigos registrados.</p>'}</body></html>`);
+  win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+}
+
+// ═══ DIRECTORIO ABOGADOS (punto 3) ═══
+function openDirAbogados() { document.getElementById('dir-abogados-modal').style.display = 'flex'; renderDirAbogados(); }
+function closeDirAbogados() { document.getElementById('dir-abogados-modal').style.display = 'none'; }
+function renderDirAbogados() {
+  const el = document.getElementById('dir-abogados-content'); let html = '';
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n); let muniHtml = '';
+    Object.keys(RAW[n]).sort().forEach(ck => {
+      const ab = s.abogados?.[ck];
+      if (!ab || !ab.nombre) return;
+      muniHtml += `<div class="dir-row" style="margin-bottom:6px"><div><div class="dir-name">${ab.nombre}</div><div class="dir-role">⚖️ Abogado · ${ck}${ab.firma ? ' · ' + ab.firma : ''}</div></div>
+        <div class="dir-phone">${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${ab.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`;
+    });
+    if (!muniHtml) return;
+    html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>${muniHtml}</div>`;
+  });
+  el.innerHTML = html || '<div class="dir-empty">Sin abogados registrados aún.</div>';
+}
+function exportDirAbogadosPDF() {
+  const now = new Date().toLocaleString('es-CO'); let sections = '';
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n); let muniRows = '';
+    Object.keys(RAW[n]).sort().forEach(ck => {
+      const ab = s.abogados?.[ck];
+      if (ab && ab.nombre) muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.firma||'—'}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono||'—'}</td></tr>`;
+    });
+    if (!muniRows) return;
+    sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Firma</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>${muniRows}</table></div>`;
+  });
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Abogados</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body><h1 style="font-size:16px;color:#1a2030">Directorio de Abogados</h1><div style="font-size:11px;color:#666;margin-bottom:20px">Generado: ${now}</div>${sections||'<p>Sin abogados registrados.</p>'}</body></html>`);
   win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
 }

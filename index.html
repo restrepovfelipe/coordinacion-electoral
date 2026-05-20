@@ -59,8 +59,8 @@
     </div>
     <button class="sb-toggle sb-toggle-mob" onclick="toggleSB()" title="Ocultar/mostrar municipios">✕</button>
     <button class="export-btn" onclick="openDirectorio()" style="white-space:nowrap">👥 Coordinadores</button>
-    <button class="export-btn dir-tab-btn" onclick="openDirTestAbog('test')" style="white-space:nowrap">🧾 Testigos</button>
-    <button class="export-btn dir-tab-btn" onclick="openDirTestAbog('abog')" style="white-space:nowrap">⚖️ Abogados</button>
+    <button class="export-btn dir-tab-btn" onclick="openDirTestigos()" style="white-space:nowrap">🧾 Testigos</button>
+    <button class="export-btn dir-tab-btn" onclick="openDirAbogados()" style="white-space:nowrap">⚖️ Abogados</button>
     <div class="user-badge" id="user-badge" onclick="doLogout()">
       <span>👤</span><span id="user-label"></span><span style="font-size:9px;color:var(--red)">Salir</span>
     </div>
@@ -123,20 +123,29 @@
   </div>
 </div>
 
-<div class="dir-modal" id="dir-testabog-modal" style="display:none" onclick="if(event.target===this)closeDirTestAbog()">
+<div class="dir-modal" id="dir-testigos-modal" style="display:none" onclick="if(event.target===this)closeDirTestigos()">
   <div class="dir-box">
     <div class="dir-hd">
-      <h2>⚖️ Directorio — Testigos y Abogados</h2>
+      <h2>🧾 Directorio de Testigos</h2>
       <div class="dir-hd-btns">
-        <button class="dir-pdf" onclick="exportDirTestAbogPDF()">📄 Exportar PDF</button>
-        <button class="dir-close" onclick="closeDirTestAbog()">Cerrar ✕</button>
+        <button class="dir-pdf" onclick="exportDirTestigosPDF()">📄 Exportar PDF</button>
+        <button class="dir-close" onclick="closeDirTestigos()">Cerrar ✕</button>
       </div>
     </div>
-    <div style="display:flex;gap:8px;padding:10px 16px 0;border-bottom:1px solid var(--b1)">
-      <button class="itab on" id="dta-tab-test" onclick="switchDTATab('test')">🧾 Testigos</button>
-      <button class="itab" id="dta-tab-abog" onclick="switchDTATab('abog')">⚖️ Abogados</button>
+    <div id="dir-testigos-content"></div>
+  </div>
+</div>
+
+<div class="dir-modal" id="dir-abogados-modal" style="display:none" onclick="if(event.target===this)closeDirAbogados()">
+  <div class="dir-box">
+    <div class="dir-hd">
+      <h2>⚖️ Directorio de Abogados</h2>
+      <div class="dir-hd-btns">
+        <button class="dir-pdf" onclick="exportDirAbogadosPDF()">📄 Exportar PDF</button>
+        <button class="dir-close" onclick="closeDirAbogados()">Cerrar ✕</button>
+      </div>
     </div>
-    <div id="dir-testabog-content" style="padding:0"></div>
+    <div id="dir-abogados-content"></div>
   </div>
 </div>
 
