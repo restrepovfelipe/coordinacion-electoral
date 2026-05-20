@@ -149,6 +149,16 @@
   </div>
 </div>
 
+<div class="dir-modal" id="region-map-modal" style="display:none" onclick="if(event.target===this)closeRegionMap()">
+  <div class="dir-box" style="max-width:900px;width:95vw">
+    <div class="dir-hd">
+      <h2 id="region-map-title">🗺 Mapa de subregión</h2>
+      <button class="dir-close" onclick="closeRegionMap()">Cerrar ✕</button>
+    </div>
+    <div id="region-map-container" style="height:520px"></div>
+  </div>
+</div>
+
 <script src="js/data.js"></script>
 <script src="js/firebase-init.js"></script>
 <script src="js/sync.js"></script>

@@ -378,4 +378,7 @@ table.pt tr:hover td{background:rgba(255,255,255,.012)}
   .pc-edit-btn{font-size:12px;padding:6px 10px;min-height:36px}
   .tbtn{font-size:11px;padding:4px 10px;min-height:32px}
 }
+/* Leaflet municipality label tooltips */
+.map-muni-label{background:rgba(15,23,42,.85);border:none;box-shadow:none;color:#e2e8f0;font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 5px;border-radius:4px;white-space:nowrap}
+.map-muni-label::before{display:none}
 </style>

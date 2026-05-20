@@ -153,9 +153,11 @@ function renderMuni(n) {
     <div class="otabs">
       <div class="otab on" onclick="switchOTab(this,'ot-comunas')">Por Zonas/Comunas</div>
       <div class="otab" onclick="switchOTab(this,'ot-todos')">Todos los puestos</div>
+      <div class="otab" onclick="switchOTab(this,'ot-mapa')">🗺 Mapa</div>
     </div>
     <div id="ot-comunas" class="opane on"><div class="body" id="cc-body"></div></div>
-    <div id="ot-todos" class="opane"><div class="body" id="at-body"></div></div>`;
+    <div id="ot-todos" class="opane"><div class="body" id="at-body"></div></div>
+    <div id="ot-mapa" class="opane"><div id="ot-mapa-inner" style="height:520px"></div></div>`;
   renderCCs(n);
 }
 function switchOTab(el, id) {
@@ -163,6 +165,7 @@ function switchOTab(el, id) {
   document.querySelectorAll('.opane').forEach(p => p.classList.remove('on'));
   el.classList.add('on'); document.getElementById(id).classList.add('on');
   if (id === 'ot-todos') renderAllPuestos(CUR);
+  if (id === 'ot-mapa') renderMuniMap(CUR);
 }
 
 // ═══ ZONA CARDS ═══
@@ -816,7 +819,7 @@ function renderOV() {
   Object.entries(REGIONES).forEach(([region, munis]) => {
     const validMusis = munis.filter(n => RAW[n]);
     if (!validMusis.length) return;
-    html += `<div class="sec-t" style="margin-top:18px">${region} — ${validMusis.length} municipios</div>`;
+    html += `<div class="sec-t" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center"><span>${region} — ${validMusis.length} municipios</span><button class="export-btn" style="font-size:10px;padding:4px 10px" onclick="openRegionMap('${region}')">🗺 Mapa</button></div>`;
     html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px;margin-bottom:8px">`;
     validMusis.forEach(n => {
       const s = gs(n);
@@ -1439,4 +1442,293 @@ function exportDirAbogadosPDF() {
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Abogados</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body><h1 style="font-size:16px;color:#1a2030">Directorio de Abogados</h1><div style="font-size:11px;color:#666;margin-bottom:20px">Generado: ${now}</div>${sections||'<p>Sin abogados registrados.</p>'}</body></html>`);
   win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+}
+
+// ═══ COORDENADAS MUNICIPIOS ═══
+const MUNI_COORDS = {
+  // AMVA
+  'MEDELLIN':           [6.2442, -75.5812],
+  'BELLO':              [6.3386, -75.5581],
+  'ITAGUI':             [6.1848, -75.5975],
+  'ENVIGADO':           [6.1737, -75.5899],
+  'SABANETA':           [6.1513, -75.6167],
+  'LA ESTRELLA':        [6.1563, -75.6432],
+  'CALDAS':             [6.0934, -75.6359],
+  'COPACABANA':         [6.3494, -75.5057],
+  'GIRARDOTA':          [6.3828, -75.4478],
+  'BARBOSA':            [6.4382, -75.3327],
+  // ORIENTE
+  'ABEJORRAL':          [5.7870, -75.4330],
+  'ALEJANDRIA':         [6.3654, -75.0952],
+  'ARGELIA':            [5.7320, -75.1660],
+  'CARMEN DE VIBORAL':  [6.0893, -75.3409],
+  'COCORNA':            [6.0558, -74.9980],
+  'CONCEPCION':         [6.4013, -75.0434],
+  'GRANADA':            [6.1537, -74.9590],
+  'GUARNE':             [6.2800, -75.4250],
+  'GUATAPE':            [6.2322, -74.8771],
+  'LA CEJA':            [6.0311, -75.4331],
+  'LA UNION':           [5.9775, -75.3605],
+  'MARINILLA':          [6.1744, -75.3370],
+  'NARIÑO':             [5.8143, -75.1598],
+  'EL PEÑOL':           [6.2113, -75.0082],
+  'RETIRO':             [6.0608, -75.5135],
+  'RIONEGRO':           [6.1551, -75.3740],
+  'SAN CARLOS':         [6.1880, -74.9921],
+  'SAN FRANCISCO':      [6.2913, -75.0356],
+  'SAN LUIS':           [6.0390, -74.9965],
+  'SAN RAFAEL':         [6.2958, -75.0215],
+  'SAN VICENTE':        [6.3204, -75.3368],
+  'SANTUARIO':          [6.1416, -75.9686],
+  'SONSON':             [5.7107, -75.3128],
+  // OCCIDENTE
+  'ABRIAQI':            [7.0207, -76.3560],
+  'ANTIOQUIA':          [6.5609, -75.7614],
+  'ANZA':               [6.4003, -75.9232],
+  'ARMENIA':            [6.4814, -75.8773],
+  'BURITICA':           [6.7167, -75.9109],
+  'CAICEDO':            [6.3987, -76.0010],
+  'CAÑASGORDAS':        [6.7459, -76.0193],
+  'DABEIBA':            [7.0053, -76.2670],
+  'EBEJICO':            [6.3355, -75.8266],
+  'FRONTINO':           [6.7741, -76.1320],
+  'GIRALDO':            [6.6507, -75.9555],
+  'HELICONIA':          [6.2050, -75.7540],
+  'LIBORINA':           [6.6907, -75.8718],
+  'OLAYA':              [6.5878, -75.8484],
+  'PEQUE':              [6.9025, -76.0243],
+  'SABANALARGA':        [6.8736, -75.9697],
+  'SAN JERONIMO':       [6.3731, -75.7360],
+  'SOPETRAN':           [6.5038, -75.7484],
+  'URAMITA':            [6.9192, -76.1773],
+  // SUROESTE
+  'AMAGA':              [6.0418, -75.6990],
+  'ANDES':              [5.6560, -75.8760],
+  'ANGELOPOLIS':        [6.1080, -75.7143],
+  'BETANIA':            [5.8083, -75.9763],
+  'BETULIA':            [6.1079, -75.9840],
+  'BOLIVAR':            [5.8586, -75.9368],
+  'CARAMANTA':          [5.5412, -75.6600],
+  'CONCORDIA':          [6.0460, -75.9022],
+  'FREDONIA':           [5.9337, -75.6694],
+  'HISPANIA':           [5.8095, -75.9082],
+  'JARDIN':             [5.5987, -75.8150],
+  'JERICO':             [5.7896, -75.7777],
+  'LA PINTADA':         [5.7493, -75.5930],
+  'MONTEBELLO':         [5.9414, -75.5118],
+  'PUEBLORRICO':        [5.6683, -75.8997],
+  'SALGAR':             [5.9549, -75.9743],
+  'SANTA BARBARA':      [5.8733, -75.5726],
+  'TAMESIS':            [5.6621, -75.7138],
+  'TARSO':              [5.8093, -75.8186],
+  'TITIRIBI':           [6.0768, -75.7880],
+  'URRAO':              [6.3244, -76.1316],
+  'VALPARAISO':         [5.7271, -75.6325],
+  'VENECIA':            [5.9634, -75.7703],
+  // NORDESTE
+  'AMALFI':             [6.9119, -75.0726],
+  'ANORI':              [7.0761, -75.1382],
+  'CISNEROS':           [6.5398, -74.9954],
+  'REMEDIOS':           [7.0261, -74.6919],
+  'SAN ROQUE':          [6.4819, -74.9831],
+  'SANTO DOMINGO':      [6.4782, -75.1441],
+  'SEGOVIA':            [7.0879, -74.7049],
+  'VEGACHI':            [6.8027, -74.8092],
+  'YALI':               [6.5905, -75.0131],
+  'YOLOMBO':            [6.5961, -74.9897],
+  // NORTE
+  'ANGOSTURA':          [6.8869, -75.3449],
+  'BELMIRA':            [6.6077, -75.6658],
+  'BRICEÑO':            [7.1115, -75.5266],
+  'CAMPAMENTO':         [7.0022, -75.3048],
+  'CAROLINA':           [6.7454, -75.3285],
+  'DON MATIAS':         [6.4901, -75.4095],
+  'ENTRERRIOS':         [6.5530, -75.5610],
+  'GOMEZ PLATA':        [6.6349, -75.2165],
+  'GUADALUPE':          [6.9018, -75.2370],
+  'ITUANGO':            [7.1734, -75.7594],
+  'SAN ANDRES':         [6.7069, -75.4823],
+  'SAN JOSE DE LA MONTAÑA': [6.8320, -75.6800],
+  'SAN PEDRO':          [6.4926, -75.5637],
+  'SANTA ROSA DE OSOS': [6.6459, -75.4615],
+  'TOLEDO':             [7.2820, -75.3830],
+  'VALDIVIA':           [7.1628, -75.4362],
+  'YARUMAL':            [7.0019, -75.4208],
+  // URABÁ
+  'APARTADO':           [7.8836, -76.6272],
+  'ARBOLETES':          [8.8507, -76.4278],
+  'CAREPA':             [7.7577, -76.6558],
+  'CHIGORODO':          [7.6717, -76.6837],
+  'MURINDO':            [6.9826, -76.7541],
+  'MUTATA':             [7.2458, -76.4354],
+  'NECOCLI':            [8.4296, -76.7856],
+  'SAN JUAN DE URABA':  [8.7581, -76.5285],
+  'SAN PEDRO DE URABA': [8.2839, -76.3784],
+  'TURBO':              [8.0961, -76.7370],
+  'VIGIA DEL FUERTE':   [6.6097, -76.8743],
+  // BAJO CAUCA
+  'CACERES':            [7.5754, -75.3498],
+  'CAUCASIA':           [7.9854, -75.1971],
+  'EL BAGRE':           [7.5928, -74.8087],
+  'NECHI':              [8.1040, -74.7759],
+  'TARAZA':             [7.5817, -75.4005],
+  'ZARAGOZA':           [7.4908, -74.8668],
+  // MAGDALENA MEDIO
+  'CARACOLI':           [6.4450, -74.7648],
+  'PUERTO NARE':        [6.1963, -74.5895],
+  'MACEO':              [6.5428, -74.7755],
+  'PUERTO BERRIO':      [6.4906, -74.4069],
+  'PUERTO TRIUNFO':     [5.8733, -74.7322],
+  'YONDO-CASABE':       [6.8182, -74.4441],
+};
+
+function _coverageColor(tag) {
+  if (tag === 'ok') return '#22c55e';
+  if (tag === 'pr') return '#f5c842';
+  if (tag === 'pe') return '#fb923c';
+  if (tag === 'al') return '#ef4444';
+  return '#64748b';
+}
+
+function _muniCoverageStats(n) {
+  const s = gs(n); let total = 0, ok = 0, pr = 0, pe = 0, al = 0, none = 0;
+  if (!RAW[n]) return { total, ok, pr, pe, al, none };
+  Object.values(RAW[n]).forEach(puestos => {
+    puestos.forEach(p => {
+      total++;
+      const tag = s.puestos?.[pk(p)]?.tag || 'n';
+      if (tag === 'ok') ok++;
+      else if (tag === 'pr') pr++;
+      else if (tag === 'pe') pe++;
+      else if (tag === 'al') al++;
+      else none++;
+    });
+  });
+  return { total, ok, pr, pe, al, none };
+}
+
+// ═══ MAPA POR MUNICIPIO ═══
+let _muniLeafletMap = null;
+function renderMuniMap(n) {
+  const container = document.getElementById('ot-mapa-inner');
+  if (!container) return;
+  if (_muniLeafletMap) { try { _muniLeafletMap.remove(); } catch(e){} _muniLeafletMap = null; }
+  container.innerHTML = '';
+
+  const center = MUNI_COORDS[n] || [6.2442, -75.5812];
+  const s = gs(n);
+  const communes = RAW[n] ? Object.keys(RAW[n]).sort() : [];
+
+  _muniLeafletMap = L.map(container).setView(center, 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 18
+  }).addTo(_muniLeafletMap);
+
+  const count = communes.length;
+  const radius = 0.04;
+  communes.forEach((ck, i) => {
+    const angle = (2 * Math.PI * i) / count;
+    const lat = center[0] + (count > 1 ? radius * Math.sin(angle) : 0);
+    const lng = center[1] + (count > 1 ? radius * Math.cos(angle) : 0);
+
+    const puestos = RAW[n][ck] || [];
+    let total = puestos.length, ok = 0, al = 0, pr = 0, pe = 0;
+    puestos.forEach(p => {
+      const tag = s.puestos?.[pk(p)]?.tag || 'n';
+      if (tag === 'ok') ok++;
+      else if (tag === 'al') al++;
+      else if (tag === 'pr') pr++;
+      else if (tag === 'pe') pe++;
+    });
+    const dominant = al > 0 ? 'al' : pe > 0 ? 'pe' : pr > 0 ? 'pr' : (ok === total && total > 0) ? 'ok' : 'n';
+    const color = _coverageColor(dominant);
+    const pct = total > 0 ? Math.round((ok / total) * 100) : 0;
+    const coord = s.comunas?.[ck]?.coord || '';
+    const phone = s.comunas?.[ck]?.phone || '';
+
+    L.circleMarker([lat, lng], {
+      radius: 14, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
+    }).addTo(_muniLeafletMap)
+      .bindPopup(`<b>${ck}</b><br>${pct}% cubierto (${ok}/${total})${al > 0 ? '<br>⚠ ' + al + ' alertas' : ''}${coord ? '<br>👤 ' + coord : ''}${phone ? '<br>📞 ' + phone : ''}`);
+  });
+
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = () => {
+    const div = L.DomUtil.create('div', '');
+    div.style.cssText = 'background:rgba(15,23,42,.88);color:#e2e8f0;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.9';
+    div.innerHTML = '<b>Estado puestos</b><br>' +
+      '<span style="color:#22c55e">●</span> Cubierto<br>' +
+      '<span style="color:#f5c842">●</span> Prioritario<br>' +
+      '<span style="color:#fb923c">●</span> Pendiente<br>' +
+      '<span style="color:#ef4444">●</span> Alerta<br>' +
+      '<span style="color:#64748b">●</span> Sin estado';
+    return div;
+  };
+  legend.addTo(_muniLeafletMap);
+  setTimeout(() => _muniLeafletMap && _muniLeafletMap.invalidateSize(), 150);
+}
+
+// ═══ MAPA POR SUBREGIÓN ═══
+let _regionLeafletMap = null;
+function openRegionMap(region) {
+  document.getElementById('region-map-modal').style.display = 'flex';
+  document.getElementById('region-map-title').textContent = '🗺 Mapa — ' + region;
+  const container = document.getElementById('region-map-container');
+  if (_regionLeafletMap) { try { _regionLeafletMap.remove(); } catch(e){} _regionLeafletMap = null; }
+  container.innerHTML = '';
+
+  const munis = (REGIONES[region] || []).filter(n => RAW[n]);
+  if (!munis.length) { container.innerHTML = '<div style="padding:20px;color:#94a3b8">Sin municipios con datos en esta región.</div>'; return; }
+
+  const coords = munis.map(n => MUNI_COORDS[n]).filter(Boolean);
+  const avgLat = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+  const avgLng = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+
+  _regionLeafletMap = L.map(container).setView([avgLat, avgLng], 9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 18
+  }).addTo(_regionLeafletMap);
+
+  const bounds = [];
+  munis.forEach(n => {
+    const coord = MUNI_COORDS[n];
+    if (!coord) return;
+    bounds.push(coord);
+    const { total, ok, al, pr, pe } = _muniCoverageStats(n);
+    const pct = total > 0 ? Math.round((ok / total) * 100) : 0;
+    const dominant = al > 0 ? 'al' : pe > 0 ? 'pe' : pr > 0 ? 'pr' : (ok === total && total > 0) ? 'ok' : 'n';
+    const color = _coverageColor(dominant);
+    const s = gs(n);
+    const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+
+    L.circleMarker(coord, {
+      radius: 16, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
+    }).addTo(_regionLeafletMap)
+      .bindPopup(`<b>${label}</b><br>${pct}% cubierto (${ok}/${total} puestos)${al > 0 ? '<br>⚠ ' + al + ' alertas' : ''}${s.coord ? '<br>👤 ' + s.coord : ''}`);
+
+    L.tooltip({ permanent: true, direction: 'top', offset: [0, -18], className: 'map-muni-label' })
+      .setContent(label).setLatLng(coord).addTo(_regionLeafletMap);
+  });
+
+  if (bounds.length > 1) _regionLeafletMap.fitBounds(bounds, { padding: [40, 40] });
+
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = () => {
+    const div = L.DomUtil.create('div', '');
+    div.style.cssText = 'background:rgba(15,23,42,.88);color:#e2e8f0;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.9';
+    div.innerHTML = '<b>Cobertura municipio</b><br>' +
+      '<span style="color:#22c55e">●</span> 100% cubierto<br>' +
+      '<span style="color:#f5c842">●</span> Prioritario<br>' +
+      '<span style="color:#fb923c">●</span> Pendiente<br>' +
+      '<span style="color:#ef4444">●</span> Alertas<br>' +
+      '<span style="color:#64748b">●</span> Sin estado';
+    return div;
+  };
+  legend.addTo(_regionLeafletMap);
+  setTimeout(() => _regionLeafletMap && _regionLeafletMap.invalidateSize(), 150);
+}
+
+function closeRegionMap() {
+  document.getElementById('region-map-modal').style.display = 'none';
+  if (_regionLeafletMap) { try { _regionLeafletMap.remove(); } catch(e){} _regionLeafletMap = null; }
 }
