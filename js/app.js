@@ -1187,9 +1187,6 @@ function renderAbogadoPanel(n, ck, id) {
     <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Nombre</label>
       <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${ab.nombre || ''}"
         onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','nombre',this.value)"></div>
-    <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Firma / Empresa</label>
-      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre de la firma" value="${ab.firma || ''}"
-        onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','firma',this.value)"></div>
     <div class="mof" style="margin-bottom:12px"><label style="font-size:10px;color:var(--t3)">Teléfono / WhatsApp</label>
       <div style="display:flex;gap:6px;align-items:center">
         <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${ab.telefono || ''}"
