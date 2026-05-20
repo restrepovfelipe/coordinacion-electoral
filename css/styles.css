@@ -67,8 +67,21 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);display
 .cc-crd-lbl{font-size:9px;color:var(--t3)}.cc-crd-val{font-size:11px;color:var(--t1);font-weight:600}.cc-crd-ph{font-size:9px;color:var(--t3)}
 .cc-ced{background:none;border:1px dashed var(--b2);border-radius:4px;color:var(--t3);font-size:9px;padding:2px 5px;cursor:pointer;font-family:inherit;transition:all .12s}
 .cc-ced:hover{border-color:var(--gold);color:var(--gold)}
-.cc-r{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.cc-st{text-align:right}.cc-st .v{font-size:13px;font-weight:700;color:var(--t1)}.cc-st .l{font-size:8px;color:var(--t3)}
+.cc-r{display:flex;align-items:center;gap:7px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.cc-st{text-align:right;min-width:34px}.cc-st .v{font-size:12px;font-weight:700;color:var(--t1)}.cc-st .l{font-size:8px;color:var(--t3)}
+.cc-st-warn .v{color:var(--red)!important}
+.sc-warn .sv{color:var(--red)!important}
+/* Overview municipality cards */
+.ov-muni-card{background:var(--card);border:1px solid var(--b1);border-radius:var(--r);padding:12px;cursor:pointer;transition:border-color .12s;box-shadow:var(--shadow)}
+.ov-muni-card:hover{border-color:var(--t2)}
+.ov-muni-nm{font-size:13px;font-weight:700;color:var(--t1)}
+.ov-muni-sub{font-size:9px;color:var(--t3);margin-top:2px}
+.ov-muni-coord{font-size:9px;color:var(--t2);margin-top:4px}
+.ov-muni-stats{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ov-stat{display:flex;flex-direction:column;align-items:center;min-width:30px}
+.ov-stat b{font-size:12px;font-weight:700;color:var(--t1)}
+.ov-stat span{font-size:8px;color:var(--t3)}
+.ov-stat.warn b{color:var(--red)}
 .chev{color:var(--t3);font-size:15px;transition:transform .2s;padding:0 2px}.chev.op{transform:rotate(180deg);color:var(--t2)}
 .prog{height:2px;background:var(--b1)}.prog-f{height:100%;background:linear-gradient(90deg,var(--gold),var(--blue));transition:width .3s}
 .cc-bd{display:none}.cc-bd.op{display:block}

@@ -133,8 +133,15 @@ function selMuni(n) { CUR = n; buildSB(); renderMuni(n); }
 // ═══ MUNI VIEW ═══
 function renderMuni(n) {
   const comunas = RAW[n]; const s = gs(n); const ckeys = Object.keys(comunas).sort();
-  let totP = 0, totM = 0, totV = 0;
-  ckeys.forEach(c => comunas[c].forEach(p => { totP++; totM += (p.mesas || 0); totV += (p.total || 0); }));
+  let totP = 0, totM = 0, totV = 0, totPregNec = 0, totPregReg = 0, totPregFalt = 0;
+  let totTestReg = 0, totTestFalt = 0, totCov = 0;
+  ckeys.forEach(c => {
+    comunas[c].forEach(p => { totP++; totM += (p.mesas || 0); totV += (p.total || 0); });
+    const st = _ccStats(n, c);
+    totPregNec += st.pregNec; totPregReg += st.pregReg; totPregFalt += st.pregFalt;
+    totTestReg += st.testReg; totTestFalt += st.testFalt; totCov += st.covPuestos;
+  });
+  const pctCov = totP ? Math.round(totCov / totP * 100) : 0;
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
@@ -145,10 +152,15 @@ function renderMuni(n) {
       </div>
     </div>
     <div class="stats">
-      <div class="sc g"><div class="sl">Puestos</div><div class="sv">${totP}</div></div>
-      <div class="sc b"><div class="sl">Mesas</div><div class="sv">${totM.toLocaleString('es-CO')}</div></div>
-      <div class="sc"><div class="sl">Zonas</div><div class="sv">${ckeys.length}</div></div>
-      <div class="sc gr"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
+      <div class="sc"><div class="sl">Puestos</div><div class="sv">${totP}</div></div>
+      <div class="sc"><div class="sl">Mesas</div><div class="sv">${totM.toLocaleString('es-CO')}</div></div>
+      <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${ckeys.length}</div></div>
+      <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
+      <div class="sc"><div class="sl">Pregoneros</div><div class="sv">${totPregReg}/${totPregNec}</div></div>
+      <div class="sc${totPregFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Preg. faltantes</div><div class="sv">${totPregFalt}</div></div>
+      <div class="sc"><div class="sl">Testigos</div><div class="sv">${totTestReg}</div></div>
+      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Test. faltantes</div><div class="sv">${totTestFalt}</div></div>
+      <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${pctCov}%</div></div>
     </div>
     <div class="otabs">
       <div class="otab on" onclick="switchOTab(this,'ot-comunas')">Por Zonas/Comunas</div>
@@ -168,20 +180,44 @@ function switchOTab(el, id) {
   if (id === 'ot-mapa') renderMuniMap(CUR);
 }
 
+// ═══ STATS HELPER PER COMMUNE ═══
+function _ccStats(n, ck) {
+  const s = gs(n);
+  const puestos = RAW[n][ck] || [];
+  const totPuestos = puestos.length;
+  const totMesas = puestos.reduce((a, p) => a + (p.mesas || 0), 0);
+  const pregBase = PREG_BASE[n]?.[ck] || {};
+  const pregNec = Object.values(pregBase).reduce((a, v) => a + (v || 0), 0);
+  const savedPreg = s.pregoneros?.[ck] || {};
+  const pregReg = Object.values(savedPreg).reduce((a, rows) => a + (Array.isArray(rows) ? rows.filter(r => r.nombre).length : 0), 0);
+  const pregFalt = Math.max(0, pregNec - pregReg);
+  let testReg = 0, testPuCub = 0;
+  puestos.forEach(p => {
+    const rows = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre);
+    testReg += rows.length;
+    if (rows.length > 0) testPuCub++;
+  });
+  const testFalt = totPuestos - testPuCub;
+  const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
+  const pct = totPuestos ? Math.round(covPuestos / totPuestos * 100) : 0;
+  const resps = (s.movilidad?.[ck]?.responsables) || [];
+  const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
+  const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
+  return { totPuestos, totMesas, pregNec, pregReg, pregFalt, testReg, testFalt, testPuCub, covPuestos, pct, totMotos, totCarros };
+}
+
 // ═══ ZONA CARDS ═══
 function buildZonaCard(n, zona) {
   const s = gs(n); const sz = (s.zonas || {})[zona.nombre] || {};
-  let totPuestos = 0, totPregNec = 0, totPregReg = 0, totMotos = 0, totCarros = 0, totCov = 0;
+  let totPuestos = 0, totMesas = 0, totPregNec = 0, totPregReg = 0, totPregFalt = 0;
+  let totTestReg = 0, totTestFalt = 0, totMotos = 0, totCarros = 0, totCov = 0;
   zona.comunas.forEach(ck => {
-    const puestos = RAW[n][ck] || [];
-    totPuestos += puestos.length;
-    totPregNec += Object.values(PREG_BASE[n]?.[ck] || {}).reduce((a, v) => a + (v || 0), 0);
-    const sp = s.pregoneros?.[ck] || {};
-    totPregReg += Object.values(sp).reduce((a, rows) => a + (Array.isArray(rows) ? rows.filter(r => r.nombre).length : 0), 0);
-    const resps = (s.movilidad?.[ck]?.responsables) || [];
-    totMotos += resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
-    totCarros += resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
-    totCov += puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
+    if (!RAW[n][ck]) return;
+    const st = _ccStats(n, ck);
+    totPuestos += st.totPuestos; totMesas += st.totMesas;
+    totPregNec += st.pregNec; totPregReg += st.pregReg; totPregFalt += st.pregFalt;
+    totTestReg += st.testReg; totTestFalt += st.testFalt;
+    totMotos += st.totMotos; totCarros += st.totCarros; totCov += st.covPuestos;
   });
   const pct = totPuestos ? Math.round(totCov / totPuestos * 100) : 0;
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
@@ -199,9 +235,12 @@ function buildZonaCard(n, zona) {
       </div>
       <div class="cc-r">
         <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">puestos</div></div>
-        <div class="cc-st"><div class="v" style="color:var(--preg)">${totPregReg}/${totPregNec}</div><div class="l">pregoneros</div></div>
-        <div class="cc-st"><div class="v" style="color:var(--moto)">${totMotos}</div><div class="l">motos</div></div>
-        <div class="cc-st"><div class="v" style="color:var(--car)">${totCarros}</div><div class="l">carros</div></div>
+        <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">mesas</div></div>
+        <div class="cc-st"><div class="v">${totPregReg}/${totPregNec}</div><div class="l">pregoneros</div></div>
+        <div class="cc-st${totPregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totPregFalt}</div><div class="l">preg. falt.</div></div>
+        <div class="cc-st"><div class="v">${totTestReg}</div><div class="l">testigos</div></div>
+        <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totTestFalt}</div><div class="l">test. falt.</div></div>
+        <div class="cc-st"><div class="v">${pct}%</div><div class="l">cobertura</div></div>
         <div class="chev${isOpen ? ' op' : ''}">▾</div>
       </div>
     </div>
@@ -215,17 +254,10 @@ function buildZonaCard(n, zona) {
 // ═══ COMMUNE CARDS ═══
 function buildCCCard(n, ck) {
   const puestos = RAW[n][ck]; const s = gs(n); const sc = (s.comunas || {})[ck] || {};
-  const totM = puestos.reduce((a, p) => a + (p.mesas || 0), 0); const totV = puestos.reduce((a, p) => a + (p.total || 0), 0);
-  const cov = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
-  const pct = puestos.length ? Math.round(cov / puestos.length * 100) : 0;
+  const totV = puestos.reduce((a, p) => a + (p.total || 0), 0);
   const id = cid(n, ck); const isOpen = OPEN_CC.has(n + ck);
   const card = document.createElement('div'); card.className = 'cc'; card.id = id;
-  const pregBase = PREG_BASE[n]?.[ck] || {};
-  const totalPregNec = Object.values(pregBase).reduce((a, v) => a + (v || 0), 0);
-  const savedPreg = s.pregoneros?.[ck] || {};
-  const totalPregReg = Object.values(savedPreg).reduce((a, rows) => a + (Array.isArray(rows) ? rows.filter(r => r.nombre).length : 0), 0);
-  const mov = s.movilidad?.[ck] || {};
-  const resps = (mov.responsables) || [];
+  const { totPuestos, totMesas, pregNec, pregReg, pregFalt, testReg, testFalt, pct } = _ccStats(n, ck);
   card.innerHTML = `
     <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
       <div>
@@ -238,10 +270,13 @@ function buildCCCard(n, ck) {
         </div>
       </div>
       <div class="cc-r">
-        <div class="cc-st"><div class="v">${puestos.length}</div><div class="l">puestos</div></div>
-        <div class="cc-st"><div class="v" style="color:var(--preg)">${totalPregReg}/${totalPregNec}</div><div class="l">pregoneros</div></div>
-        <div class="cc-st"><div class="v" style="color:var(--moto)">${resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0)}</div><div class="l">motos</div></div>
-        <div class="cc-st"><div class="v" style="color:var(--car)">${resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0)}</div><div class="l">carros</div></div>
+        <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">puestos</div></div>
+        <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">mesas</div></div>
+        <div class="cc-st"><div class="v">${pregReg}/${pregNec}</div><div class="l">pregoneros</div></div>
+        <div class="cc-st${pregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${pregFalt}</div><div class="l">preg. falt.</div></div>
+        <div class="cc-st"><div class="v">${testReg}</div><div class="l">testigos</div></div>
+        <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${testFalt}</div><div class="l">test. falt.</div></div>
+        <div class="cc-st"><div class="v">${pct}%</div><div class="l">cobertura</div></div>
         <div class="chev${isOpen ? ' op' : ''}">▾</div>
       </div>
     </div>
@@ -819,15 +854,48 @@ function renderOV() {
   Object.entries(REGIONES).forEach(([region, munis]) => {
     const validMusis = munis.filter(n => RAW[n]);
     if (!validMusis.length) return;
-    html += `<div class="sec-t" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center"><span>${region} — ${validMusis.length} municipios</span><button class="export-btn" style="font-size:10px;padding:4px 10px" onclick="openRegionMap('${region}')">🗺 Mapa</button></div>`;
+    const rTotP = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.length, 0), 0);
+    const rTotM = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.mesas || 0), 0), 0), 0);
+    let rPregNec = 0, rPregReg = 0, rTestReg = 0, rTestFalt = 0, rCov = 0;
+    validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
+      const st = _ccStats(n, c);
+      rPregNec += st.pregNec; rPregReg += st.pregReg;
+      rTestReg += st.testReg; rTestFalt += st.testFalt; rCov += st.covPuestos;
+    }));
+    const rPct = rTotP ? Math.round(rCov / rTotP * 100) : 0;
+    const rPregFalt = Math.max(0, rPregNec - rPregReg);
+    html += `<div class="sec-t" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+      <span style="font-size:10px;font-weight:700">${region} — ${validMusis.length} municipios · ${rTotP} puestos · ${rTotM.toLocaleString('es-CO')} mesas</span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:10px;color:var(--t2)">Preg: <b>${rPregReg}/${rPregNec}</b> · Falt: <b style="${rPregFalt > 0 ? 'color:var(--red)' : ''}">${rPregFalt}</b> · Test: <b>${rTestReg}</b> · T.falt: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
+        <button class="export-btn" style="font-size:10px;padding:4px 10px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
+      </div>
+    </div>`;
     html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px;margin-bottom:8px">`;
     validMusis.forEach(n => {
       const s = gs(n);
-      const totP = Object.values(RAW[n]).reduce((a, c) => a + c.length, 0);
-      html += `<div style="background:var(--card);border:1px solid var(--b1);border-radius:var(--r);padding:13px;cursor:pointer;transition:all .12s" onclick="selMuni('${n}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--b1)'">
-        <div style="font-size:13px;font-weight:700">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
-        <div style="font-size:9px;color:var(--t3);margin-top:2px">${Object.keys(RAW[n]).length} zonas · ${totP} puestos</div>
-        ${s.coord ? `<div style="font-size:9px;color:var(--blue);margin-top:5px">👤 ${s.coord}</div>` : `<div style="font-size:9px;color:var(--t3);font-style:italic;margin-top:5px">Sin coordinador asignado</div>`}
+      const ckeys = Object.keys(RAW[n]);
+      const totP = ckeys.reduce((a, c) => a + RAW[n][c].length, 0);
+      const totM = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.mesas || 0), 0), 0);
+      let pregNec = 0, pregReg = 0, testReg = 0, testFalt = 0, covP = 0;
+      ckeys.forEach(c => {
+        const st = _ccStats(n, c);
+        pregNec += st.pregNec; pregReg += st.pregReg;
+        testReg += st.testReg; testFalt += st.testFalt; covP += st.covPuestos;
+      });
+      const pct = totP ? Math.round(covP / totP * 100) : 0;
+      const pregFalt = Math.max(0, pregNec - pregReg);
+      html += `<div class="ov-muni-card" onclick="selMuni('${n}')">
+        <div class="ov-muni-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
+        <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
+        ${s.coord ? `<div class="ov-muni-coord">👤 ${s.coord}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
+        <div class="ov-muni-stats">
+          <span class="ov-stat"><b>${pregReg}/${pregNec}</b><span>preg.</span></span>
+          <span class="ov-stat${pregFalt > 0 ? ' warn' : ''}"><b>${pregFalt}</b><span>p.falt.</span></span>
+          <span class="ov-stat"><b>${testReg}</b><span>test.</span></span>
+          <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>t.falt.</span></span>
+          <span class="ov-stat"><b>${pct}%</b><span>cob.</span></span>
+        </div>
       </div>`;
     });
     html += '</div>';
