@@ -263,34 +263,29 @@ function buildCCCard(n, ck) {
     </div>`;
   return card;
 }
+function _restoreTabForCC(n, ck) {
+  const id = cid(n, ck);
+  const savedPane = OPEN_ITABS[id];
+  if (!savedPane || !OPEN_CC.has(n + ck)) return;
+  const bd = document.getElementById(id + '-bd');
+  if (!bd) return;
+  bd.querySelectorAll('.itab').forEach(t => t.classList.toggle('on', t.dataset.pane === savedPane));
+  bd.querySelectorAll('.ipane').forEach(p => p.classList.toggle('on', p.id === savedPane));
+  const suffix = savedPane.replace(id + '-', '');
+  const renders = { preg: () => renderPregPanel(n, ck, id), mov: () => renderMovPanel(n, ck, id), abog: () => renderAbogadoPanel(n, ck, id), refrig: () => renderRefrigPanel(n, ck, id), comp: () => renderComparendosPanel(n, ck, id), mapa: () => renderMapPanel(n, ck, id) };
+  if (renders[suffix]) renders[suffix]();
+}
 function renderCCs(n) {
   const body = document.getElementById('cc-body'); body.innerHTML = '';
-  const renderFns = (n, ck, id) => ({
-    preg: () => renderPregPanel(n, ck, id),
-    mov: () => renderMovPanel(n, ck, id),
-    abog: () => renderAbogadoPanel(n, ck, id),
-    refrig: () => renderRefrigPanel(n, ck, id),
-    comp: () => renderComparendosPanel(n, ck, id),
-    mapa: () => renderMapPanel(n, ck, id)
-  });
   if (n === 'MEDELLIN') {
-    MEDELLIN_ZONAS.forEach(zona => body.appendChild(buildZonaCard(n, zona)));
+    MEDELLIN_ZONAS.forEach(zona => {
+      body.appendChild(buildZonaCard(n, zona));
+      zona.comunas.forEach(ck => { if (RAW[n][ck]) _restoreTabForCC(n, ck); });
+    });
   } else {
     Object.keys(RAW[n]).sort().forEach(ck => {
-      const card = buildCCCard(n, ck);
-      body.appendChild(card);
-      const id = cid(n, ck);
-      const savedPane = OPEN_ITABS[id];
-      if (savedPane && OPEN_CC.has(n + ck)) {
-        const bd = card.querySelector('.cc-bd');
-        if (bd) {
-          bd.querySelectorAll('.itab').forEach(t => t.classList.toggle('on', t.dataset.pane === savedPane));
-          bd.querySelectorAll('.ipane').forEach(p => p.classList.toggle('on', p.id === savedPane));
-          const suffix = savedPane.replace(id + '-', '');
-          const fn = renderFns(n, ck, id)[suffix];
-          if (fn) fn();
-        }
-      }
+      body.appendChild(buildCCCard(n, ck));
+      _restoreTabForCC(n, ck);
     });
   }
 }
