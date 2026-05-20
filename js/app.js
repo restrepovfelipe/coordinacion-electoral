@@ -129,6 +129,17 @@ function buildSB() {
   });
 }
 function selMuni(n) { CUR = n; buildSB(); renderMuni(n); }
+function goHome() {
+  CUR = null; buildSB();
+  document.getElementById('ct').innerHTML = `
+    <div class="empty">
+      <div class="empty-ico">🇨🇴</div>
+      <h3 style="color:var(--t1);font-size:17px;margin-bottom:6px">Centro de Comando Antioquia</h3>
+      <p style="font-size:12px">Selecciona un municipio para gestionar comunas, puestos, pregoneros, testigos y movilidad.</p>
+      <div id="ov-wrap" style="margin-top:20px;padding:0 10px"></div>
+    </div>`;
+  renderOV();
+}
 
 // ═══ MUNI VIEW ═══
 function renderMuni(n) {
@@ -145,7 +156,10 @@ function renderMuni(n) {
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
-      <div><div class="mh-t">${label}</div><div class="mh-s">${totP} puestos · ${ckeys.length} zonas · ${totV.toLocaleString('es-CO')} votantes</div></div>
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <button class="back-btn" onclick="goHome()" title="Volver al inicio">← Inicio</button>
+        <div><div class="mh-t">${label}</div><div class="mh-s">${totP} puestos · ${ckeys.length} zonas · ${totV.toLocaleString('es-CO')} votantes</div></div>
+      </div>
       <div class="mh-coord">
         <div><div class="cl">Coordinador ${isMed ? 'ciudad' : 'municipal'}</div><div class="cv" id="mh-cv">${s.coord || '—'}</div>${s.phone ? `<div class="cp">${s.phone}</div>` : ''}</div>
         <button class="ebtn" onclick="editMuni('${n}')">✎ Editar</button>
