@@ -1479,7 +1479,7 @@ const MUNI_COORDS = {
   'SAN LUIS':           [6.0390, -74.9965],
   'SAN RAFAEL':         [6.2958, -75.0215],
   'SAN VICENTE':        [6.3204, -75.3368],
-  'SANTUARIO':          [6.1416, -75.9686],
+  'SANTUARIO':          [6.1416, -75.2686],
   'SONSON':             [5.7107, -75.3128],
   // OCCIDENTE
   'ABRIAQI':            [7.0207, -76.3560],
