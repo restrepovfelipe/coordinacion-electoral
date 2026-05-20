@@ -3,6 +3,7 @@ let ST = {};
 let _initialized = false;
 const ALL_MUNIS = Object.values(REGIONES).flat();
 let CLOSED_REGIONS = new Set(Object.keys(REGIONES));
+const OPEN_ITABS = {};
 
 function loadLocalSt() {
   try { return JSON.parse(localStorage.getItem('amva26v2') || '{}'); } catch (e) { return {}; }
@@ -244,13 +245,13 @@ function buildCCCard(n, ck) {
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
     <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
       <div class="itabs">
-        <div class="itab on" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
-        <div class="itab" onclick="switchIT(this,'${id}-preg');renderPregPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">📢 Pregoneros / Testigos</div>
-        <div class="itab" onclick="switchIT(this,'${id}-mov');renderMovPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🚗 Movilidad</div>
-        <div class="itab" onclick="switchIT(this,'${id}-abog');renderAbogadoPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚖️ Abogado</div>
-        <div class="itab" onclick="switchIT(this,'${id}-refrig');renderRefrigPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🍱 Refrigerios</div>
-        <div class="itab" onclick="switchIT(this,'${id}-comp');renderComparendosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚠️ Comparendos</div>
-        <div class="itab" onclick="switchIT(this,'${id}-mapa');renderMapPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🗺 Mapa</div>
+        <div class="itab on" data-pane="${id}-puestos" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
+        <div class="itab" data-pane="${id}-preg" onclick="switchIT(this,'${id}-preg');renderPregPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">📢 Pregoneros / Testigos</div>
+        <div class="itab" data-pane="${id}-mov" onclick="switchIT(this,'${id}-mov');renderMovPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🚗 Movilidad</div>
+        <div class="itab" data-pane="${id}-abog" onclick="switchIT(this,'${id}-abog');renderAbogadoPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚖️ Abogado</div>
+        <div class="itab" data-pane="${id}-refrig" onclick="switchIT(this,'${id}-refrig');renderRefrigPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🍱 Refrigerios</div>
+        <div class="itab" data-pane="${id}-comp" onclick="switchIT(this,'${id}-comp');renderComparendosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚠️ Comparendos</div>
+        <div class="itab" data-pane="${id}-mapa" onclick="switchIT(this,'${id}-mapa');renderMapPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🗺 Mapa</div>
       </div>
       <div class="ipane on" id="${id}-puestos"><div style="padding:8px">${buildPT(n, puestos, ck)}</div></div>
       <div class="ipane" id="${id}-preg"></div>
@@ -264,14 +265,39 @@ function buildCCCard(n, ck) {
 }
 function renderCCs(n) {
   const body = document.getElementById('cc-body'); body.innerHTML = '';
+  const renderFns = (n, ck, id) => ({
+    preg: () => renderPregPanel(n, ck, id),
+    mov: () => renderMovPanel(n, ck, id),
+    abog: () => renderAbogadoPanel(n, ck, id),
+    refrig: () => renderRefrigPanel(n, ck, id),
+    comp: () => renderComparendosPanel(n, ck, id),
+    mapa: () => renderMapPanel(n, ck, id)
+  });
   if (n === 'MEDELLIN') {
     MEDELLIN_ZONAS.forEach(zona => body.appendChild(buildZonaCard(n, zona)));
   } else {
-    Object.keys(RAW[n]).sort().forEach(ck => body.appendChild(buildCCCard(n, ck)));
+    Object.keys(RAW[n]).sort().forEach(ck => {
+      const card = buildCCCard(n, ck);
+      body.appendChild(card);
+      const id = cid(n, ck);
+      const savedPane = OPEN_ITABS[id];
+      if (savedPane && OPEN_CC.has(n + ck)) {
+        const bd = card.querySelector('.cc-bd');
+        if (bd) {
+          bd.querySelectorAll('.itab').forEach(t => t.classList.toggle('on', t.dataset.pane === savedPane));
+          bd.querySelectorAll('.ipane').forEach(p => p.classList.toggle('on', p.id === savedPane));
+          const suffix = savedPane.replace(id + '-', '');
+          const fn = renderFns(n, ck, id)[suffix];
+          if (fn) fn();
+        }
+      }
+    });
   }
 }
 function switchIT(el, paneid) {
   const bd = el.closest('.cc-bd');
+  const cardId = bd.id.replace('-bd', '');
+  OPEN_ITABS[cardId] = paneid;
   bd.querySelectorAll('.itab').forEach(t => t.classList.remove('on'));
   bd.querySelectorAll('.ipane').forEach(p => p.classList.remove('on'));
   el.classList.add('on'); document.getElementById(paneid).classList.add('on');
