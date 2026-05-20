@@ -156,7 +156,7 @@ function renderMuni(n) {
       <div class="sc"><div class="sl">Mesas</div><div class="sv">${totM.toLocaleString('es-CO')}</div></div>
       <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${ckeys.length}</div></div>
       <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
-      <div class="sc"><div class="sl">Pregoneros</div><div class="sv">${totPregReg}/${totPregNec}</div></div>
+      <div class="sc"><div class="sl">Pregoneros</div><div class="sv">${totPregReg}</div></div>
       <div class="sc${totPregFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Preg. faltantes</div><div class="sv">${totPregFalt}</div></div>
       <div class="sc"><div class="sl">Testigos</div><div class="sv">${totTestReg}</div></div>
       <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Test. faltantes</div><div class="sv">${totTestFalt}</div></div>
@@ -236,7 +236,7 @@ function buildZonaCard(n, zona) {
       <div class="cc-r">
         <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">puestos</div></div>
         <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">mesas</div></div>
-        <div class="cc-st"><div class="v">${totPregReg}/${totPregNec}</div><div class="l">pregoneros</div></div>
+        <div class="cc-st"><div class="v">${totPregReg}</div><div class="l">pregoneros</div></div>
         <div class="cc-st${totPregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totPregFalt}</div><div class="l">preg. falt.</div></div>
         <div class="cc-st"><div class="v">${totTestReg}</div><div class="l">testigos</div></div>
         <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totTestFalt}</div><div class="l">test. falt.</div></div>
@@ -272,7 +272,7 @@ function buildCCCard(n, ck) {
       <div class="cc-r">
         <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">puestos</div></div>
         <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">mesas</div></div>
-        <div class="cc-st"><div class="v">${pregReg}/${pregNec}</div><div class="l">pregoneros</div></div>
+        <div class="cc-st"><div class="v">${pregReg}</div><div class="l">pregoneros</div></div>
         <div class="cc-st${pregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${pregFalt}</div><div class="l">preg. falt.</div></div>
         <div class="cc-st"><div class="v">${testReg}</div><div class="l">testigos</div></div>
         <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${testFalt}</div><div class="l">test. falt.</div></div>
@@ -867,7 +867,7 @@ function renderOV() {
     html += `<div class="sec-t" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
       <span style="font-size:10px;font-weight:700">${region} — ${validMusis.length} municipios · ${rTotP} puestos · ${rTotM.toLocaleString('es-CO')} mesas</span>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:10px;color:var(--t2)">Preg: <b>${rPregReg}/${rPregNec}</b> · Falt: <b style="${rPregFalt > 0 ? 'color:var(--red)' : ''}">${rPregFalt}</b> · Test: <b>${rTestReg}</b> · T.falt: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
+        <span style="font-size:10px;color:var(--t2)">Preg: <b>${rPregReg}</b> · Falt: <b style="${rPregFalt > 0 ? 'color:var(--red)' : ''}">${rPregFalt}</b> · Test: <b>${rTestReg}</b> · T.falt: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
         <button class="export-btn" style="font-size:10px;padding:4px 10px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
       </div>
     </div>`;
@@ -890,7 +890,7 @@ function renderOV() {
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
         ${s.coord ? `<div class="ov-muni-coord">👤 ${s.coord}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
         <div class="ov-muni-stats">
-          <span class="ov-stat"><b>${pregReg}/${pregNec}</b><span>preg.</span></span>
+          <span class="ov-stat"><b>${pregReg}</b><span>preg.</span></span>
           <span class="ov-stat${pregFalt > 0 ? ' warn' : ''}"><b>${pregFalt}</b><span>p.falt.</span></span>
           <span class="ov-stat"><b>${testReg}</b><span>test.</span></span>
           <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>t.falt.</span></span>
