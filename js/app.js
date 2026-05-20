@@ -1615,23 +1615,20 @@ function renderMuniMap(n) {
   if (_muniLeafletMap) { try { _muniLeafletMap.remove(); } catch(e){} _muniLeafletMap = null; }
   container.innerHTML = '';
 
-  const center = MUNI_COORDS[n] || [6.2442, -75.5812];
   const s = gs(n);
   const communes = RAW[n] ? Object.keys(RAW[n]).sort() : [];
 
-  _muniLeafletMap = L.map(container).setView(center, 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap', maxZoom: 18
-  }).addTo(_muniLeafletMap);
-
-  const count = communes.length;
-  const radius = 0.04;
-  communes.forEach((ck, i) => {
-    const angle = (2 * Math.PI * i) / count;
-    const lat = center[0] + (count > 1 ? radius * Math.sin(angle) : 0);
-    const lng = center[1] + (count > 1 ? radius * Math.cos(angle) : 0);
-
+  // Compute centroid of each commune from puesto lat/lon
+  const communeData = [];
+  const allLats = [], allLngs = [];
+  communes.forEach(ck => {
     const puestos = RAW[n][ck] || [];
+    const withCoords = puestos.filter(p => p.lat && p.lon);
+    if (!withCoords.length) return;
+    const lat = withCoords.reduce((s, p) => s + p.lat, 0) / withCoords.length;
+    const lng = withCoords.reduce((s, p) => s + p.lon, 0) / withCoords.length;
+    allLats.push(lat); allLngs.push(lng);
+
     let total = puestos.length, ok = 0, al = 0, pr = 0, pe = 0;
     puestos.forEach(p => {
       const tag = s.puestos?.[pk(p)]?.tag || 'n';
@@ -1640,6 +1637,22 @@ function renderMuniMap(n) {
       else if (tag === 'pr') pr++;
       else if (tag === 'pe') pe++;
     });
+    communeData.push({ ck, lat, lng, total, ok, al, pr, pe });
+  });
+
+  const fallback = MUNI_COORDS[n] || [6.2442, -75.5812];
+  const center = allLats.length
+    ? [allLats.reduce((a, b) => a + b, 0) / allLats.length, allLngs.reduce((a, b) => a + b, 0) / allLngs.length]
+    : fallback;
+
+  _muniLeafletMap = L.map(container).setView(center, 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 18
+  }).addTo(_muniLeafletMap);
+
+  const bounds = [];
+  communeData.forEach(({ ck, lat, lng, total, ok, al, pr, pe }) => {
+    bounds.push([lat, lng]);
     const dominant = al > 0 ? 'al' : pe > 0 ? 'pe' : pr > 0 ? 'pr' : (ok === total && total > 0) ? 'ok' : 'n';
     const color = _coverageColor(dominant);
     const pct = total > 0 ? Math.round((ok / total) * 100) : 0;
@@ -1651,6 +1664,8 @@ function renderMuniMap(n) {
     }).addTo(_muniLeafletMap)
       .bindPopup(`<b>${ck}</b><br>${pct}% cubierto (${ok}/${total})${al > 0 ? '<br>⚠ ' + al + ' alertas' : ''}${coord ? '<br>👤 ' + coord : ''}${phone ? '<br>📞 ' + phone : ''}`);
   });
+
+  if (bounds.length > 1) _muniLeafletMap.fitBounds(bounds, { padding: [30, 30] });
 
   const legend = L.control({ position: 'bottomright' });
   legend.onAdd = () => {
