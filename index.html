@@ -10,6 +10,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <!-- LOGIN SCREEN -->
@@ -56,7 +58,8 @@
       </div>
     </div>
     <button class="sb-toggle sb-toggle-mob" onclick="toggleSB()" title="Ocultar/mostrar municipios">✕</button>
-    <button class="export-btn" onclick="openDirectorio()" style="white-space:nowrap">👥 Directorio</button>
+    <button class="export-btn" onclick="openDirectorio()" style="white-space:nowrap">👥 Coordinadores</button>
+    <button class="export-btn dir-tab-btn" onclick="openDirTestAbog()" style="white-space:nowrap">⚖️ Test / Abog</button>
     <div class="user-badge" id="user-badge" onclick="doLogout()">
       <span>👤</span><span id="user-label"></span><span style="font-size:9px;color:var(--red)">Salir</span>
     </div>
@@ -116,6 +119,23 @@
       </div>
     </div>
     <div id="dir-content"></div>
+  </div>
+</div>
+
+<div class="dir-modal" id="dir-testabog-modal" style="display:none" onclick="if(event.target===this)closeDirTestAbog()">
+  <div class="dir-box">
+    <div class="dir-hd">
+      <h2>⚖️ Directorio — Testigos y Abogados</h2>
+      <div class="dir-hd-btns">
+        <button class="dir-pdf" onclick="exportDirTestAbogPDF()">📄 Exportar PDF</button>
+        <button class="dir-close" onclick="closeDirTestAbog()">Cerrar ✕</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:10px 16px 0;border-bottom:1px solid var(--b1)">
+      <button class="itab on" id="dta-tab-test" onclick="switchDTATab('test')">🧾 Testigos</button>
+      <button class="itab" id="dta-tab-abog" onclick="switchDTATab('abog')">⚖️ Abogados</button>
+    </div>
+    <div id="dir-testabog-content" style="padding:0"></div>
   </div>
 </div>
 

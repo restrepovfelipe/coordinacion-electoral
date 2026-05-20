@@ -12,7 +12,7 @@ function saveLocalSt() {
 }
 
 function gs(n) {
-  if (!ST[n]) ST[n] = { coord: '', phone: '', comunas: {}, puestos: {}, pregoneros: {}, testigos: {}, movilidad: {} };
+  if (!ST[n]) ST[n] = { coord: '', phone: '', comunas: {}, puestos: {}, pregoneros: {}, testigos: {}, movilidad: {}, abogados: {}, refrigerios: {}, comparendos: {} };
   return ST[n];
 }
 
@@ -247,10 +247,18 @@ function buildCCCard(n, ck) {
         <div class="itab on" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
         <div class="itab" onclick="switchIT(this,'${id}-preg');renderPregPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">📢 Pregoneros / Testigos</div>
         <div class="itab" onclick="switchIT(this,'${id}-mov');renderMovPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🚗 Movilidad</div>
+        <div class="itab" onclick="switchIT(this,'${id}-abog');renderAbogadoPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚖️ Abogado</div>
+        <div class="itab" onclick="switchIT(this,'${id}-refrig');renderRefrigPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🍱 Refrigerios</div>
+        <div class="itab" onclick="switchIT(this,'${id}-comp');renderComparendosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚠️ Comparendos</div>
+        <div class="itab" onclick="switchIT(this,'${id}-mapa');renderMapPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🗺 Mapa</div>
       </div>
       <div class="ipane on" id="${id}-puestos"><div style="padding:8px">${buildPT(n, puestos, ck)}</div></div>
       <div class="ipane" id="${id}-preg"></div>
       <div class="ipane" id="${id}-mov"></div>
+      <div class="ipane" id="${id}-abog"></div>
+      <div class="ipane" id="${id}-refrig"></div>
+      <div class="ipane" id="${id}-comp"></div>
+      <div class="ipane" id="${id}-mapa"></div>
     </div>`;
   return card;
 }
@@ -510,6 +518,7 @@ function buildPregRows(n, ck, pName, rows, count, id, pKey) {
         onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'responsable',this.value)">
       <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${r.telefono || ''}"
         onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'telefono',this.value)">
+      ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
     </div>`;
   }
   return html || '<div style="font-size:10px;color:var(--t3);padding:4px 0">Sin campos (edita el número)</div>';
@@ -1127,4 +1136,261 @@ function buildPrintHTML(tipo, muni, ck) {
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${title}</title>
     <style>body{font-family:Arial,sans-serif;color:#111;margin:0;padding:20px}h1{font-size:18px;color:#1a2030;margin-bottom:4px}.meta{font-size:11px;color:#666;margin-bottom:24px}@media print{body{padding:10px}}</style>
   </head><body><h1>⚡ ${title}</h1><div class="meta">Generado: ${now} · Comando Electoral AMVA 2026</div>${sections}</body></html>`;
+}
+
+// ═══ ABOGADO (punto 2) ═══
+function renderAbogadoPanel(n, ck, id) {
+  const pane = document.getElementById(id + '-abog');
+  const s = gs(n);
+  if (!s.abogados) s.abogados = {};
+  if (!s.abogados[ck]) s.abogados[ck] = { nombre: '', firma: '', telefono: '' };
+  const ab = s.abogados[ck];
+  pane.innerHTML = `<div class="mov-panel">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Abogado responsable de esta zona/comuna</div>
+    <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Nombre</label>
+      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${ab.nombre || ''}"
+        onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','nombre',this.value)"></div>
+    <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Firma / Empresa</label>
+      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre de la firma" value="${ab.firma || ''}"
+        onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','firma',this.value)"></div>
+    <div class="mof" style="margin-bottom:12px"><label style="font-size:10px;color:var(--t3)">Teléfono / WhatsApp</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${ab.telefono || ''}"
+          onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','telefono',this.value)">
+        ${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
+      </div></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="mv-save-all" onclick="saveAbogado('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar abogado</button>
+      <span class="mv-ok" id="${id}-abog-ok">✓ Guardado</span>
+    </div>
+  </div>`;
+}
+function updateAbogado(n, ck, field, val) {
+  const s = gs(n);
+  if (!s.abogados) s.abogados = {};
+  if (!s.abogados[ck]) s.abogados[ck] = { nombre: '', firma: '', telefono: '' };
+  s.abogados[ck][field] = val;
+  saveLocalSt();
+}
+function saveAbogado(n, ck, id) {
+  writeMuni(n);
+  const ok = document.getElementById(id + '-abog-ok');
+  if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  renderAbogadoPanel(n, ck, id);
+}
+
+// ═══ REFRIGERIOS (punto 6) ═══
+function renderRefrigPanel(n, ck, id) {
+  const pane = document.getElementById(id + '-refrig');
+  const s = gs(n);
+  if (!s.refrigerios) s.refrigerios = {};
+  if (!s.refrigerios[ck]) s.refrigerios[ck] = { nombre: '', telefono: '' };
+  const rf = s.refrigerios[ck];
+  pane.innerHTML = `<div class="mov-panel">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Encargado de refrigerios para esta zona/comuna</div>
+    <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Nombre</label>
+      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${rf.nombre || ''}"
+        onchange="updateRefrig('${n}','${ck.replace(/'/g,"\\'")}','nombre',this.value)"></div>
+    <div class="mof" style="margin-bottom:12px"><label style="font-size:10px;color:var(--t3)">Teléfono / WhatsApp</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${rf.telefono || ''}"
+          onchange="updateRefrig('${n}','${ck.replace(/'/g,"\\'")}','telefono',this.value)">
+        ${rf.telefono ? `<a class="wa-btn" href="https://wa.me/57${rf.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
+      </div></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="mv-save-all" onclick="saveRefrig('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar encargado</button>
+      <span class="mv-ok" id="${id}-refrig-ok">✓ Guardado</span>
+    </div>
+  </div>`;
+}
+function updateRefrig(n, ck, field, val) {
+  const s = gs(n);
+  if (!s.refrigerios) s.refrigerios = {};
+  if (!s.refrigerios[ck]) s.refrigerios[ck] = { nombre: '', telefono: '' };
+  s.refrigerios[ck][field] = val;
+  saveLocalSt();
+}
+function saveRefrig(n, ck, id) {
+  writeMuni(n);
+  const ok = document.getElementById(id + '-refrig-ok');
+  if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  renderRefrigPanel(n, ck, id);
+}
+
+// ═══ COMPARENDOS (punto 7) ═══
+function renderComparendosPanel(n, ck, id) {
+  const pane = document.getElementById(id + '-comp');
+  const s = gs(n);
+  if (!s.comparendos) s.comparendos = {};
+  if (!s.comparendos[ck]) s.comparendos[ck] = [];
+  const list = s.comparendos[ck];
+  const rows = list.map((c, i) => `
+    <div class="comp-row" style="background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--gold)">Comparendo #${i+1}</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select style="font-size:10px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:4px;padding:2px 4px"
+            onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'estado',this.value)">
+            <option value="pendiente" ${c.estado==='pendiente'?'selected':''}>⏳ Pendiente</option>
+            <option value="resuelto" ${c.estado==='resuelto'?'selected':''}>✓ Resuelto</option>
+          </select>
+          <button class="del-btn" onclick="delComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'${id}')">×</button>
+        </div>
+      </div>
+      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Pregonero" value="${c.pregonero||''}"
+        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'pregonero',this.value)">
+      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Puesto de votación" value="${c.puesto||''}"
+        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'puesto',this.value)">
+      <div style="display:flex;gap:6px;margin-bottom:5px">
+        <input class="resp-phone-inp" style="flex:1" type="date" value="${c.fecha||''}"
+          onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'fecha',this.value)">
+        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="Tipo" value="${c.tipo||''}"
+          onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'tipo',this.value)">
+      </div>
+      <textarea style="width:100%;font-size:11px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:4px;padding:5px;box-sizing:border-box;resize:vertical;min-height:48px" placeholder="Notas / descripción"
+        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'notas',this.value)">${c.notas||''}</textarea>
+    </div>`).join('');
+  pane.innerHTML = `<div class="mov-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:11px;color:var(--t3)">${list.length} comparendo(s) registrado(s)</span>
+      <button class="resp-add-btn" onclick="addComparendo('${n}','${ck.replace(/'/g,"\\'")}','${id}')">+ Agregar comparendo</button>
+    </div>
+    <div id="${id}-comp-list">${rows || '<div style="font-size:11px;color:var(--t3);text-align:center;padding:12px">Sin comparendos registrados</div>'}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+      <button class="mv-save-all" onclick="saveComparendos('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar comparendos</button>
+      <span class="mv-ok" id="${id}-comp-ok">✓ Guardado</span>
+    </div>
+  </div>`;
+}
+function updateComparendo(n, ck, idx, field, val) {
+  const s = gs(n);
+  if (!s.comparendos) s.comparendos = {};
+  if (!s.comparendos[ck]) s.comparendos[ck] = [];
+  if (!s.comparendos[ck][idx]) return;
+  s.comparendos[ck][idx][field] = val;
+  saveLocalSt();
+}
+function addComparendo(n, ck, id) {
+  const s = gs(n);
+  if (!s.comparendos) s.comparendos = {};
+  if (!s.comparendos[ck]) s.comparendos[ck] = [];
+  s.comparendos[ck].push({ pregonero: '', puesto: '', fecha: '', tipo: '', notas: '', estado: 'pendiente' });
+  saveLocalSt();
+  renderComparendosPanel(n, ck, id);
+}
+function delComparendo(n, ck, idx, id) {
+  const s = gs(n);
+  s.comparendos[ck].splice(idx, 1);
+  saveLocalSt();
+  renderComparendosPanel(n, ck, id);
+}
+function saveComparendos(n, ck, id) {
+  writeMuni(n);
+  const ok = document.getElementById(id + '-comp-ok');
+  if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+}
+
+// ═══ MAPA DE PUESTOS (punto 4) ═══
+const _maps = {};
+function renderMapPanel(n, ck, id) {
+  const pane = document.getElementById(id + '-mapa');
+  const puestos = RAW[n][ck] || [];
+  const validPuestos = puestos.filter(p => p.lat && p.lon && p.lat !== 0);
+  if (!validPuestos.length) {
+    pane.innerHTML = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--t3)">Sin coordenadas disponibles para esta zona</div>';
+    return;
+  }
+  const mapId = id + '-leafmap';
+  pane.innerHTML = `<div id="${mapId}" style="height:320px;border-radius:0 0 6px 6px"></div>`;
+  setTimeout(() => {
+    if (_maps[mapId]) { _maps[mapId].remove(); delete _maps[mapId]; }
+    const s = gs(n);
+    const tagColors = { ok: '#2ecc71', pr: '#e67e22', pe: '#f1c40f', al: '#e74c3c', n: '#7f8c8d' };
+    const center = [validPuestos[0].lat, validPuestos[0].lon];
+    const map = L.map(mapId, { scrollWheelZoom: false }).setView(center, 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 18
+    }).addTo(map);
+    validPuestos.forEach(p => {
+      const tag = (s.puestos?.[pk(p)]?.tag) || 'n';
+      const color = tagColors[tag];
+      const marker = L.circleMarker([p.lat, p.lon], {
+        radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
+      }).addTo(map);
+      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes</span>`);
+    });
+    map.fitBounds(validPuestos.map(p => [p.lat, p.lon]), { padding: [20, 20] });
+    _maps[mapId] = map;
+  }, 50);
+}
+
+// ═══ DIRECTORIO TESTIGOS / ABOGADOS (punto 3) ═══
+let _dtaTab = 'test';
+function openDirTestAbog() { document.getElementById('dir-testabog-modal').style.display = 'flex'; renderDirTestAbog(); }
+function closeDirTestAbog() { document.getElementById('dir-testabog-modal').style.display = 'none'; }
+function switchDTATab(tab) {
+  _dtaTab = tab;
+  document.getElementById('dta-tab-test').classList.toggle('on', tab === 'test');
+  document.getElementById('dta-tab-abog').classList.toggle('on', tab === 'abog');
+  renderDirTestAbog();
+}
+function renderDirTestAbog() {
+  const el = document.getElementById('dir-testabog-content'); let html = '';
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n);
+    let muniHtml = '';
+    Object.keys(RAW[n]).sort().forEach(ck => {
+      if (_dtaTab === 'test') {
+        const testByCk = s.testigos?.[ck] || {};
+        const items = [];
+        Object.entries(testByCk).forEach(([puesto, rows]) => {
+          if (!Array.isArray(rows)) return;
+          rows.filter(r => r.nombre).forEach(r => items.push({ puesto, nombre: r.nombre, telefono: r.telefono || '' }));
+        });
+        if (!items.length) return;
+        muniHtml += `<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:4px">${ck}</div>
+          ${items.map(it => `<div class="dir-row"><div><div class="dir-name">${it.nombre}</div><div class="dir-role">Testigo · ${it.puesto}</div></div>
+            <div class="dir-phone">${it.telefono ? `<a class="wa-btn" href="https://wa.me/57${it.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${it.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`).join('')}</div>`;
+      } else {
+        const ab = s.abogados?.[ck];
+        if (!ab || !ab.nombre) return;
+        muniHtml += `<div class="dir-row" style="margin-bottom:6px"><div><div class="dir-name">${ab.nombre}</div><div class="dir-role">⚖️ Abogado · ${ck}${ab.firma ? ' · ' + ab.firma : ''}</div></div>
+          <div class="dir-phone">${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${ab.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`;
+      }
+    });
+    if (!muniHtml) return;
+    html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>${muniHtml}</div>`;
+  });
+  if (!html) html = `<div class="dir-empty">Sin ${_dtaTab === 'test' ? 'testigos' : 'abogados'} registrados aún.</div>`;
+  el.innerHTML = html;
+}
+function exportDirTestAbogPDF() {
+  const now = new Date().toLocaleString('es-CO');
+  const title = _dtaTab === 'test' ? 'Directorio de Testigos Electorales' : 'Directorio de Abogados';
+  let sections = '';
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n); let muniRows = '';
+    Object.keys(RAW[n]).sort().forEach(ck => {
+      if (_dtaTab === 'test') {
+        const testByCk = s.testigos?.[ck] || {};
+        Object.entries(testByCk).forEach(([puesto, rows]) => {
+          if (!Array.isArray(rows)) return;
+          rows.filter(r => r.nombre).forEach(r => {
+            muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${puesto}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.telefono||'—'}</td></tr>`;
+          });
+        });
+      } else {
+        const ab = s.abogados?.[ck];
+        if (ab && ab.nombre) muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.firma||'—'}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono||'—'}</td></tr>`;
+      }
+    });
+    if (!muniRows) return;
+    const cols = _dtaTab === 'test' ? '<tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Puesto</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>' : '<tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Firma</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>';
+    sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px">${cols}${muniRows}</table></div>`;
+  });
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body><h1 style="font-size:16px;color:#1a2030">${title}</h1><div style="font-size:11px;color:#666;margin-bottom:20px">Generado: ${now}</div>${sections||'<p>Sin datos registrados.</p>'}</body></html>`);
+  win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
 }
