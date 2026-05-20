@@ -1326,7 +1326,7 @@ function renderMapPanel(n, ck, id) {
 
 // ═══ DIRECTORIO TESTIGOS / ABOGADOS (punto 3) ═══
 let _dtaTab = 'test';
-function openDirTestAbog() { document.getElementById('dir-testabog-modal').style.display = 'flex'; renderDirTestAbog(); }
+function openDirTestAbog(tab) { _dtaTab = tab || 'test'; document.getElementById('dir-testabog-modal').style.display = 'flex'; switchDTATab(_dtaTab); }
 function closeDirTestAbog() { document.getElementById('dir-testabog-modal').style.display = 'none'; }
 function switchDTATab(tab) {
   _dtaTab = tab;
