@@ -207,7 +207,7 @@ function renderMuni(n) {
   ckeys.forEach(c => {
     comunas[c].forEach(p => { totP++; totM += (p.mesas || 0); totV += (p.total || 0); });
     const st = _ccStats(n, c);
-    totTestReg += st.testReg; totTestFalt += st.testFalt; totCov += st.covPuestos;
+    totTestReg += st.testReg; totTestFalt += st.testFalt; totCov += st.testPuCub;
   });
   const pctCov = totP ? Math.round(totCov / totP * 100) : 0;
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
@@ -263,7 +263,7 @@ function _ccStats(n, ck) {
   });
   const testFalt = totPuestos - testPuCub;
   const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
-  const pct = totPuestos ? Math.round(covPuestos / totPuestos * 100) : 0;
+  const pct = totPuestos ? Math.round(testPuCub / totPuestos * 100) : 0;
   const resps = (s.movilidad?.[ck]?.responsables) || [];
   const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
@@ -340,7 +340,7 @@ function buildZonaCard(n, zona) {
     const st = _ccStats(n, ck);
     totPuestos += st.totPuestos; totMesas += st.totMesas;
     totTestReg += st.testReg; totTestFalt += st.testFalt;
-    totMotos += st.totMotos; totCarros += st.totCarros; totCov += st.covPuestos;
+    totMotos += st.totMotos; totCarros += st.totCarros; totCov += st.testPuCub;
   });
   const pct = totPuestos ? Math.round(totCov / totPuestos * 100) : 0;
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
