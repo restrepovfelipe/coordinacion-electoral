@@ -946,17 +946,28 @@ function renderOV() {
     if (!validMusis.length) return;
     const rTotP = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.length, 0), 0);
     const rTotM = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.mesas || 0), 0), 0), 0);
+    const rTotV = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.total || 0), 0), 0), 0);
+    const rTotZ = validMusis.reduce((a, n) => a + Object.keys(RAW[n]).length, 0);
     let rTestReg = 0, rTestFalt = 0;
     validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
       const st = _ccStats(n, c);
       rTestReg += st.testReg; rTestFalt += st.testFalt;
     }));
     const rPct = rTotM ? Math.round(rTestReg / rTotM * 100) : 0;
-    html += `<div class="sec-t" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-      <span style="font-size:10px;font-weight:700">${region} — ${validMusis.length} municipios · ${rTotP} puestos · ${rTotM.toLocaleString('es-CO')} mesas</span>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:10px;color:var(--t2)">Test: <b>${rTestReg}</b> · M.s.test: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
-        <button class="export-btn" style="font-size:10px;padding:4px 10px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
+    html += `
+    <div style="margin-top:22px;margin-bottom:4px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--fg)">${region} <span style="font-size:11px;font-weight:400;color:var(--t2)">· ${validMusis.length} municipios</span></div>
+        <button class="export-btn" style="font-size:11px;padding:5px 12px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
+      </div>
+      <div class="stats" style="margin-bottom:10px">
+        <div class="sc"><div class="sl">Puestos</div><div class="sv">${rTotP}</div></div>
+        <div class="sc"><div class="sl">Mesas</div><div class="sv">${rTotM.toLocaleString('es-CO')}</div></div>
+        <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${rTotZ}</div></div>
+        <div class="sc"><div class="sl">Votantes</div><div class="sv">${(rTotV / 1000).toFixed(0)}K</div></div>
+        <div class="sc"><div class="sl">Testigos</div><div class="sv">${rTestReg}</div></div>
+        <div class="sc${rTestFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Mesas sin testigo</div><div class="sv">${rTestFalt}</div></div>
+        <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${rPct}%</div></div>
       </div>
     </div>`;
     html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px;margin-bottom:8px">`;
