@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -27,6 +28,11 @@ import { UpdateTestigoDto } from './dto/update-testigo.dto.js';
 @Controller('puestos')
 export class TestigosController {
   constructor(private readonly testigosService: TestigosService) {}
+
+  @Get(':puestoId/testigos')
+  findByPuesto(@Param('puestoId', ParseIntPipe) puestoId: number) {
+    return this.testigosService.findByPuesto(puestoId);
+  }
 
   @Post(':puestoId/testigos')
   @UseGuards(ScopeGuard)

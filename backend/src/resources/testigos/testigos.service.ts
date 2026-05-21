@@ -15,6 +15,13 @@ export class TestigosService {
     private readonly realtime: RealtimeService,
   ) {}
 
+  async findByPuesto(puestoId: number) {
+    return this.prisma.testigo.findMany({
+      where: { puestoId },
+      orderBy: { id: 'asc' },
+    });
+  }
+
   async create(
     puestoId: number,
     dto: CreateTestigoDto,
