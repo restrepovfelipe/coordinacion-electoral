@@ -4,6 +4,39 @@ function esc(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ═══ PUESTO ID CACHE ═══
+// Cache: municipio name → { puestoName → backendId }
+const _puestoIdCache = {};
+
+// Load puesto backend IDs for a municipality from the API
+async function loadPuestoIds(muniName) {
+  if (!window.api || !window.CURRENT_USER) return;
+  if (_puestoIdCache[muniName]) return; // already loaded
+
+  try {
+    // Get municipio ID first
+    const munis = await api.get(`/municipios`);
+    const muni = munis.find(m => m.name === muniName || m.name === muniName.toUpperCase());
+    if (!muni) return;
+
+    // Get puestos for this municipio
+    const puestos = await api.get(`/puestos?municipioId=${muni.id}`);
+    _puestoIdCache[muniName] = {};
+    for (const p of puestos) {
+      _puestoIdCache[muniName][p.name.toUpperCase()] = p.id;
+    }
+  } catch (err) {
+    console.warn('Could not load puesto IDs for', muniName, err && err.status);
+  }
+}
+
+function getPuestoBackendId(muniName, puestoRawName) {
+  const cache = _puestoIdCache[muniName];
+  if (!cache) return null;
+  // Try exact match first, then uppercase match
+  return cache[puestoRawName] || cache[puestoRawName?.toUpperCase()] || null;
+}
+
 // ═══ STATE ═══
 let ST = {};
 let _initialized = false;
@@ -142,7 +175,8 @@ function buildSB() {
     list.appendChild(grp);
   });
 }
-function selMuni(n) { CUR = n; buildSB(); renderMuni(n); }
+function selMuni(n) { CUR = n; buildSB(); renderMuni(n); loadPuestoIds(n); // async, fires and forgets — populates cache for later use
+}
 function goHome() {
   CUR = null; buildSB();
   document.getElementById('ct').innerHTML = `
@@ -683,20 +717,26 @@ function addTestigo(n, ck, pKey, id) {
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
   s.testigos[ck][pName].push({ nombre: '', telefono: '' }); saveLocalSt();
   writeMuni(n);
-  // REST API stub: best-effort create on backend when puestoData has a _backendId
+  // Real API call — fire and forget with error logging
   if (window.api && window.CURRENT_USER) {
-    const last = s.testigos[ck][pName].length - 1;
-    const t = s.testigos[ck][pName][last];
-    // Find puesto entry to get its pk key
-    const puestos = RAW[n][ck] || [];
-    const puestoEntry = puestos.find(p => p.puesto === pName);
-    const puestoData = puestoEntry ? (s.puestos || {})[pk(puestoEntry)] : null;
-    if (puestoData && puestoData._backendId) {
-      api.post(`/puestos/${puestoData._backendId}/testigos`, {
-        name: t.name || '',
-        phone: t.phone || undefined,
-        notes: t.notes || undefined,
-      }).catch(err => console.error('testigo create failed', err && err.status));
+    const testigos = s.testigos[ck][pName];
+    const newT = testigos[testigos.length - 1];
+
+    // Try to find puesto backend ID from cache
+    const comunaPuestos = RAW[n] && RAW[n][ck] ? RAW[n][ck] : [];
+    const puestoEntry = comunaPuestos.find ? comunaPuestos.find(p => p.puesto === pName) : null;
+    const puestoRawName = puestoEntry ? puestoEntry.puesto : pName;
+    const puestoBackendId = getPuestoBackendId(n, puestoRawName);
+
+    if (puestoBackendId) {
+      api.post(`/puestos/${puestoBackendId}/testigos`, {
+        name: newT.nombre || '',
+        phone: newT.telefono || undefined,
+      }).then(created => {
+        // Store backend ID on the testigo object for future update/delete
+        newT._backendId = created.id;
+        saveLocalSt();
+      }).catch(err => console.warn('testigo create failed:', err && err.status));
     }
   }
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
@@ -710,16 +750,24 @@ function updateTestigo(n, ck, pKey, idx, field, val) {
   if (!s.testigos[ck][pName][idx]) s.testigos[ck][pName][idx] = { nombre: '', telefono: '' };
   s.testigos[ck][pName][idx][field] = val; saveLocalSt();
   writeDebounced(n);
+  // Best-effort PATCH
+  const t = s.testigos[ck][pName]?.[idx];
+  if (window.api && t?._backendId) {
+    const fieldMap = { nombre: 'name', telefono: 'phone', notas: 'notes' };
+    const backendField = fieldMap[field] || field;
+    api.patch(`/testigos/${t._backendId}`, { [backendField]: val })
+      .catch(err => console.warn('testigo update failed:', err && err.status));
+  }
 }
 
 function delTestigo(n, ck, pKey, idx, id) {
   const s = gs(n); const pName = decodeURIComponent(pKey);
-  const t = s.testigos[ck][pName][idx];
-  // REST API stub: best-effort delete on backend when testigo has a _backendId
-  if (window.api && t && t._backendId) {
-    api.delete(`/testigos/${t._backendId}`).catch(err => console.error('testigo delete failed', err && err.status));
-  }
+  const deletedTestigo = s.testigos[ck][pName][idx]; // capture before splice
   s.testigos[ck][pName].splice(idx, 1); saveLocalSt();
+  if (window.api && deletedTestigo?._backendId) {
+    api.delete(`/testigos/${deletedTestigo._backendId}`)
+      .catch(err => console.warn('testigo delete failed:', err && err.status));
+  }
   writeMuni(n);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
   if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
