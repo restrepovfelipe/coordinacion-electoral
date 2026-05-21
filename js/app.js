@@ -63,7 +63,7 @@ function saveLocalSt() {
 }
 
 function gs(n) {
-  if (!ST[n]) ST[n] = { coord: '', phone: '', comunas: {}, puestos: {}, pregoneros: {}, testigos: {}, movilidad: {}, abogados: {}, refrigerios: {}, comparendos: {} };
+  if (!ST[n]) ST[n] = { coord: '', phone: '', comunas: {}, puestos: {}, testigos: {}, movilidad: {}, abogados: {}, refrigerios: {}, comparendos: {} };
   return ST[n];
 }
 
@@ -194,7 +194,7 @@ function goHome() {
     <div class="empty">
       <div class="empty-ico">🇨🇴</div>
       <h3 style="color:var(--t1);font-size:17px;margin-bottom:6px">Centro de Comando Antioquia</h3>
-      <p style="font-size:12px">Selecciona un municipio para gestionar comunas, puestos, pregoneros, testigos y movilidad.</p>
+      <p style="font-size:12px">Selecciona un municipio para gestionar comunas, puestos, testigos y movilidad.</p>
       <div id="ov-wrap" style="margin-top:20px;padding:0 10px"></div>
     </div>`;
   renderOV();
@@ -203,12 +203,11 @@ function goHome() {
 // ═══ MUNI VIEW ═══
 function renderMuni(n) {
   const comunas = RAW[n]; const s = gs(n); const ckeys = Object.keys(comunas).sort();
-  let totP = 0, totM = 0, totV = 0, totPregNec = 0, totPregReg = 0, totPregFalt = 0;
+  let totP = 0, totM = 0, totV = 0;
   let totTestReg = 0, totTestFalt = 0, totCov = 0;
   ckeys.forEach(c => {
     comunas[c].forEach(p => { totP++; totM += (p.mesas || 0); totV += (p.total || 0); });
     const st = _ccStats(n, c);
-    totPregNec += st.pregNec; totPregReg += st.pregReg; totPregFalt += st.pregFalt;
     totTestReg += st.testReg; totTestFalt += st.testFalt; totCov += st.covPuestos;
   });
   const pctCov = totP ? Math.round(totCov / totP * 100) : 0;
@@ -229,8 +228,6 @@ function renderMuni(n) {
       <div class="sc"><div class="sl">Mesas</div><div class="sv">${totM.toLocaleString('es-CO')}</div></div>
       <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${ckeys.length}</div></div>
       <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
-      <div class="sc"><div class="sl">Pregoneros</div><div class="sv">${totPregReg}</div></div>
-      <div class="sc${totPregFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Preg. faltantes</div><div class="sv">${totPregFalt}</div></div>
       <div class="sc"><div class="sl">Testigos</div><div class="sv">${totTestReg}</div></div>
       <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Test. faltantes</div><div class="sv">${totTestFalt}</div></div>
       <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${pctCov}%</div></div>
@@ -259,11 +256,6 @@ function _ccStats(n, ck) {
   const puestos = RAW[n][ck] || [];
   const totPuestos = puestos.length;
   const totMesas = puestos.reduce((a, p) => a + (p.mesas || 0), 0);
-  const pregBase = PREG_BASE[n]?.[ck] || {};
-  const pregNec = Object.values(pregBase).reduce((a, v) => a + (v || 0), 0);
-  const savedPreg = s.pregoneros?.[ck] || {};
-  const pregReg = Object.values(savedPreg).reduce((a, rows) => a + (Array.isArray(rows) ? rows.filter(r => r.nombre).length : 0), 0);
-  const pregFalt = Math.max(0, pregNec - pregReg);
   let testReg = 0, testPuCub = 0;
   puestos.forEach(p => {
     const rows = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre);
@@ -276,19 +268,18 @@ function _ccStats(n, ck) {
   const resps = (s.movilidad?.[ck]?.responsables) || [];
   const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
-  return { totPuestos, totMesas, pregNec, pregReg, pregFalt, testReg, testFalt, testPuCub, covPuestos, pct, totMotos, totCarros };
+  return { totPuestos, totMesas, testReg, testFalt, testPuCub, covPuestos, pct, totMotos, totCarros };
 }
 
 // ═══ ZONA CARDS ═══
 function buildZonaCard(n, zona) {
   const s = gs(n); const sz = (s.zonas || {})[zona.nombre] || {};
-  let totPuestos = 0, totMesas = 0, totPregNec = 0, totPregReg = 0, totPregFalt = 0;
+  let totPuestos = 0, totMesas = 0;
   let totTestReg = 0, totTestFalt = 0, totMotos = 0, totCarros = 0, totCov = 0;
   zona.comunas.forEach(ck => {
     if (!RAW[n][ck]) return;
     const st = _ccStats(n, ck);
     totPuestos += st.totPuestos; totMesas += st.totMesas;
-    totPregNec += st.pregNec; totPregReg += st.pregReg; totPregFalt += st.pregFalt;
     totTestReg += st.testReg; totTestFalt += st.testFalt;
     totMotos += st.totMotos; totCarros += st.totCarros; totCov += st.covPuestos;
   });
@@ -311,8 +302,6 @@ function buildZonaCard(n, zona) {
     <div class="cc-stats-bar">
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
-      <div class="cc-st"><div class="v">${totPregReg}</div><div class="l">Pregoneros</div></div>
-      <div class="cc-st${totPregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totPregFalt}</div><div class="l">Preg. faltantes</div></div>
       <div class="cc-st"><div class="v">${totTestReg}</div><div class="l">Testigos</div></div>
       <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totTestFalt}</div><div class="l">Test. faltantes</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
@@ -330,7 +319,7 @@ function buildCCCard(n, ck) {
   const totV = puestos.reduce((a, p) => a + (p.total || 0), 0);
   const id = cid(n, ck); const isOpen = OPEN_CC.has(n + ck);
   const card = document.createElement('div'); card.className = 'cc'; card.id = id;
-  const { totPuestos, totMesas, pregNec, pregReg, pregFalt, testReg, testFalt, pct } = _ccStats(n, ck);
+  const { totPuestos, totMesas, testReg, testFalt, pct } = _ccStats(n, ck);
   card.innerHTML = `
     <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
       <div>
@@ -347,8 +336,6 @@ function buildCCCard(n, ck) {
     <div class="cc-stats-bar">
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
-      <div class="cc-st"><div class="v">${pregReg}</div><div class="l">Pregoneros</div></div>
-      <div class="cc-st${pregFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${pregFalt}</div><div class="l">Preg. faltantes</div></div>
       <div class="cc-st"><div class="v">${testReg}</div><div class="l">Testigos</div></div>
       <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${testFalt}</div><div class="l">Test. faltantes</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
@@ -357,7 +344,7 @@ function buildCCCard(n, ck) {
     <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
       <div class="itabs">
         <div class="itab on" data-pane="${id}-puestos" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
-        <div class="itab" data-pane="${id}-preg" onclick="switchIT(this,'${id}-preg');renderPregPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">📢 Pregoneros / Testigos</div>
+        <div class="itab" data-pane="${id}-preg" onclick="switchIT(this,'${id}-preg');renderTestigosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🧾 Testigos</div>
         <div class="itab" data-pane="${id}-mov" onclick="switchIT(this,'${id}-mov');renderMovPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🚗 Movilidad</div>
         <div class="itab" data-pane="${id}-abog" onclick="switchIT(this,'${id}-abog');renderAbogadoPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚖️ Abogado</div>
         <div class="itab" data-pane="${id}-refrig" onclick="switchIT(this,'${id}-refrig');renderRefrigPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🍱 Refrigerios</div>
@@ -383,7 +370,7 @@ function _restoreTabForCC(n, ck) {
   bd.querySelectorAll('.itab').forEach(t => t.classList.toggle('on', t.dataset.pane === savedPane));
   bd.querySelectorAll('.ipane').forEach(p => p.classList.toggle('on', p.id === savedPane));
   const suffix = savedPane.replace(id + '-', '');
-  const renders = { preg: () => renderPregPanel(n, ck, id), mov: () => renderMovPanel(n, ck, id), abog: () => renderAbogadoPanel(n, ck, id), refrig: () => renderRefrigPanel(n, ck, id), comp: () => renderComparendosPanel(n, ck, id), mapa: () => renderMapPanel(n, ck, id) };
+  const renders = { preg: () => renderTestigosPanel(n, ck, id), mov: () => renderMovPanel(n, ck, id), abog: () => renderAbogadoPanel(n, ck, id), refrig: () => renderRefrigPanel(n, ck, id), comp: () => renderComparendosPanel(n, ck, id), mapa: () => renderMapPanel(n, ck, id) };
   if (renders[suffix]) renders[suffix]();
 }
 function renderCCs(n) {
@@ -427,15 +414,10 @@ function toggleZ(n, zonaNombre) {
 // ═══ PUESTOS ═══
 function buildPT(n, puestos, ckKey) {
   const s = gs(n);
-  const pregBase = PREG_BASE[n]?.[ckKey] || {};
-  const savedCnts = (s.pregoneros?.[ckKey]?._counts) || {};
   return puestos.map(p => {
     const k = pk(p); const ps = (s.puestos || {})[k] || {};
     const t = ps.tag || 'n'; const tg = TAGS[t] || TAGS.n;
     const map = p.lat && p.lon ? `<a class="map-a" href="https://www.google.com/maps?q=${p.lat},${p.lon}" target="_blank">Ver mapa</a>` : '';
-    const baseCnt = pregBase[p.puesto] !== undefined ? pregBase[p.puesto] : 0;
-    const pregCnt = savedCnts[p.puesto] !== undefined ? savedCnts[p.puesto] : baseCnt;
-    const pregReg = ((s.pregoneros?.[ckKey]?.[p.puesto]) || []).filter(r => r.nombre).length;
     const testReg = ((s.testigos?.[ckKey]?.[p.puesto]) || []).filter(r => r.nombre).length;
     const divipole = `${String(p.dd).padStart(2, '0')}.${String(p.mm).padStart(3, '0')}.${String(p.zz).padStart(2, '0')}.${String(p.pp).padStart(2, '0')}`;
     const pcid = 'pc_' + k + '_' + btoa(unescape(encodeURIComponent(ckKey))).replace(/[^a-z0-9]/gi, '');
@@ -452,7 +434,6 @@ function buildPT(n, puestos, ckKey) {
             <span class="pc-pill">${(p.total || 0).toLocaleString('es-CO')} v.</span>
             <button class="${tg.cls} tbtn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}');">${tg.lbl}</button>
             ${coordPill}
-            ${pregCnt > 0 ? `<span class="pc-pill" style="color:var(--preg);border-color:rgba(167,139,250,.3)">Preg. ${pregReg}/${pregCnt}</span>` : ''}
             ${testReg > 0 ? `<span class="pc-pill" style="color:var(--green);border-color:rgba(46,216,122,.3)">Test. ${testReg}</span>` : ''}
             ${map}
           </div>
@@ -562,65 +543,60 @@ function renderAllPuestos(n) {
   body.innerHTML = html;
 }
 
-// ═══ PREGONEROS ═══
-function renderPregPanel(n, ck, id) {
-  const pane = document.getElementById(id + '-preg');
-  const s = gs(n);
-  if (!s.pregoneros) s.pregoneros = {};
-  if (!s.pregoneros[ck]) s.pregoneros[ck] = {};
-  const pregBase = PREG_BASE[n]?.[ck] || {};
+// ═══ TESTIGOS ═══
+// Load testigos from API for all puestos in a commune, merging into localStorage state.
+async function loadTestigosForComune(n, ck) {
+  if (!window.api || !window.CURRENT_USER) return;
+  await loadPuestoIds(n); // idempotent no-op if already loaded
   const puestosList = RAW[n][ck] || [];
-  const savedCounts = (s.pregoneros[ck]._counts) || {};
-  const savedData = s.pregoneros[ck];
-  let totalNec = 0, totalReg = 0;
-  puestosList.forEach(p => {
-    const baseCnt = pregBase[p.puesto] !== undefined ? pregBase[p.puesto] : 0;
-    const savedCnt = savedCounts[p.puesto] !== undefined ? savedCounts[p.puesto] : baseCnt;
-    totalNec += savedCnt;
-    const rows = savedData[p.puesto] || [];
-    totalReg += rows.filter(r => r.nombre).length;
-  });
-  const globalNec = savedData._global_nec || 0;
-  let html = `<div class="preg-panel">
-    <div class="count-row">
-      <div class="count-badge"><span class="lbl">Registrados:</span><span class="val" style="color:var(--preg)">${totalReg}</span></div>
-      <div class="count-badge"><span class="lbl">Necesarios:</span>
-        <input class="count-inp" type="number" min="0" value="${globalNec || totalNec}"
-          onchange="savePregCount('${n}','${ck.replace(/'/g, "\\'")}','${id}',this.value)">
-      </div>
-    </div>`;
+  const s = gs(n);
+  if (!s.testigos) s.testigos = {};
+  if (!s.testigos[ck]) s.testigos[ck] = {};
+  for (const p of puestosList) {
+    const puestoBackendId = getPuestoBackendId(n, p.puesto);
+    if (!puestoBackendId) continue;
+    try {
+      const rows = await api.get(`/puestos/${puestoBackendId}/testigos`);
+      s.testigos[ck][p.puesto] = rows.map(t => ({
+        _backendId: t.id,
+        nombre: t.name || '',
+        telefono: t.phone || '',
+        cedula: t.cedula || '',
+        notas: t.notes || '',
+      }));
+    } catch (err) {
+      console.error('loadTestigosForComune failed for', p.puesto, err?.status);
+    }
+  }
+  saveLocalSt();
+}
+
+async function renderTestigosPanel(n, ck, id) {
+  const pane = document.getElementById(id + '-preg');
+  if (!pane) return;
+  pane.innerHTML = '<div style="padding:12px;color:var(--t3);font-size:11px">⏳ Cargando testigos...</div>';
+  await loadTestigosForComune(n, ck);
+  const puestosList = RAW[n][ck] || [];
+  const s = gs(n);
+  let html = `<div class="preg-panel">`;
   puestosList.forEach(p => {
     const pName = p.puesto;
-    const baseCnt = pregBase[pName] !== undefined ? pregBase[pName] : 0;
-    const savedCnt = savedCounts[pName] !== undefined ? savedCounts[pName] : baseCnt;
-    const rows = savedData[pName] || [];
-    while (rows.length < savedCnt) rows.push({ nombre: '', cedula: '', responsable: '', telefono: '' });
-    const regCnt = rows.filter(r => r.nombre).length;
-    const testReg = getTestigos(n, ck, pName).filter(t => t.nombre).length;
     const pKey = encodeURIComponent(pName);
     const ppid = `${id}-pp-${btoa(pKey).replace(/=/g, '')}`;
     const coordPuesto = (s.puestos || {})[pk(p)] || {};
+    const testReg = getTestigos(n, ck, pName).filter(t => t.nombre).length;
     html += `<div class="puesto-preg">
       <div class="pp-hd" onclick="togglePP('${ppid}')">
         <span class="pp-nm" title="${pName}">${pName}</span>
         <div class="pp-right">
           <div class="pp-pills">
-            ${coordPuesto.coord ? `<span class="pp-pill" style="color:var(--blue);border-color:rgba(74,158,255,.3)">👤 ${esc(coordPuesto.coord)}</span>` : ''}
-            <span class="pp-pill ${regCnt > 0 ? 'ok' : ''}">📢 ${regCnt}/${savedCnt}</span>
-            ${testReg > 0 ? `<span class="pp-pill test">🧾 ${testReg}</span>` : ''}
+            <span class="pp-pill ${testReg > 0 ? 'ok' : ''}">🧾 ${testReg}</span>
           </div>
           <span class="pp-chev" id="${ppid}-chev">▾</span>
         </div>
       </div>
       <div class="pp-body" id="${ppid}">
-        <div class="pp-campos-row">
-          <label>Nº pregoneros:</label>
-          <input class="count-inp" style="width:50px" type="number" min="0" value="${savedCnt}"
-            onchange="setPregCount('${n}','${ck.replace(/'/g, "\\'")}','${id}','${pKey}',this.value)"
-            onclick="event.stopPropagation()">
-          <span style="font-size:9px;color:var(--t3)">${regCnt} de ${savedCnt}</span>
-        </div>
-        <div id="${ppid}-rows">${buildPregRows(n, ck, pName, rows, savedCnt, id, pKey)}</div>
+        ${coordPuesto.coord ? `<div style="font-size:11px;color:var(--t2);background:var(--bg);border-radius:5px;padding:6px 9px;margin-bottom:8px"><b>Coordinador:</b> 👤 ${esc(coordPuesto.coord)}${coordPuesto.phone ? ' · <a class="wa-btn" style="font-size:10px" href="https://wa.me/57' + coordPuesto.phone.replace(/\D/g,'') + '" target="_blank">💬 ' + esc(coordPuesto.phone) + '</a>' : ''}</div>` : ''}
         <div class="test-section">
           <h5>🧾 Testigos electorales <span style="color:var(--t3);font-weight:400">(${testReg})</span></h5>
           <div id="${id}-test-${btoa(pKey).replace(/=/g, '')}">${buildTestRows(n, ck, pName, id, pKey)}</div>
@@ -629,12 +605,8 @@ function renderPregPanel(n, ck, id) {
       </div>
     </div>`;
   });
-  html += `<div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px">
-    <button class="save-btn" onclick="saveAllPreg('${n}','${ck.replace(/'/g, "\\'")}','${id}')">💾 Guardar todo</button>
-    <span class="saved-ok" id="${id}-preg-ok">✓ Guardado</span>
-  </div></div>`;
+  html += `</div>`;
   pane.innerHTML = html;
-  // Restore open puestos after rebuild
   puestosList.forEach(p => {
     const pKey2 = encodeURIComponent(p.puesto);
     const ppid = `${id}-pp-${btoa(pKey2).replace(/=/g, '')}`;
@@ -645,26 +617,6 @@ function renderPregPanel(n, ck, id) {
       if (chev2) chev2.classList.add('op');
     }
   });
-}
-
-function buildPregRows(n, ck, pName, rows, count, id, pKey) {
-  let html = '';
-  for (let i = 0; i < Math.max(count, 0); i++) {
-    const r = rows[i] || {};
-    html += `<div class="preg-row">
-      <span class="row-num">${i + 1}</span>
-      <input class="pi" style="flex:2" type="text" placeholder="Nombre" value="${esc(r.nombre)}"
-        onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'nombre',this.value)">
-      <input class="pi pi-sm" type="text" placeholder="Cédula" value="${esc(r.cedula)}"
-        onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'cedula',this.value)">
-      <input class="pi pi-sm" type="text" placeholder="Responsable" value="${esc(r.responsable)}"
-        onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'responsable',this.value)">
-      <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${esc(r.telefono)}"
-        onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'telefono',this.value)">
-      ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
-    </div>`;
-  }
-  return html || '<div style="font-size:10px;color:var(--t3);padding:4px 0">Sin campos (edita el número)</div>';
 }
 
 function getTestigos(n, ck, pName) { return (gs(n).testigos?.[ck]?.[pName]) || []; }
@@ -682,45 +634,6 @@ function buildTestRows(n, ck, pName, id, pKey) {
   </div>`).join('');
 }
 
-function updatePregField(n, ck, pKey, idx, field, val) {
-  const s = gs(n); const pName = decodeURIComponent(pKey);
-  if (!s.pregoneros) s.pregoneros = {}; if (!s.pregoneros[ck]) s.pregoneros[ck] = {};
-  if (!s.pregoneros[ck][pName]) s.pregoneros[ck][pName] = [];
-  while (s.pregoneros[ck][pName].length <= idx) s.pregoneros[ck][pName].push({ nombre: '', cedula: '', responsable: '', telefono: '' });
-  s.pregoneros[ck][pName][idx][field] = val;
-  saveLocalSt();
-  writeDebounced(n, 700);
-}
-
-function setPregCount(n, ck, id, pKey, val) {
-  const s = gs(n); const cnt = parseInt(val) || 0; const pName = decodeURIComponent(pKey);
-  if (!s.pregoneros) s.pregoneros = {}; if (!s.pregoneros[ck]) s.pregoneros[ck] = {};
-  if (!s.pregoneros[ck]._counts) s.pregoneros[ck]._counts = {};
-  s.pregoneros[ck]._counts[pName] = cnt;
-  if (!s.pregoneros[ck][pName]) s.pregoneros[ck][pName] = [];
-  while (s.pregoneros[ck][pName].length < cnt) s.pregoneros[ck][pName].push({ nombre: '', cedula: '', responsable: '', telefono: '' });
-  saveLocalSt();
-  writeDebounced(n, 400);
-  const ppid = `${id}-pp-${btoa(pKey).replace(/=/g, '')}`;
-  const rowsEl = document.getElementById(ppid + '-rows');
-  if (rowsEl) rowsEl.innerHTML = buildPregRows(n, ck, pName, s.pregoneros[ck][pName], cnt, id, pKey);
-}
-
-function savePregCount(n, ck, id, val) {
-  const s = gs(n); const cnt = parseInt(val) || 0;
-  if (!s.pregoneros) s.pregoneros = {}; if (!s.pregoneros[ck]) s.pregoneros[ck] = {};
-  s.pregoneros[ck]._global_nec = cnt; saveLocalSt();
-  writeDebounced(n, 400);
-}
-
-async function saveAllPreg(n, ck, id) {
-  const s = gs(n);
-  saveLocalSt();
-  await writeMuni(n);
-  const ok = document.getElementById(id + '-preg-ok');
-  if (ok) { ok.classList.add('show'); setTimeout(() => ok.classList.remove('show'), 2000); }
-  renderCCs(n);
-}
 
 function addTestigo(n, ck, pKey, id) {
   const s = gs(n); const pName = decodeURIComponent(pKey);
@@ -964,18 +877,16 @@ function renderOV() {
     if (!validMusis.length) return;
     const rTotP = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.length, 0), 0);
     const rTotM = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.mesas || 0), 0), 0), 0);
-    let rPregNec = 0, rPregReg = 0, rTestReg = 0, rTestFalt = 0, rCov = 0;
+    let rTestReg = 0, rTestFalt = 0, rCov = 0;
     validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
       const st = _ccStats(n, c);
-      rPregNec += st.pregNec; rPregReg += st.pregReg;
       rTestReg += st.testReg; rTestFalt += st.testFalt; rCov += st.covPuestos;
     }));
     const rPct = rTotP ? Math.round(rCov / rTotP * 100) : 0;
-    const rPregFalt = Math.max(0, rPregNec - rPregReg);
     html += `<div class="sec-t" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
       <span style="font-size:10px;font-weight:700">${region} — ${validMusis.length} municipios · ${rTotP} puestos · ${rTotM.toLocaleString('es-CO')} mesas</span>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:10px;color:var(--t2)">Preg: <b>${rPregReg}</b> · Falt: <b style="${rPregFalt > 0 ? 'color:var(--red)' : ''}">${rPregFalt}</b> · Test: <b>${rTestReg}</b> · T.falt: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
+        <span style="font-size:10px;color:var(--t2)">Test: <b>${rTestReg}</b> · T.falt: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
         <button class="export-btn" style="font-size:10px;padding:4px 10px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
       </div>
     </div>`;
@@ -985,21 +896,17 @@ function renderOV() {
       const ckeys = Object.keys(RAW[n]);
       const totP = ckeys.reduce((a, c) => a + RAW[n][c].length, 0);
       const totM = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.mesas || 0), 0), 0);
-      let pregNec = 0, pregReg = 0, testReg = 0, testFalt = 0, covP = 0;
+      let testReg = 0, testFalt = 0, covP = 0;
       ckeys.forEach(c => {
         const st = _ccStats(n, c);
-        pregNec += st.pregNec; pregReg += st.pregReg;
         testReg += st.testReg; testFalt += st.testFalt; covP += st.covPuestos;
       });
       const pct = totP ? Math.round(covP / totP * 100) : 0;
-      const pregFalt = Math.max(0, pregNec - pregReg);
       html += `<div class="ov-muni-card" onclick="selMuni('${n}')">
         <div class="ov-muni-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
         ${s.coord ? `<div class="ov-muni-coord">👤 ${esc(s.coord)}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
         <div class="ov-muni-stats">
-          <span class="ov-stat"><b>${pregReg}</b><span>preg.</span></span>
-          <span class="ov-stat${pregFalt > 0 ? ' warn' : ''}"><b>${pregFalt}</b><span>p.falt.</span></span>
           <span class="ov-stat"><b>${testReg}</b><span>test.</span></span>
           <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>t.falt.</span></span>
           <span class="ov-stat"><b>${pct}%</b><span>cob.</span></span>
@@ -1152,7 +1059,7 @@ function exportExcel(tipo, muni, ck) {
   // Collect flat rows across municipalities (optionally filtered to one commune)
   function collectData(munis, ckFilter) {
     const isMulti = munis.length > 1;
-    const rowsCoord = [], rowsPreg = [], rowsTest = [], rowsMov = [];
+    const rowsCoord = [], rowsTest = [], rowsMov = [];
 
     for (const n of munis) {
       if (!RAW[n]) continue;
@@ -1163,7 +1070,6 @@ function exportExcel(tipo, muni, ck) {
       for (const comunaKey of ckeys) {
         const puestos = RAW[n][comunaKey] || [];
         const sc = (s.comunas || {})[comunaKey] || {};
-        const pregBase = PREG_BASE[n]?.[comunaKey] || {};
         const mov = s.movilidad?.[comunaKey] || {};
         const respNombres = (mov.responsables || []).map(r => r.nombre || '').filter(Boolean).join(' / ');
         const respTels    = (mov.responsables || []).map(r => r.telefono || '').filter(Boolean).join(' / ');
@@ -1174,12 +1080,7 @@ function exportExcel(tipo, muni, ck) {
         for (const p of puestos) {
           const k = pk(p);
           const ps = (s.puestos || {})[k] || {};
-          const pregRows  = (s.pregoneros?.[comunaKey]?.[p.puesto]) || [];
           const testRows  = (s.testigos?.[comunaKey]?.[p.puesto]) || [];
-          const savedCnts = (s.pregoneros?.[comunaKey]?._counts) || {};
-          const baseCnt   = pregBase[p.puesto] !== undefined ? pregBase[p.puesto] : 0;
-          const cnt       = savedCnts[p.puesto] !== undefined ? savedCnts[p.puesto] : baseCnt;
-          const pregReg   = pregRows.filter(r => r.nombre).length;
           const testReg   = testRows.filter(r => r.nombre).length;
           const divipole  = `${String(p.dd).padStart(2,'0')}.${String(p.mm).padStart(3,'0')}.${String(p.zz).padStart(2,'0')}.${String(p.pp).padStart(2,'0')}`;
 
@@ -1187,28 +1088,22 @@ function exportExcel(tipo, muni, ck) {
             comunaKey, sc.coord || '', sc.phone || '',
             p.puesto, p.direccion, divipole, p.mesas || 0, p.total || 0,
             TAG_LABELS[ps.tag || 'n'], ps.coord || '', ps.phone || '',
-            cnt, pregReg, testReg]);
+            testReg]);
 
-          for (let i = 0; i < cnt; i++) {
-            const r = pregRows[i] || {};
-            rowsPreg.push([...(isMulti ? [label] : []),
-              comunaKey, p.puesto, i + 1, r.nombre || '', r.cedula || '', r.responsable || '', r.telefono || '']);
-          }
           testRows.forEach((r, i) => rowsTest.push([...(isMulti ? [label] : []),
             comunaKey, p.puesto, i + 1, r.nombre || '', r.telefono || '']));
         }
       }
     }
-    return { rowsCoord, rowsPreg, rowsTest, rowsMov, isMulti };
+    return { rowsCoord, rowsTest, rowsMov, isMulti };
   }
 
-  function withHeaders({ rowsCoord, rowsPreg, rowsTest, rowsMov, isMulti }) {
+  function withHeaders({ rowsCoord, rowsTest, rowsMov, isMulti }) {
     const m = isMulti ? ['Municipio'] : [];
-    rowsCoord.unshift([...m, 'Zona / Comuna', 'Coord. Zona', 'Tel. Zona', 'Puesto', 'Dirección', 'DIVIPOLE', 'Mesas', 'Votantes', 'Estado', 'Coord. Puesto', 'Tel. Puesto', 'Preg. Asignados', 'Preg. Registrados', 'Testigos Reg.']);
-    rowsPreg.unshift([...m,  'Zona / Comuna', 'Puesto', '#', 'Nombre', 'Cédula', 'Responsable', 'Teléfono']);
+    rowsCoord.unshift([...m, 'Zona / Comuna', 'Coord. Zona', 'Tel. Zona', 'Puesto', 'Dirección', 'DIVIPOLE', 'Mesas', 'Votantes', 'Estado', 'Coord. Puesto', 'Tel. Puesto', 'Testigos Reg.']);
     rowsTest.unshift([...m,  'Zona / Comuna', 'Puesto', '#', 'Nombre', 'Teléfono']);
     rowsMov.unshift([...m,   'Zona / Comuna', 'Coord. Zona', 'Tel. Zona', 'Carros Nec.', 'Motos Nec.', 'Responsable(s)', 'Tel. Responsable(s)']);
-    return { rowsCoord, rowsPreg, rowsTest, rowsMov };
+    return { rowsCoord, rowsTest, rowsMov };
   }
 
   function makeSheet(rows, colWidths) {
@@ -1222,15 +1117,12 @@ function exportExcel(tipo, muni, ck) {
   function build(munis, ckFilter, filename) {
     const wb = XLSX.utils.book_new();
     const raw = collectData(munis, ckFilter);
-    const { rowsCoord, rowsPreg, rowsTest, rowsMov } = withHeaders(raw);
+    const { rowsCoord, rowsTest, rowsMov } = withHeaders(raw);
     const { isMulti } = raw;
     const M = isMulti ? [12] : [];
 
     XLSX.utils.book_append_sheet(wb,
-      makeSheet(rowsCoord, [...M, 26, 24, 14, 32, 26, 12, 7, 10, 12, 24, 14, 14, 14, 10]), 'Coordinación');
-    if (rowsPreg.length > 1)
-      XLSX.utils.book_append_sheet(wb,
-        makeSheet(rowsPreg, [...M, 26, 32, 4, 28, 14, 26, 14]), 'Pregoneros');
+      makeSheet(rowsCoord, [...M, 26, 24, 14, 32, 26, 12, 7, 10, 12, 24, 14, 10]), 'Coordinación');
     if (rowsTest.length > 1)
       XLSX.utils.book_append_sheet(wb,
         makeSheet(rowsTest, [...M, 26, 32, 4, 28, 14]), 'Testigos');
@@ -1267,26 +1159,12 @@ function buildPrintHTML(tipo, muni, ck) {
   function sectionForComuna(n, comunaKey) {
     const s = gs(n); const puestos = RAW[n][comunaKey] || [];
     const sc = (s.comunas || {})[comunaKey] || {};
-    const pregBase = PREG_BASE[n]?.[comunaKey] || {};
     const mov = s.movilidad?.[comunaKey] || {};
     const respsP = (mov.responsables || []);
     let puestosHTML = '';
     puestos.forEach(p => {
       const k = pk(p); const ps = (s.puestos || {})[k] || {};
-      const pregRows = (s.pregoneros?.[comunaKey]?.[p.puesto]) || [];
       const testRows = (s.testigos?.[comunaKey]?.[p.puesto]) || [];
-      const savedCnts = (s.pregoneros?.[comunaKey]?._counts) || {};
-      const baseCnt = pregBase[p.puesto] !== undefined ? pregBase[p.puesto] : 0;
-      const cnt = savedCnts[p.puesto] !== undefined ? savedCnts[p.puesto] : baseCnt;
-      let pregHTML = '';
-      if (cnt > 0 || pregRows.filter(r => r.nombre).length > 0) {
-        const filled = pregRows.filter(r => r.nombre);
-        pregHTML = `<div style="margin-top:6px"><b style="font-size:11px;color:#6b4ed6">Pregoneros (${filled.length}/${cnt}):</b>
-          <table style="width:100%;font-size:10px;border-collapse:collapse;margin-top:3px">
-            <tr style="background:#f0eeff"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Nombre</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Cédula</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Responsable</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Teléfono</th></tr>
-            ${Array.from({ length: cnt }, (_, i) => { const r = pregRows[i] || {}; return `<tr><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.nombre)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.cedula)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.responsable)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.telefono)}</td></tr>`; }).join('')}
-          </table></div>`;
-      }
       let testHTML = '';
       if (testRows.length > 0) {
         testHTML = `<div style="margin-top:6px"><b style="font-size:11px;color:#1a8f4a">Testigos (${testRows.filter(r => r.nombre).length}):</b>
@@ -1304,7 +1182,7 @@ function buildPrintHTML(tipo, muni, ck) {
             <div style="color:#888">${tagLabels[ps.tag || 'n']}</div>
             ${ps.coord ? `<div style="color:#1a6fd4">👤 ${esc(ps.coord)}${ps.phone ? ' · ' + esc(ps.phone) : ''}</div>` : ''}
           </div>
-        </div>${pregHTML}${testHTML}</div>`;
+        </div>${testHTML}</div>`;
     });
     const movHTML = respsP.length ? `<div style="margin-top:8px;padding:8px;background:#fff8e6;border:1px solid #f5c842;border-radius:6px;font-size:11px">
       <b>Movilidad:</b>
@@ -1491,8 +1369,8 @@ function renderComparendosPanel(n, ck, id) {
           <button class="del-btn" onclick="delComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'${id}')">×</button>
         </div>
       </div>
-      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Pregonero" value="${esc(c.pregonero)}"
-        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'pregonero',this.value)">
+      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Nombre" value="${esc(c.nombre || '')}"
+        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'nombre',this.value)">
       <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Puesto de votación" value="${esc(c.puesto)}"
         onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'puesto',this.value)">
       <div style="display:flex;gap:6px;margin-bottom:5px">
@@ -1528,7 +1406,7 @@ function addComparendo(n, ck, id) {
   const s = gs(n);
   if (!s.comparendos) s.comparendos = {};
   if (!s.comparendos[ck]) s.comparendos[ck] = [];
-  s.comparendos[ck].push({ pregonero: '', puesto: '', fecha: '', tipo: '', notas: '', estado: 'pendiente' });
+  s.comparendos[ck].push({ nombre: '', puesto: '', fecha: '', tipo: '', notas: '', estado: 'pendiente' });
   saveLocalSt();
   // Best-effort API sync
   if (window.api && window.CURRENT_USER) {
