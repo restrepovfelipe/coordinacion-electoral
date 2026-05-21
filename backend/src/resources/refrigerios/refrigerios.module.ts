@@ -1,5 +1,13 @@
 import { Module } from '@nestjs/common';
+import { CommonModule } from '../../common/common.module.js';
+import { PrismaModule } from '../../prisma/prisma.module.js';
+import { PermissionsModule } from '../../permissions/permissions.module.js';
+import { RefrigeriosController } from './refrigerios.controller.js';
+import { RefrigeriosService } from './refrigerios.service.js';
 
-// Skeleton — populated in Phase 4 (T24): controller, service, DTOs.
-@Module({})
+@Module({
+  imports: [CommonModule, PrismaModule, PermissionsModule],
+  controllers: [RefrigeriosController],
+  providers: [RefrigeriosService],
+})
 export class RefrigeriosModule {}
