@@ -459,7 +459,12 @@ function _attachUsersListeners() {
       if (_upPage < totalPages) _loadUsersPage(_upPage + 1);
 
     } else if (action === 'edit-user') {
-      _openEditModal(Number(btn.dataset.id));
+      const userId = parseInt(btn.dataset.id, 10);
+      if (!userId || userId < 1) {
+        console.error('[users-page] edit-user: id inválido', btn.dataset.id, btn.outerHTML);
+        return;
+      }
+      _openEditModal(userId);
 
     } else if (action === 'deactivate-user') {
       const userId = Number(btn.dataset.id);
