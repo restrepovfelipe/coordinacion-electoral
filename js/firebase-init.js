@@ -1,3 +1,6 @@
+// Firebase SDK must already be loaded via <script> in index.html
+// Only initialize Auth — no Firestore
+
 const firebaseConfig = {
   apiKey: "AIzaSyBzLnvpt_cFKbYGvquwsINO7mhTqzQSIw0",
   authDomain: "comando-electoral-amva.firebaseapp.com",
@@ -7,7 +10,6 @@ const firebaseConfig = {
   appId: "1:780534359669:web:03678820c44d205a8cba3c"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const firebaseApp = firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const FS_COL = 'estado';
+// Firestore removed — data now comes from the NestJS REST API
