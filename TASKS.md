@@ -102,35 +102,35 @@
   - **Manual test:** `pnpm start:dev` → no Nest dependency-resolution errors in the log
   - **Risk:** Low
 
-- [ ] **T08 · Multi-stage Dockerfile + .dockerignore** — spec §1.4 · **[A6, A7]**
+- [x] **T08 · Multi-stage Dockerfile + .dockerignore** — spec §1.4 · **[A6, A7]**
   - **Files:** Create `backend/Dockerfile`, `backend/.dockerignore`
   - **Preconditions:** T07 done
   - **Acceptance:** multi-stage `Dockerfile` (Node 24 slim [A7] → build → prod); `.dockerignore` excludes `node_modules`, `dist`, `.env*`, `.gcp-key*`. **[A6]** no local build verification — the Dockerfile is authored here and exercised remotely by Cloud Build at T44
   - **Manual test:** **[A6]** deferred — no container runtime on this host; the Dockerfile is verified at T44 (Cloud Build builds it) and T45 (deployed image returns 200 on `/api/healthz`)
   - **Risk:** Medium
 
-- [ ] **T09 · provision-cloud-sql.sh + run it** — spec §1.5
+- [x] **T09 · provision-cloud-sql.sh + run it** — spec §1.5
   - **Files:** Create `backend/scripts/gcp/provision-cloud-sql.sh`
   - **Preconditions:** T05 done; Phase 1 Gate cleared (`DB_APP_USER_PASSWORD` secret exists)
   - **Acceptance:** script matches spec §1.5; running it creates Cloud SQL PG 16 `${INSTANCE}` (`db-g1-small`, daily 03:00 backup), database `defensores`, user `app_user`; connection name printed
   - **Manual test:** `gcloud sql instances describe ${INSTANCE} --format='value(state)'` → `RUNNABLE`
   - **Risk:** High — creates a billable Cloud SQL instance
 
-- [ ] **T10 · start-proxy.sh** — spec §1.6
+- [x] **T10 · start-proxy.sh** — spec §1.6
   - **Files:** Create `backend/scripts/local/start-proxy.sh`
   - **Preconditions:** T09 done; `cloud-sql-proxy` binary installed
   - **Acceptance:** script resolves the instance connection name and tunnels Cloud SQL to `localhost:5432`
   - **Manual test:** run the script → `psql "host=localhost port=5432 user=app_user dbname=defensores"` connects
   - **Risk:** Low
 
-- [ ] **T11 · .env.example + gitignored .env.local** — spec §1.7 · **[Amendment 5]**
+- [x] **T11 · .env.example + gitignored .env.local** — spec §1.7 · **[Amendment 5]**
   - **Files:** Create `backend/.env.example`, `backend/.env.local`; modify root `.gitignore`
   - **Preconditions:** T09 done
   - **Acceptance:** `.env.local` holds real values per spec §11 (`DATABASE_URL`, `GCP_PROJECT_ID`, `PORT`, `NODE_ENV`, `CORS_ORIGINS` — **[Amendment 5]: no `GOOGLE_APPLICATION_CREDENTIALS`, keyless ADC**); `.env.example` is the placeholder twin; `.gitignore` excludes `backend/.env.local` and `backend/.gcp-key*.json`
   - **Manual test:** `git status --porcelain | grep -E '\.env\.local|\.gcp-key'` → empty (not tracked)
   - **Risk:** Low
 
-- [ ] **T12 · /api/healthz controller** — spec §1.8
+- [x] **T12 · /api/healthz controller** — spec §1.8
   - **Files:** Create `backend/src/health/health.controller.ts` (+ module); modify `app.module.ts`
   - **Preconditions:** T07, T10, T11 done
   - **Acceptance:** `GET /api/healthz` pings the DB via `prisma.$queryRaw\`SELECT 1\`` and returns 200 only when the query succeeds
@@ -144,21 +144,21 @@
 
 ## Phase 2 — Reference data + bootstrap
 
-- [ ] **T13 · seed-reference.ts** — spec §2.1 · **[Amendment 3, A10 — no Pregonero seed data]**
+- [x] **T13 · seed-reference.ts** — spec §2.1 · **[Amendment 3, A10 — no Pregonero seed data]**
   - **Files:** Create `backend/scripts/seed/seed-reference.ts`
   - **Preconditions:** T12 done; `pnpm prisma migrate dev` has applied the schema
   - **Acceptance:** parses `js/data.js` JS literals → JSON; idempotent upsert (by `divipola` for municipios/puestos, by `name` for subregiones/comunas/zonas); **Amendment 3** — assigns `Comuna.zonaId` from `MEDELLIN_ZONAS` and logs the three checks (assigned count, unmatched names, comunas without a zona); final log: 9 subregiones / 125 municipios / 6 zonas / 1,282 puestos
   - **Manual test:** `pnpm tsx scripts/seed/seed-reference.ts` twice → identical counts both runs; `psql … -c "SELECT count(*) FROM \"Comuna\" WHERE \"zonaId\" IS NOT NULL"` equals the Medellín comuna count
   - **Risk:** Medium — data integrity; `divipola` uniqueness in `data.js` is unverified until run
 
-- [ ] **T14 · bootstrap-super-admins.ts** — spec §2.2
+- [x] **T14 · bootstrap-super-admins.ts** — spec §2.2
   - **Files:** Create `backend/scripts/bootstrap/bootstrap-super-admins.ts`
   - **Preconditions:** T13 done; `BOOTSTRAP_SUPER_ADMINS_JSON` secret exists
   - **Acceptance:** reads the secret; per entry creates a CIP user (`<username>@defensores.local`) then a `User` row (`role=SUPER_ADMIN`, `mustChangePassword=true`); CIP-rollback (`auth.deleteUser`) if the Postgres insert fails; idempotent — skips if the username exists in CIP or Postgres
   - **Manual test:** dry inspection — code path for CIP-rollback present; re-running after success logs "already bootstrapped" and creates nothing
   - **Risk:** High — CIP↔Postgres atomicity; must never desync
 
-- [ ] **T15 · Run seed + bootstrap against local proxy** — spec §2.3
+- [x] **T15 · Run seed + bootstrap against local proxy** — spec §2.3
   - **Files:** none (executes T13 + T14 scripts)
   - **Preconditions:** T13, T14 done; proxy running
   - **Acceptance:** counts correct; both super_admins present in the CIP console **and** the `users` table with `mustChangePassword=true`
@@ -171,49 +171,49 @@
 
 ## Phase 3 — Auth + RBAC core
 
-- [ ] **T16 · FirebaseAdminService provider** — spec §3.1 · **[Amendment 5]**
+- [x] **T16 · FirebaseAdminService provider** — spec §3.1 · **[Amendment 5]**
   - **Files:** Create `backend/src/common/firebase/firebase-admin.service.ts` (+ module)
   - **Preconditions:** Phase 2 done
   - **Acceptance:** initializes `firebase-admin` with `applicationDefault()` ADC in all environments (local = impersonated ADC per Amendment 5, Cloud Run = attached SA); exposes `.auth`
   - **Manual test:** unit test or temporary route calls `firebase.auth().listUsers(1)` → returns without throwing
   - **Risk:** Medium
 
-- [ ] **T17 · AuthGuard, RolesGuard, ScopeGuard + decorators** — spec §3.2
+- [x] **T17 · AuthGuard, RolesGuard, ScopeGuard + decorators** — spec §3.2
   - **Files:** Create `backend/src/common/guards/{auth,roles,scope}.guard.ts`, `backend/src/common/decorators/{roles,require-scope,current-user}.decorator.ts`
   - **Preconditions:** T16 done
   - **Acceptance:** guards match spec §6.3 — `AuthGuard` verifies the CIP ID token, enforces the 1h `auth_time` window, loads the `User`, rejects inactive; `RolesGuard` and `ScopeGuard` enforce `@Roles` / `@RequireScope`
   - **Manual test:** covered by T22 unit tests (no token → 401; expired `auth_time` → 401)
   - **Risk:** High — auth surface
 
-- [ ] **T18 · PermissionsService + transitive-scope CTE** — spec §3.3 · **[Amendment 2]**
+- [x] **T18 · PermissionsService + transitive-scope CTE** — spec §3.3 · **[Amendment 2]**
   - **Files:** Create `backend/src/permissions/permissions.service.ts`
   - **Preconditions:** T17 done
   - **Acceptance:** `accessiblePuestoIds(user)` runs the **Amendment 2** CTE (with the `user_zonas` branch) via `prisma.$queryRaw`; `SUPER_ADMIN` short-circuits to all puestos; `canAccess(user, scopeType, scopeId)` implemented for every `ScopeType`
   - **Manual test:** covered by T22; spot-check — a `ZONE_COORDINATOR` resolves to the puestos of its zona's comunas only
   - **Risk:** High — core authorization logic
 
-- [ ] **T19 · AuthController (me / password-changed / logout)** — spec §3.4
+- [x] **T19 · AuthController (me / password-changed / logout)** — spec §3.4
   - **Files:** Create `backend/src/auth/{auth.controller,auth.service,auth.module}.ts`
   - **Preconditions:** T17, T18 done
   - **Acceptance:** `GET /api/auth/me` → `{user, role, scopes}`; `POST /api/auth/password-changed` flips `mustChangePassword=false` + writes audit; `POST /api/auth/logout` revokes CIP refresh tokens + writes audit
   - **Manual test:** with a real CIP token, `curl -H "Authorization: Bearer <token>" localhost:3000/api/auth/me` → 200 with the user payload
   - **Risk:** High
 
-- [ ] **T20 · MustChangePasswordInterceptor (412)** — spec §3.5
+- [x] **T20 · MustChangePasswordInterceptor (412)** — spec §3.5
   - **Files:** Create `backend/src/common/interceptors/must-change-password.interceptor.ts`; register globally
   - **Preconditions:** T19 done
   - **Acceptance:** any non-`/api/auth/*` route with `req.user.mustChangePassword === true` returns HTTP 412 `{code:'PASSWORD_CHANGE_REQUIRED'}`
   - **Manual test:** a freshly bootstrapped super_admin's token hitting `GET /api/auth/me` succeeds, but hitting `GET /api/subregiones` returns 412
   - **Risk:** Medium
 
-- [ ] **T21 · @nestjs/throttler on /api/auth/\*** — spec §3.6
+- [x] **T21 · @nestjs/throttler on /api/auth/\*** — spec §3.6
   - **Files:** Modify `backend/src/app.module.ts` (ThrottlerModule + guard)
   - **Preconditions:** T19 done
   - **Acceptance:** `/api/auth/*` limited to 10 req/min/IP
   - **Manual test:** 11 rapid `curl` calls to `/api/auth/me` → the 11th returns HTTP 429
   - **Risk:** Low
 
-- [ ] **T22 · permissions.spec.ts** — spec §3.7 · **[Amendment 4]**
+- [x] **T22 · permissions.spec.ts** — spec §3.7 · **[Amendment 4]**
   - **Files:** Create `backend/test/permissions.spec.ts`
   - **Preconditions:** T17, T18, T20 done
   - **Acceptance:** 6 roles × 5 scope types matrix with positive + negative cases; the spec §3.7 hard cases; **Amendment 4** — `ZONE_COORDINATOR` "Nororiental" → puesto in-zona true, puesto in "Sur Oriental" false, puesto outside Medellín false; expired token → 401; `mustChangePassword` on a resource route → 412; ≥95% coverage on `PermissionsService`
