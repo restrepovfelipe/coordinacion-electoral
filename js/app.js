@@ -987,9 +987,9 @@ function renderOV() {
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
         ${s.coord ? `<div class="ov-muni-coord">👤 ${esc(s.coord)}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
         <div class="ov-muni-stats">
-          <span class="ov-stat"><b>${testReg}</b><span>test.</span></span>
-          <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>m.s.test.</span></span>
-          <span class="ov-stat"><b>${pct}%</b><span>cob.</span></span>
+          <span class="ov-stat"><b>${testReg}</b><span>Testigos</span></span>
+          <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>Mesas sin testigo</span></span>
+          <span class="ov-stat"><b>${pct}%</b><span>Cobertura</span></span>
         </div>
       </div>`;
     });
