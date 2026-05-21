@@ -450,4 +450,24 @@ table.pt tr:hover td{background:rgba(26,109,191,.04)}
 .t-btn-primary{background:var(--gold);border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:#000}
 .t-btn-primary:disabled{opacity:.5;cursor:default}
 .t-err{color:var(--red);font-size:11px;margin-top:4px;min-height:16px}
+/* ── Users Page ─────────────────────────────────────────────────────────── */
+.up-table{width:100%;border-collapse:collapse;font-size:12px}
+.up-table th{background:var(--bg3);border-bottom:1px solid var(--b1);padding:7px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--t3);white-space:nowrap}
+.up-table td{padding:7px 10px;border-bottom:1px solid var(--b1);vertical-align:middle}
+.up-table tr:last-child td{border-bottom:none}
+.up-table tr:hover td{background:var(--bg3)}
+.up-active{background:rgba(21,135,74,.12);color:var(--green);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:600}
+.up-inactive{background:rgba(200,48,62,.12);color:var(--red);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:600}
+.up-role{font-size:10px;color:var(--t2);background:var(--bg3);border-radius:4px;padding:2px 6px}
+.up-create-section{border-top:1px solid var(--b1);margin-top:18px;padding-top:16px}
+.up-create-section h4{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--t1)}
+.up-create-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:10px}
+.up-create-grid input,.up-create-grid select{width:100%;background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:7px 10px;color:var(--t1);font-size:12px;font-family:inherit;outline:none}
+.up-create-grid input:focus,.up-create-grid select:focus{border-color:var(--gold)}
+.up-scope-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:24px}
+.up-scope-tag{background:rgba(26,109,191,.1);color:var(--blue);border-radius:20px;padding:3px 8px;font-size:10px;display:flex;align-items:center;gap:4px}
+.up-scope-tag button{background:none;border:none;cursor:pointer;color:var(--red);font-size:11px;padding:0;line-height:1}
+.up-scope-add{display:flex;gap:6px;margin-top:6px}
+.up-scope-add select,.up-scope-add input{background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;outline:none}
+.up-scope-add select:focus,.up-scope-add input:focus{border-color:var(--gold)}
 </style>
