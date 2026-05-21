@@ -9,18 +9,23 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { ScopeType } from '@prisma/client';
+import { Role, ScopeType } from '@prisma/client';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { ScopeGuard } from '../../common/guards/scope.guard.js';
+import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { RequireScope } from '../../common/decorators/require-scope.decorator.js';
+import { Roles } from '../../common/decorators/roles.decorator.js';
 import type { UserWithScopes } from '../../common/types/request-with-user.js';
 import { TestigosService } from './testigos.service.js';
 import { CreateTestigoDto } from './dto/create-testigo.dto.js';
 import { UpdateTestigoDto } from './dto/update-testigo.dto.js';
+import { ListTestigosQueryDto } from './dto/list-testigos-query.dto.js';
+import { BulkAssignDto } from './dto/bulk-assign.dto.js';
 
 @ApiTags('testigos')
 @ApiBearerAuth()
@@ -70,6 +75,26 @@ export class TestigosController {
 @Controller('testigos')
 export class TestigosStandaloneController {
   constructor(private readonly testigosService: TestigosService) {}
+
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.REGIONAL_COORDINATOR)
+  list(
+    @Query() query: ListTestigosQueryDto,
+    @CurrentUser() user: UserWithScopes,
+  ) {
+    return this.testigosService.list(query, user);
+  }
+
+  @Patch('bulk-assign')
+  @UseGuards(RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.REGIONAL_COORDINATOR)
+  bulkAssign(
+    @Body() dto: BulkAssignDto,
+    @CurrentUser() user: UserWithScopes,
+  ) {
+    return this.testigosService.bulkAssign(dto.testigoIds, dto.puestoId, user);
+  }
 
   @Patch(':id')
   update(

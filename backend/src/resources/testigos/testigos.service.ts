@@ -1,11 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ScopeType } from '@prisma/client';
+import { Role, ScopeType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PermissionsService } from '../../permissions/permissions.service.js';
 import { UserWithScopes } from '../../common/types/request-with-user.js';
 import { CreateTestigoDto } from './dto/create-testigo.dto.js';
 import { UpdateTestigoDto } from './dto/update-testigo.dto.js';
 import { RealtimeService } from '../../realtime/realtime.service.js';
+import { ListTestigosQueryDto } from './dto/list-testigos-query.dto.js';
 
 @Injectable()
 export class TestigosService {
@@ -20,6 +21,81 @@ export class TestigosService {
       where: { puestoId },
       orderBy: { id: 'asc' },
     });
+  }
+
+  async list(query: ListTestigosQueryDto, user: UserWithScopes) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
+    const skip = (page - 1) * limit;
+
+    const where: Record<string, unknown> = {};
+
+    // puestoId filter
+    if (query.sinPuesto === true) {
+      where['puestoId'] = null;
+    } else if (query.puestoId !== undefined) {
+      where['puestoId'] = query.puestoId;
+    } else if (user.role !== Role.SUPER_ADMIN) {
+      const accessibleIds = await this.permissions.accessiblePuestoIds(user);
+      where['puestoId'] = { in: [...accessibleIds] };
+    }
+
+    // municipioId filter (only when not sinPuesto)
+    if (query.municipioId !== undefined && query.sinPuesto !== true) {
+      where['puesto'] = { municipioId: query.municipioId };
+    }
+
+    // search filter
+    if (query.search) {
+      where['OR'] = [
+        { name: { contains: query.search, mode: 'insensitive' } },
+        { cedula: { contains: query.search, mode: 'insensitive' } },
+        { phone: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.testigo.findMany({
+        where,
+        include: {
+          puesto: { select: { id: true, name: true, municipioId: true } },
+        },
+        orderBy: [{ puestoId: 'asc' }, { id: 'asc' }],
+        skip,
+        take: limit,
+      }),
+      this.prisma.testigo.count({ where }),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
+  async bulkAssign(testigoIds: number[], puestoId: number, user: UserWithScopes) {
+    const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, puestoId);
+    if (!canAccess) throw new ForbiddenException();
+
+    const puesto = await this.prisma.puesto.findUnique({ where: { id: puestoId } });
+    if (!puesto) throw new NotFoundException('Puesto not found');
+
+    const testigos = await this.prisma.testigo.findMany({ where: { id: { in: testigoIds } } });
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const t of testigos) {
+        await tx.testigo.update({ where: { id: t.id }, data: { puestoId } });
+        await tx.auditLog.create({
+          data: {
+            actorUserId: user.id,
+            action: 'testigo.bulkAssign',
+            targetType: 'Testigo',
+            targetId: t.id,
+            beforeJson: t,
+            afterJson: { ...t, puestoId },
+          },
+        });
+      }
+    });
+
+    return { assigned: testigos.length };
   }
 
   async create(
