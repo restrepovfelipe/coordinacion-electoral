@@ -31,62 +31,62 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  list(
+  async list(
     @Query() query: ListUsersQueryDto,
     @CurrentUser() actor: UserWithScopes,
-  ) {
+  ): Promise<{ data: Array<Omit<UserWithScopes, 'cipUid'>>; total: number; page: number; limit: number }> {
     return this.usersService.list(query, actor);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<Omit<UserWithScopes, 'cipUid'>> {
     return this.usersService.findOne(id);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(
+  async create(
     @Body() dto: CreateUserDto,
     @CurrentUser() actor: UserWithScopes,
-  ) {
+  ): Promise<Omit<UserWithScopes, 'cipUid'>> {
     return this.usersService.create(dto, actor);
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
     @CurrentUser() actor: UserWithScopes,
-  ) {
+  ): Promise<Omit<UserWithScopes, 'cipUid'>> {
     return this.usersService.update(id, dto, actor);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deactivate(
+  async deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: UserWithScopes,
-  ) {
-    return this.usersService.deactivate(id, actor);
+  ): Promise<void> {
+    await this.usersService.deactivate(id, actor);
   }
 
   @Post(':id/scopes')
   @HttpCode(HttpStatus.CREATED)
-  addScope(
+  async addScope(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddScopeDto,
     @CurrentUser() actor: UserWithScopes,
-  ) {
-    return this.usersService.addScope(id, dto, actor);
+  ): Promise<void> {
+    await this.usersService.addScope(id, dto, actor);
   }
 
   @Delete(':id/scopes/:scopeId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  removeScope(
+  async removeScope(
     @Param('id', ParseIntPipe) id: number,
     @Param('scopeId', ParseIntPipe) scopeId: number,
     @CurrentUser() actor: UserWithScopes,
-  ) {
-    return this.usersService.removeScope(id, scopeId, actor);
+  ): Promise<void> {
+    await this.usersService.removeScope(id, scopeId, actor);
   }
 }
