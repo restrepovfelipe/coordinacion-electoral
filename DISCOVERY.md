@@ -520,10 +520,19 @@ The earlier proposal with separate `primerNombre`/`segundoNombre`/`primerApellid
 applied; the seed script adapted to the existing schema. Original CSV nuances
 (email, quality_flag) preserved in `notes` as semicolon-delimited text.
 
-State as of 2026-05-21: 7,283 total rows; 6,394 with valid `puestoId`; 889
+State as of 2026-05-21 (seed run): 7,283 total rows; 6,394 with valid `puestoId`; 889
 with `puestoId = NULL`; all `cedula` values empty; schema matches
 `backend/prisma/schema.prisma` `model Testigo` (puestoId nullable per migration
 `20260521054752_make_testigo_fields_nullable`).
+
+**Fix pending (2026-05-21):** `data/testigos_clean.csv` added to repo and
+`backend/scripts/seed/fix-puesto-assignments.ts` written. This script cross-references
+the clean CSV by name+phone (natural key) to recover the original municipio/puesto for
+each NULL testigo, then resolves the `puestoId` via the existing DB `Puesto` rows.
+Run with: `npx tsx scripts/seed/fix-puesto-assignments.ts` (requires Cloud SQL proxy +
+`.env.local`). Expected outcome: majority of the 889 resolved; a residual of testigos
+whose puesto name does not exist in the DB (municipality-only entries or rural puestos
+not in `data.js`) will remain NULL and must be assigned manually via the UI.
 
 ---
 
