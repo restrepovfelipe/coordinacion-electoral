@@ -186,8 +186,7 @@ function buildSB() {
     list.appendChild(grp);
   });
 }
-function selMuni(n) { CUR = n; buildSB(); renderMuni(n); loadPuestoIds(n); // async, fires and forgets — populates cache for later use
-}
+function selMuni(n) { CUR = n; buildSB(); renderMuni(n); loadPuestoIds(n); loadAllTestigosForMuni(n); }
 function goHome() {
   CUR = null; buildSB();
   document.getElementById('ct').innerHTML = `
@@ -228,8 +227,8 @@ function renderMuni(n) {
       <div class="sc"><div class="sl">Mesas</div><div class="sv">${totM.toLocaleString('es-CO')}</div></div>
       <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${ckeys.length}</div></div>
       <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
-      <div class="sc"><div class="sl">Testigos</div><div class="sv">${totTestReg}</div></div>
-      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Test. faltantes</div><div class="sv">${totTestFalt}</div></div>
+      <div class="sc"><div class="sl">Testigos</div><div class="sv" id="mh-test-reg">${totTestReg}</div></div>
+      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Test. faltantes</div><div class="sv">${totTestFalt}</div></div>
       <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${pctCov}%</div></div>
     </div>
     <div class="otabs">
@@ -271,6 +270,66 @@ function _ccStats(n, ck) {
   return { totPuestos, totMesas, testReg, testFalt, testPuCub, covPuestos, pct, totMotos, totCarros };
 }
 
+function _refreshCCStats(n, ck) {
+  const id = cid(n, ck);
+  if (!document.getElementById(id)) return;
+  const { testReg, testFalt } = _ccStats(n, ck);
+  const tEl = document.getElementById(id + '-s-t');
+  const tfEl = document.getElementById(id + '-s-tf');
+  if (tEl) tEl.textContent = testReg;
+  if (tfEl) {
+    tfEl.querySelector('.v').textContent = testFalt;
+    tfEl.classList.toggle('cc-st-warn', testFalt > 0);
+  }
+  if (n === 'MEDELLIN') {
+    const zona = (typeof MEDELLIN_ZONAS !== 'undefined' ? MEDELLIN_ZONAS : []).find(z => z.comunas.includes(ck));
+    if (zona) _refreshZonaStats(n, zona.nombre);
+  }
+  _refreshMuniStats(n);
+}
+
+function _refreshZonaStats(n, zonaNombre) {
+  const zid = 'z_' + btoa(unescape(encodeURIComponent(zonaNombre))).replace(/[^a-z0-9]/gi, '');
+  const zona = (typeof MEDELLIN_ZONAS !== 'undefined' ? MEDELLIN_ZONAS : []).find(z => z.nombre === zonaNombre);
+  if (!zona) return;
+  let totTestReg = 0, totTestFalt = 0;
+  zona.comunas.forEach(ck => {
+    if (!RAW[n][ck]) return;
+    const st = _ccStats(n, ck);
+    totTestReg += st.testReg;
+    totTestFalt += st.testFalt;
+  });
+  const tEl = document.getElementById(zid + '-s-t');
+  const tfEl = document.getElementById(zid + '-s-tf');
+  if (tEl) tEl.textContent = totTestReg;
+  if (tfEl) {
+    tfEl.querySelector('.v').textContent = totTestFalt;
+    tfEl.classList.toggle('cc-st-warn', totTestFalt > 0);
+  }
+}
+
+function _refreshMuniStats(n) {
+  const tEl = document.getElementById('mh-test-reg');
+  const tfEl = document.getElementById('mh-test-falt');
+  if (!tEl || !tfEl) return;
+  let totTestReg = 0, totTestFalt = 0;
+  Object.keys(RAW[n] || {}).forEach(ck => {
+    const st = _ccStats(n, ck);
+    totTestReg += st.testReg;
+    totTestFalt += st.testFalt;
+  });
+  tEl.textContent = totTestReg;
+  tfEl.querySelector('.sv').textContent = totTestFalt;
+  tfEl.classList.toggle('sc-warn', totTestFalt > 0);
+}
+
+async function loadAllTestigosForMuni(n) {
+  if (!window.api || !window.CURRENT_USER) return;
+  const comunas = Object.keys(RAW[n] || {});
+  await Promise.all(comunas.map(ck => loadTestigosForComune(n, ck)));
+  _refreshMuniStats(n);
+}
+
 // ═══ ZONA CARDS ═══
 function buildZonaCard(n, zona) {
   const s = gs(n); const sz = (s.zonas || {})[zona.nombre] || {};
@@ -302,8 +361,8 @@ function buildZonaCard(n, zona) {
     <div class="cc-stats-bar">
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
-      <div class="cc-st"><div class="v">${totTestReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${totTestFalt}</div><div class="l">Test. faltantes</div></div>
+      <div class="cc-st"><div class="v" id="${zid}-s-t">${totTestReg}</div><div class="l">Testigos</div></div>
+      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totTestFalt}</div><div class="l">Test. faltantes</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
@@ -336,8 +395,8 @@ function buildCCCard(n, ck) {
     <div class="cc-stats-bar">
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
-      <div class="cc-st"><div class="v">${testReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}"><div class="v">${testFalt}</div><div class="l">Test. faltantes</div></div>
+      <div class="cc-st"><div class="v" id="${id}-s-t">${testReg}</div><div class="l">Testigos</div></div>
+      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${testFalt}</div><div class="l">Test. faltantes</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
@@ -569,6 +628,7 @@ async function loadTestigosForComune(n, ck) {
     }
   }
   saveLocalSt();
+  _refreshCCStats(n, ck);
 }
 
 async function renderTestigosPanel(n, ck, id) {
