@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usuarios — Coordinación Electoral</title>
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;overflow:hidden">
+<div class="topbar">
+  <div class="logo">
+    <a href="/" style="color:var(--t2);text-decoration:none;font-size:12px;font-weight:600;margin-right:12px">← Dashboard</a>
+    <div class="logo-main">👥 <em>Gestión de Usuarios</em></div>
+    <div class="logo-sub">Coordinación Electoral · Defensores de la Patria 2026</div>
+  </div>
+  <div class="user-badge" id="user-badge" onclick="doLogout()">
+    <span>👤</span><span id="user-label"></span><span style="font-size:9px;color:var(--red)">Salir</span>
+  </div>
+</div>
+<div id="page-content" style="flex:1;overflow:auto;display:flex;flex-direction:column">
+  <p style="color:var(--t3);font-size:13px;padding:40px;text-align:center">Verificando acceso…</p>
+</div>
+<script src="js/firebase-init.js"></script>
+<script src="js/api.js"></script>
+<script>function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}</script>
+<script src="js/auth.js"></script>
+<script src="js/users-page.js"></script>
+</body>
+</html>

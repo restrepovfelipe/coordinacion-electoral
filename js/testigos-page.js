@@ -541,3 +541,44 @@ function _exportPDF() {
 // ── Expose globally ────────────────────────────────────────────────────────
 window.openTestigosPage = openTestigosPage;
 window.closeTestigosPage = closeTestigosPage;
+
+// ── Standalone page bootstrap (testigos.html) ─────────────────────────────
+if (document.getElementById('page-content')) {
+  window.showMustChangePasswordModal = function() {
+    window.location.replace('/');
+  };
+
+  window.doLogout = function() {
+    if (window.api) window.api.post('/auth/logout', {}).catch(() => {});
+    firebase.auth().signOut().then(() => {
+      window.CURRENT_USER = null;
+      window.location.replace('/');
+    }).catch(() => window.location.replace('/'));
+  };
+
+  const _tAuthTimeout = setTimeout(() => {
+    if (!window.CURRENT_USER) window.location.replace('/');
+  }, 4000);
+
+  window.startApp = function(me) {
+    clearTimeout(_tAuthTimeout);
+    if (me.role !== 'SUPER_ADMIN' && me.role !== 'REGIONAL_COORDINATOR') {
+      window.location.replace('/');
+      return;
+    }
+    window.CURRENT_USER = me;
+    const label = document.getElementById('user-label');
+    if (label) label.textContent = me.displayName || me.username;
+
+    const container = document.getElementById('page-content');
+    if (!container) return;
+    _testigosPanel = container;
+    container.innerHTML = _buildPanelHTML();
+    const closeBtn = container.querySelector('[data-action="close-testigos-page"]');
+    if (closeBtn) { closeBtn.textContent = '← Dashboard'; closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--t2);font-size:12px;font-weight:600'; }
+    window.closeTestigosPage = () => window.location.replace('/');
+    _attachListeners();
+    _loadMunicipios();
+    _loadTestigos(1);
+  };
+}

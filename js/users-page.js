@@ -501,3 +501,43 @@ function _attachUsersListeners() {
 // ── Expose globally ────────────────────────────────────────────────────────
 window.openUsersPage = openUsersPage;
 window.closeUsersPage = closeUsersPage;
+
+// ── Standalone page bootstrap (usuarios.html) ─────────────────────────────
+if (document.getElementById('page-content')) {
+  window.showMustChangePasswordModal = function() {
+    window.location.replace('/');
+  };
+
+  window.doLogout = function() {
+    if (window.api) window.api.post('/auth/logout', {}).catch(() => {});
+    firebase.auth().signOut().then(() => {
+      window.CURRENT_USER = null;
+      window.location.replace('/');
+    }).catch(() => window.location.replace('/'));
+  };
+
+  const _uAuthTimeout = setTimeout(() => {
+    if (!window.CURRENT_USER) window.location.replace('/');
+  }, 4000);
+
+  window.startApp = function(me) {
+    clearTimeout(_uAuthTimeout);
+    if (me.role !== 'SUPER_ADMIN') {
+      window.location.replace('/');
+      return;
+    }
+    window.CURRENT_USER = me;
+    const label = document.getElementById('user-label');
+    if (label) label.textContent = me.displayName || me.username;
+
+    const container = document.getElementById('page-content');
+    if (!container) return;
+    _usersPage = container;
+    container.innerHTML = _buildUsersPageHTML();
+    const closeBtn = container.querySelector('[data-action="close-users-page"]');
+    if (closeBtn) { closeBtn.textContent = '← Dashboard'; closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--t2);font-size:12px;font-weight:600'; }
+    window.closeUsersPage = () => window.location.replace('/');
+    _attachUsersListeners();
+    _loadUsersPage(1);
+  };
+}
