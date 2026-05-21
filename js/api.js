@@ -1,7 +1,7 @@
 // js/api.js
 // REST API client that uses Firebase ID tokens for auth
 
-const API_BASE = '/api';
+const API_BASE = 'https://backend-210392280319.us-central1.run.app/api';
 
 class ApiClient {
   constructor(getToken) {
