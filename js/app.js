@@ -1381,18 +1381,18 @@ function renderComparendosPanel(n, ck, id) {
           <button class="del-btn" onclick="delComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'${id}')">×</button>
         </div>
       </div>
-      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Pregonero" value="${c.pregonero||''}"
+      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Pregonero" value="${esc(c.pregonero)}"
         onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'pregonero',this.value)">
-      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Puesto de votación" value="${c.puesto||''}"
+      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Puesto de votación" value="${esc(c.puesto)}"
         onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'puesto',this.value)">
       <div style="display:flex;gap:6px;margin-bottom:5px">
         <input class="resp-phone-inp" style="flex:1" type="date" value="${c.fecha||''}"
           onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'fecha',this.value)">
-        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="Tipo" value="${c.tipo||''}"
+        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="Tipo" value="${esc(c.tipo)}"
           onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'tipo',this.value)">
       </div>
       <textarea style="width:100%;font-size:11px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:4px;padding:5px;box-sizing:border-box;resize:vertical;min-height:48px" placeholder="Notas / descripción"
-        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'notas',this.value)">${c.notas||''}</textarea>
+        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'notas',this.value)">${esc(c.notas)}</textarea>
     </div>`).join('');
   pane.innerHTML = `<div class="mov-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -1769,7 +1769,7 @@ function renderMuniMap(n) {
     L.circleMarker([lat, lng], {
       radius: 14, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
     }).addTo(_muniLeafletMap)
-      .bindPopup(`<b>${ck}</b><br>${pct}% cubierto (${ok}/${total})${al > 0 ? '<br>⚠ ' + al + ' alertas' : ''}${coord ? '<br>👤 ' + coord : ''}${phone ? '<br>📞 ' + phone : ''}`);
+      .bindPopup(`<b>${esc(ck)}</b><br>${pct}% cubierto (${ok}/${total})${al > 0 ? '<br>⚠ ' + al + ' alertas' : ''}${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
   });
 
   if (bounds.length > 1) _muniLeafletMap.fitBounds(bounds, { padding: [30, 30] });

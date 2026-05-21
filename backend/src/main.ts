@@ -6,6 +6,14 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: process.env['CORS_ORIGINS']
+      ? process.env['CORS_ORIGINS'].split(',').map(o => o.trim())
+      : ['http://localhost:5500', 'http://localhost:3000', 'https://coordinacion-electoral.vercel.app'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'If-Match'],
+    credentials: false,
+  });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   if (process.env.NODE_ENV !== 'production') {

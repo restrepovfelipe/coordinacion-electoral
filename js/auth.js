@@ -85,7 +85,7 @@ function handlePasswordChangeSubmit() {
 window.handlePasswordChangeSubmit = handlePasswordChangeSubmit;
 
 // Inactivity timeout: 30 minutes
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 min in ms
+const INACTIVITY_TIMEOUT = 60 * 60 * 1000; // 1 hour in ms
 let _inactivityTimer = null;
 
 function resetInactivityTimer() {
