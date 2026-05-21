@@ -11,6 +11,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../../common/types/request-with-user.js';
@@ -18,6 +19,8 @@ import { RefrigeriosService } from './refrigerios.service.js';
 import { CreateRefrigerioDto } from './dto/create-refrigerio.dto.js';
 import { UpdateRefrigerioDto } from './dto/update-refrigerio.dto.js';
 
+@ApiTags('refrigerios')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/refrigerios')
 export class RefrigeriosController {

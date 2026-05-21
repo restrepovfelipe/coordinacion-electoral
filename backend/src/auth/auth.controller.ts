@@ -7,11 +7,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { AuthGuard } from '../common/guards/auth.guard.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../common/types/request-with-user.js';
 
+@ApiTags('auth')
+@ApiBearerAuth()
 @Controller('auth')
 @UseGuards(AuthGuard)
 export class AuthController {

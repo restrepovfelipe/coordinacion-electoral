@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../common/guards/auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
@@ -24,6 +25,8 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { AddScopeDto } from './dto/add-scope.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 
+@ApiTags('users')
+@ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN)
 @Controller('api/users')

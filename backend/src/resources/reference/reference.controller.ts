@@ -1,10 +1,13 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import type { Subregion, Municipio, Comuna, Zona, Puesto } from '@prisma/client';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../../common/types/request-with-user.js';
 import { ReferenceService } from './reference.service.js';
 
+@ApiTags('reference')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api')
 export class ReferenceController {

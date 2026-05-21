@@ -11,6 +11,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../../common/types/request-with-user.js';
@@ -18,6 +19,8 @@ import { ComparendosService } from './comparendos.service.js';
 import { CreateComparendoDto } from './dto/create-comparendo.dto.js';
 import { UpdateComparendoDto } from './dto/update-comparendo.dto.js';
 
+@ApiTags('comparendos')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/comparendos')
 export class ComparendosController {

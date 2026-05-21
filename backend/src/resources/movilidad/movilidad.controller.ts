@@ -10,6 +10,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../../common/types/request-with-user.js';
@@ -17,6 +18,8 @@ import { MovilidadService } from './movilidad.service.js';
 import { CreateMovilidadDto } from './dto/create-movilidad.dto.js';
 import { UpdateMovilidadDto } from './dto/update-movilidad.dto.js';
 
+@ApiTags('movilidad')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/movilidad')
 export class MovilidadController {

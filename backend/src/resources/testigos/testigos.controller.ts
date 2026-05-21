@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ScopeType } from '@prisma/client';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { ScopeGuard } from '../../common/guards/scope.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -20,6 +21,8 @@ import { TestigosService } from './testigos.service.js';
 import { CreateTestigoDto } from './dto/create-testigo.dto.js';
 import { UpdateTestigoDto } from './dto/update-testigo.dto.js';
 
+@ApiTags('testigos')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/puestos')
 export class TestigosController {
@@ -55,6 +58,8 @@ export class TestigosController {
   }
 }
 
+@ApiTags('testigos')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/testigos')
 export class TestigosStandaloneController {

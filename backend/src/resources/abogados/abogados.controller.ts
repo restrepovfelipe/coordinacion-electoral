@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ScopeType } from '@prisma/client';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { ScopeGuard } from '../../common/guards/scope.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -20,6 +21,8 @@ import { AbogadosService } from './abogados.service.js';
 import { CreateAbogadoDto } from './dto/create-abogado.dto.js';
 import { UpdateAbogadoDto } from './dto/update-abogado.dto.js';
 
+@ApiTags('abogados')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/municipios')
 export class AbogadosController {
@@ -37,6 +40,8 @@ export class AbogadosController {
   }
 }
 
+@ApiTags('abogados')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('api/abogados')
 export class AbogadosStandaloneController {
