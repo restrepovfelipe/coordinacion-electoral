@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PermissionsService } from '../../permissions/permissions.service.js';
 import { UserWithScopes } from '../../common/types/request-with-user.js';
@@ -44,6 +45,9 @@ export class MovilidadService {
     const existing = await this.prisma.movilidad.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Movilidad not found');
 
+    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    if (!hasAccess) throw new ForbiddenException();
+
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.movilidad.update({ where: { id }, data: dto });
       await tx.auditLog.create({
@@ -63,6 +67,9 @@ export class MovilidadService {
   async remove(id: number, user: UserWithScopes) {
     const existing = await this.prisma.movilidad.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Movilidad not found');
+
+    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    if (!hasAccess) throw new ForbiddenException();
 
     await this.prisma.$transaction(async (tx) => {
       await tx.auditLog.create({

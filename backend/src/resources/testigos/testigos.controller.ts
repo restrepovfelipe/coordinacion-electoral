@@ -38,20 +38,20 @@ export class TestigosController {
 
   @Patch(':id/testigos/:testigoId')
   updateNested(
-    @Param('testigoId', ParseIntPipe) id: number,
+    @Param('testigoId', ParseIntPipe) testigoId: number,
     @Body() dto: UpdateTestigoDto,
     @CurrentUser() user: UserWithScopes,
   ) {
-    return this.testigosService.update(id, dto, user);
+    return this.testigosService.update(testigoId, dto, user);
   }
 
   @Delete(':id/testigos/:testigoId')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeNested(
-    @Param('testigoId', ParseIntPipe) id: number,
+    @Param('testigoId', ParseIntPipe) testigoId: number,
     @CurrentUser() user: UserWithScopes,
   ) {
-    return this.testigosService.remove(id, user);
+    return this.testigosService.remove(testigoId, user);
   }
 }
 

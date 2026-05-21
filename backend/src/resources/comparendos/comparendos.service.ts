@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PermissionsService } from '../../permissions/permissions.service.js';
 import { UserWithScopes } from '../../common/types/request-with-user.js';
@@ -60,6 +61,9 @@ export class ComparendosService {
     const existing = await this.prisma.comparendo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Comparendo not found');
 
+    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    if (!hasAccess) throw new ForbiddenException();
+
     if (ifMatch && existing.updatedAt.toISOString() !== ifMatch) {
       throw new HttpException('Precondition Failed', HttpStatus.PRECONDITION_FAILED);
     }
@@ -91,6 +95,9 @@ export class ComparendosService {
   async remove(id: number, user: UserWithScopes) {
     const existing = await this.prisma.comparendo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Comparendo not found');
+
+    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    if (!hasAccess) throw new ForbiddenException();
 
     await this.prisma.$transaction(async (tx) => {
       await tx.auditLog.create({
