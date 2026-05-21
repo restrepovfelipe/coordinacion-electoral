@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { Prisma, Role, User, UserScope } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -85,7 +85,7 @@ export class UsersService {
           notes: dto.notes,
           role: dto.role,
           cipUid,
-          mustChangePassword: true,
+          mustChangePassword: false,
           createdByUserId: actor.id,
           scopes: dto.scopes
             ? {
@@ -126,6 +126,10 @@ export class UsersService {
       include: { scopes: true },
     });
     if (!existing) throw new NotFoundException('User not found');
+
+    if (dto.newPassword) {
+      await this.firebaseAdmin.auth.updateUser(existing.cipUid, { password: dto.newPassword });
+    }
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.user.update({
@@ -184,6 +188,29 @@ export class UsersService {
     });
 
     await this.firebaseAdmin.auth.revokeRefreshTokens(existing.cipUid);
+  }
+
+  async hardDelete(id: number, actor: UserWithScopes): Promise<void> {
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('User not found');
+    if (existing.active) throw new BadRequestException('User must be deactivated before deletion');
+
+    // Delete from Firebase first (can retry if Prisma fails, but not vice versa)
+    await this.firebaseAdmin.auth.deleteUser(existing.cipUid);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: 'user.hardDelete',
+          targetType: 'User',
+          targetId: id,
+          beforeJson: { id: existing.id, username: existing.username } as Prisma.InputJsonValue,
+        },
+      });
+      await tx.userScope.deleteMany({ where: { userId: id } });
+      await tx.user.delete({ where: { id } });
+    });
   }
 
   async addScope(userId: number, dto: AddScopeDto, actor: UserWithScopes): Promise<void> {

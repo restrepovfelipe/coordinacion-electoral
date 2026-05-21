@@ -66,11 +66,11 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deactivate(
+  async hardDelete(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() actor: UserWithScopes,
   ): Promise<void> {
-    await this.usersService.deactivate(id, actor);
+    await this.usersService.hardDelete(id, actor);
   }
 
   @Post(':id/scopes')

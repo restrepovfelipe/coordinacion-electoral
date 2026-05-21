@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -32,4 +32,10 @@ export class UpdateUserDto {
   @IsBoolean()
   @IsOptional()
   mustChangePassword?: boolean;
+
+  @ApiPropertyOptional({ description: 'New password to set for this user (admin-initiated reset)' })
+  @IsString()
+  @IsOptional()
+  @MinLength(8)
+  newPassword?: string;
 }
