@@ -12,8 +12,10 @@ import {
   map,
   of,
 } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { ScopeType } from '@prisma/client';
 import { PermissionsService } from '../permissions/permissions.service.js';
+import { MetricsService } from '../metrics/metrics.service.js';
 import { UserWithScopes } from '../common/types/request-with-user.js';
 import { AppEvent } from './types/app-event.interface.js';
 
@@ -22,7 +24,10 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
   private pgClient!: Client;
   private readonly subject = new Subject<AppEvent>();
 
-  constructor(private readonly permissions: PermissionsService) {}
+  constructor(
+    private readonly permissions: PermissionsService,
+    private readonly metrics: MetricsService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     this.pgClient = new Client({ connectionString: process.env['DATABASE_URL'] });
@@ -52,6 +57,8 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
   }
 
   subscribeUser(user: UserWithScopes): Observable<MessageEvent> {
+    this.metrics.incrementSse();
+
     const events$ = this.subject.asObservable().pipe(
       mergeMap((event: AppEvent) =>
         from(this.canUserSeeEvent(user, event)).pipe(
@@ -68,7 +75,9 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
       map(() => ({ data: 'heartbeat' } as MessageEvent)),
     );
 
-    return merge(events$, heartbeat$);
+    return merge(events$, heartbeat$).pipe(
+      finalize(() => this.metrics.decrementSse()),
+    );
   }
 
   private async canUserSeeEvent(

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@google-cloud/monitoring':
+        specifier: ^5.3.2
+        version: 5.3.2
       '@google-cloud/secret-manager':
         specifier: ^6.1.2
         version: 6.1.2
@@ -576,6 +579,10 @@ packages:
   '@google-cloud/firestore@7.11.6':
     resolution: {integrity: sha512-EW/O8ktzwLfyWBOsNuhRoMi8lrC3clHM5LVFhGvO1HCsLozCOOXRAlHrYBoE6HL42Sc8yYMuCb2XqcnJ4OOEpw==}
     engines: {node: '>=14.0.0'}
+
+  '@google-cloud/monitoring@5.3.2':
+    resolution: {integrity: sha512-GYvIKDXywOV1y15I7JYkyYdGEYc3GYD5GD/q6j3KsdiY7VFh8pNqrESurxSJFCJEYYntWbdVTuKcfT/Un1Yx6A==}
+    engines: {node: '>=18'}
 
   '@google-cloud/paginator@5.0.2':
     resolution: {integrity: sha512-DJS3s0OVH4zFDB1PzjxAsHqJT6sKVbRwwML0ZBP9PbU7Yebtu/7SWMRzvO2J3nUi9pRNITCfu4LJeooM2w4pjg==}
@@ -4575,6 +4582,12 @@ snapshots:
       - encoding
       - supports-color
     optional: true
+
+  '@google-cloud/monitoring@5.3.2':
+    dependencies:
+      google-gax: 5.0.6
+    transitivePeerDependencies:
+      - supports-color
 
   '@google-cloud/paginator@5.0.2':
     dependencies:

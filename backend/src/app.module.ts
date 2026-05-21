@@ -12,12 +12,15 @@ import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ResourcesModule } from './resources/resources.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { MustChangePasswordInterceptor } from './common/interceptors/must-change-password.interceptor';
+import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ envFilePath: '.env.local', isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
+    MetricsModule,
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -31,6 +34,7 @@ import { MustChangePasswordInterceptor } from './common/interceptors/must-change
   providers: [
     AppService,
     { provide: APP_INTERCEPTOR, useClass: MustChangePasswordInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
   ],
 })
 export class AppModule {}
