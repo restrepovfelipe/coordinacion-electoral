@@ -19,11 +19,18 @@ export class AuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<RequestWithUser>();
 
     const authHeader = req.headers['authorization'];
-    if (!authHeader || !/^bearer /i.test(authHeader)) {
-      throw new UnauthorizedException();
-    }
 
-    const token = authHeader.slice(7);
+    let token: string;
+    if (authHeader && /^bearer /i.test(authHeader)) {
+      token = authHeader.slice(7);
+    } else {
+      const queryToken = req.query?.['token'];
+      if (typeof queryToken === 'string' && queryToken.length > 0) {
+        token = queryToken;
+      } else {
+        throw new UnauthorizedException();
+      }
+    }
 
     let decoded: Awaited<ReturnType<typeof this.firebaseAdmin.auth.verifyIdToken>>;
     try {
