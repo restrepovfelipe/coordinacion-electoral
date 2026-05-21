@@ -80,19 +80,26 @@ function _innerPreload() {
 function pk(p) { return `${p.dd}_${p.mm}_${p.zz}_${p.pp}`; }
 function cid(n, ck) { return 'cc_' + btoa(unescape(encodeURIComponent(n + ck))).replace(/[^a-z0-9]/gi, ''); }
 
-// Push municipalities to Firestore in parallel. Stamps _v:2 so future loads
-// know the doc is in the correct per-municipality nested format.
-async function pushAllToFirestore(munis) {
-  munis = munis || ALL_MUNIS.filter(n => RAW[n]);
-  await Promise.all(munis.map(n => {
-    const data = Object.assign(JSON.parse(JSON.stringify(gs(n))), { _v: 2 });
-    return db.collection(FS_COL).doc(n).set(data)
-      .catch(e => console.error('Push error [' + n + ']:', e));
-  }));
-}
 
 // ═══ SIDEBAR ═══
 let CUR = null, OPEN_CC = new Set(), OPEN_Z = new Set();
+
+function getAccessibleMunis() {
+  // Returns array of municipality names the current user can see
+  if (!window.CURRENT_USER) return Object.keys(RAW);
+
+  const role = window.CURRENT_USER.role;
+
+  // SUPER_ADMIN and REGIONAL_COORDINATOR see all
+  if (role === 'SUPER_ADMIN' || role === 'REGIONAL_COORDINATOR') {
+    return Object.keys(RAW);
+  }
+
+  // Others: filter based on scopes
+  // For now, show all municipalities (we don't have a scope→municipality mapping in the frontend)
+  // TODO: filter by user scopes when scopeId→municipio mapping is available
+  return Object.keys(RAW);
+}
 function filterSB(q) {
   const ql = (q || '').toUpperCase();
   document.querySelectorAll('.sb-item').forEach(el => { el.style.display = el.dataset.nm.includes(ql) ? '' : 'none'; });
@@ -105,8 +112,9 @@ function filterSB(q) {
 function toggleSB() { const sb = document.querySelector('.sb'); const collapsed = sb.classList.toggle('collapsed'); document.querySelectorAll('.sb-toggle').forEach(btn => { btn.textContent = collapsed ? '☰' : '✕'; }); }
 function buildSB() {
   const list = document.getElementById('sb-list'); list.innerHTML = '';
+  const accessibleMunis = new Set(getAccessibleMunis());
   Object.entries(REGIONES).forEach(([region, munis]) => {
-    const validMusis = munis.filter(n => RAW[n]);
+    const validMusis = munis.filter(n => RAW[n] && accessibleMunis.has(n));
     if (!validMusis.length) return;
     const isOpen = !CLOSED_REGIONS.has(region);
     const rh = document.createElement('div');
@@ -157,7 +165,7 @@ function renderMuni(n) {
   document.getElementById('ct').innerHTML = `
     <div class="mh">
       <div style="display:flex;align-items:flex-start;gap:10px">
-        <button class="back-btn" onclick="goHome()" title="Volver al inicio">← Inicio</button>
+        <button class="back-btn" data-action="go-home" title="Volver al inicio">← Inicio</button>
         <div><div class="mh-t">${label}</div><div class="mh-s">${totP} puestos · ${ckeys.length} zonas · ${totV.toLocaleString('es-CO')} votantes</div></div>
       </div>
       <div class="mh-coord">
@@ -669,6 +677,22 @@ function addTestigo(n, ck, pKey, id) {
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
   s.testigos[ck][pName].push({ nombre: '', telefono: '' }); saveLocalSt();
   writeMuni(n);
+  // REST API stub: best-effort create on backend when puestoData has a _backendId
+  if (window.api && window.CURRENT_USER) {
+    const last = s.testigos[ck][pName].length - 1;
+    const t = s.testigos[ck][pName][last];
+    // Find puesto entry to get its pk key
+    const puestos = RAW[n][ck] || [];
+    const puestoEntry = puestos.find(p => p.puesto === pName);
+    const puestoData = puestoEntry ? (s.puestos || {})[pk(puestoEntry)] : null;
+    if (puestoData && puestoData._backendId) {
+      api.post(`/puestos/${puestoData._backendId}/testigos`, {
+        name: t.name || '',
+        phone: t.phone || undefined,
+        notes: t.notes || undefined,
+      }).catch(err => console.error('testigo create failed', err && err.status));
+    }
+  }
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
   if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
 }
@@ -684,6 +708,11 @@ function updateTestigo(n, ck, pKey, idx, field, val) {
 
 function delTestigo(n, ck, pKey, idx, id) {
   const s = gs(n); const pName = decodeURIComponent(pKey);
+  const t = s.testigos[ck][pName][idx];
+  // REST API stub: best-effort delete on backend when testigo has a _backendId
+  if (window.api && t && t._backendId) {
+    api.delete(`/testigos/${t._backendId}`).catch(err => console.error('testigo delete failed', err && err.status));
+  }
   s.testigos[ck][pName].splice(idx, 1); saveLocalSt();
   writeMuni(n);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
@@ -979,19 +1008,11 @@ function exportDirectorioPDF() {
 async function startApp() {
   ST = loadLocalSt();
   setSyncBadge('syncing', '⏳ Cargando...');
-  const needsMigration = await loadFromFirestore();
-  const preloadForced = _innerPreload();
+  await loadFromFirestore();
+  _innerPreload();
   saveLocalSt();
-  if (preloadForced || needsMigration.length > 0) {
-    setSyncBadge('syncing', '⏳ Sincronizando...');
-    const munisToPush = preloadForced ? ALL_MUNIS.filter(n => RAW[n]) : needsMigration;
-    await pushAllToFirestore(munisToPush);
-    setSyncBadge('synced', '✓ Listo');
-    setTimeout(() => setSyncBadge('', 'Sin cambios'), 2000);
-  } else {
-    setSyncBadge('synced', '✓ Datos cargados');
-    setTimeout(() => setSyncBadge('', 'Sin cambios'), 2000);
-  }
+  setSyncBadge('synced', '✓ Datos cargados');
+  setTimeout(() => setSyncBadge('', 'Sin cambios'), 2000);
   _initialized = true;
   buildSB();
   renderOV();
@@ -1826,3 +1847,9 @@ function closeRegionMap() {
   document.getElementById('region-map-modal').style.display = 'none';
   if (_regionLeafletMap) { try { _regionLeafletMap.remove(); } catch(e){} _regionLeafletMap = null; }
 }
+
+// ═══ DELEGATED EVENT LISTENERS ═══
+document.addEventListener('click', (e) => {
+  const action = e.target.dataset?.action || e.target.closest('[data-action]')?.dataset?.action;
+  if (action === 'go-home') goHome();
+});
