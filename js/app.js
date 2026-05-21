@@ -1061,6 +1061,7 @@ function exportDirectorioPDF() {
 
 // ═══ START APP ═══
 async function startApp() {
+  document.getElementById('login-screen').style.display = 'none';
   ST = loadLocalSt();
   setSyncBadge('syncing', '⏳ Cargando...');
   await loadFromFirestore();

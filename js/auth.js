@@ -28,8 +28,8 @@ function doLogin() {
     return;
   }
 
-  // CIP uses email format: username@cmd.local
-  const email = username.includes('@') ? username : `${username}@cmd.local`;
+  // CIP uses email format: username@defensores.local
+  const email = username.includes('@') ? username : `${username}@defensores.local`;
 
   auth.signInWithEmailAndPassword(email, password)
     .then(async (cred) => {
@@ -60,6 +60,7 @@ function doLogin() {
 }
 
 function showMustChangePasswordModal() {
+  document.getElementById('login-screen').style.display = 'none';
   const modal = document.getElementById('modal-change-password');
   if (modal) modal.classList.remove('hidden');
 }
