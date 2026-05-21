@@ -218,7 +218,7 @@ function renderMuni(n) {
         <div><div class="mh-t">${label}</div><div class="mh-s">${totP} puestos · ${ckeys.length} zonas · ${totV.toLocaleString('es-CO')} votantes</div></div>
       </div>
       <div class="mh-coord">
-        <div><div class="cl">Coordinador ${isMed ? 'ciudad' : 'municipal'}</div><div class="cv" id="mh-cv">${esc(s.coord) || '—'}</div>${s.phone ? `<div class="cp">${esc(s.phone)}<a class="wa-btn" href="https://wa.me/57${s.phone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a></div>` : ''}</div>
+        <div><div class="cl">Coordinador ${isMed ? 'ciudad' : 'municipal'}</div><div class="cv" id="mh-cv">${esc(s.coord) || '—'}</div><span id="mh-phone-wa">${s.phone ? `<div class="cp">${esc(s.phone)}<a class="wa-btn" href="https://wa.me/57${s.phone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a></div>` : ''}</span></div>
         <button class="ebtn" onclick="editMuni('${n}')">✎ Editar</button>
       </div>
     </div>
@@ -352,7 +352,7 @@ function buildZonaCard(n, zona) {
         <div class="zona-card-nm">${zona.nombre}</div>
         <div class="zona-card-coord">
           <span>Coord:</span><span id="${zid}-cv">${esc(sz.coord) || '—'}</span>
-          ${sz.phone ? `<span>· ${esc(sz.phone)}</span><a class="wa-btn" href="https://wa.me/57${sz.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
+          <span id="${zid}-phone-wa">${sz.phone ? `<span>· ${esc(sz.phone)}</span><a class="wa-btn" href="https://wa.me/57${sz.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}</span>
           <button class="zona-ced" onclick="event.stopPropagation();editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
         </div>
       </div>
@@ -386,7 +386,7 @@ function buildCCCard(n, ck) {
         <div class="cc-crd-row">
           <span class="cc-crd-lbl">Coord:</span>
           <span class="cc-crd-val" id="${id}-cv">${esc(sc.coord) || '—'}</span>
-          ${sc.phone ? `<span class="cc-crd-ph">· ${esc(sc.phone)}</span><a class="wa-btn" href="https://wa.me/57${sc.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
+          <span id="${id}-phone-wa">${sc.phone ? `<span class="cc-crd-ph">· ${esc(sc.phone)}</span><a class="wa-btn" href="https://wa.me/57${sc.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}</span>
           <button class="cc-ced" onclick="event.stopPropagation();editCC('${n}','${ck.replace(/'/g, "\\'")}')">✎</button>
         </div>
       </div>
@@ -908,10 +908,18 @@ async function saveM() {
     saveLocalSt();
     await writeMuni(MCX.n);
   }
+  const _waHtml = (phone, extra) => phone
+    ? `<span${extra ? ` class="${extra}"` : ''}>· ${esc(phone)}</span><a class="wa-btn" href="https://wa.me/57${phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>`
+    : '';
   if (MCX.type === 'muni') {
-    const el = document.getElementById('mh-cv'); if (el) el.textContent = coord || '—'; buildSB();
+    const el = document.getElementById('mh-cv'); if (el) el.textContent = coord || '—';
+    const pw = document.getElementById('mh-phone-wa');
+    if (pw) pw.innerHTML = phone ? `<div class="cp">${esc(phone)}<a class="wa-btn" href="https://wa.me/57${phone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a></div>` : '';
+    buildSB();
   } else if (MCX.type === 'cc') {
-    const el = document.getElementById(cid(MCX.n, MCX.ck) + '-cv'); if (el) el.textContent = coord || '—';
+    const id = cid(MCX.n, MCX.ck);
+    const el = document.getElementById(id + '-cv'); if (el) el.textContent = coord || '—';
+    const pw = document.getElementById(id + '-phone-wa'); if (pw) pw.innerHTML = _waHtml(phone, 'cc-crd-ph');
     if (document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(MCX.n);
   } else if (MCX.type === 'p') {
     if (document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(MCX.n);
@@ -919,6 +927,7 @@ async function saveM() {
   } else if (MCX.type === 'zona') {
     const zid = 'z_' + btoa(unescape(encodeURIComponent(MCX.zonaNombre))).replace(/[^a-z0-9]/gi, '');
     const el = document.getElementById(zid + '-cv'); if (el) el.textContent = coord || '—';
+    const pw = document.getElementById(zid + '-phone-wa'); if (pw) pw.innerHTML = _waHtml(phone, '');
     if (document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(MCX.n);
   }
   closeM();
