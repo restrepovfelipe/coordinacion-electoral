@@ -1,5 +1,5 @@
 .idea/
-CLAUDE_2.md
+CLAUDE_2.md              # local Claude Code planning doc — not part of the repo
 .claude
 
 backend/.gcp-key*.json

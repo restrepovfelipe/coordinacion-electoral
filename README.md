@@ -1,104 +1,172 @@
-# Comando Electoral AMVA 2026
+# Coordinación Electoral AMVA 2026
 
-Herramienta de coordinación electoral para los 10 municipios del Área Metropolitana del Valle de Aburrá (AMVA). Permite gestionar coordinadores, pregoneros, testigos electorales y recursos de movilidad por puesto de votación, con sincronización en tiempo real entre múltiples usuarios.
+Herramienta de coordinación electoral para los 9 subregiones y 125 municipios del Área Metropolitana del Valle de Aburrá (AMVA). Gestiona coordinadores, testigos electorales, abogados, comparendos y recursos de movilidad por puesto de votación, con autenticación por identidad y sincronización en tiempo real.
 
-## Stack
+## Arquitectura
 
-- **Frontend**: HTML/CSS/JS vanilla — sin frameworks, sin bundler.
-- **Base de datos**: Firebase Firestore (proyecto `comando-electoral-amva`).
-- **Autenticación**: Firebase Anonymous Auth (permite aplicar reglas de seguridad en Firestore sin crear cuentas de usuario en Firebase).
-- **Hosting**: Vercel — cualquier push a `main` redeploya automáticamente.
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Browser (Vercel)                                           │
+│  coordinacion-electoral.vercel.app                         │
+│  HTML/CSS/JS vanilla — sin bundler                         │
+│  Firebase Auth SDK (email/password)                        │
+└──────────────────┬──────────────────────────────────────────┘
+                   │ HTTPS + Bearer token
+                   │
+┌──────────────────▼──────────────────────────────────────────┐
+│  Cloud Run (us-central1)                                    │
+│  backend-210392280319.us-central1.run.app                   │
+│  NestJS 11 · Node 24 · TypeScript strict                   │
+│  Prisma 6 ORM                                              │
+│  min-instances: 1  max-instances: 5                        │
+└──────────────────┬──────────────────────────────────────────┘
+                   │ Unix socket / Cloud SQL Auth Proxy
+                   │
+┌──────────────────▼──────────────────────────────────────────┐
+│  Cloud SQL (us-central1)                                    │
+│  defensores-pg — PostgreSQL 16                             │
+│  Instance: coordinacion-electoral:us-central1:defensores-pg │
+└─────────────────────────────────────────────────────────────┘
+
+Secrets: Google Cloud Secret Manager
+  DATABASE_URL, CIP_WEB_API_KEY, DB_APP_USER_PASSWORD,
+  BOOTSTRAP_SUPER_ADMINS_JSON
+
+Auth: Firebase Authentication (project: coordinacion-electoral)
+      Backend verifies tokens with firebase-admin (no passport)
+
+CI/CD: Cloud Build (cloudbuild.yaml) → Artifact Registry → Cloud Run
+       Vercel auto-deploys on push to main (frontend)
+```
+
+## URLs de producción
+
+| Servicio | URL |
+|---------|-----|
+| Frontend | https://coordinacion-electoral.vercel.app |
+| Backend API | https://backend-210392280319.us-central1.run.app |
+| Health | https://backend-210392280319.us-central1.run.app/api/healthz |
 
 ## Desarrollo local
 
+### Frontend
+
 ```bash
-# Opción 1 — Python (ya instalado en macOS/Linux)
-python3 -m http.server 8080
-
-# Opción 2 — Node
-npx serve .
+# Desde la raíz del repo
+npx serve . -p 5500
+# Abre http://localhost:5500
 ```
 
-Abre `http://localhost:8080` en el navegador. La app se conecta al mismo Firestore de producción.
+El `API_BASE` en `js/api.js` apunta al backend de producción en Cloud Run. Para desarrollo local del backend, cámbialo temporalmente a `http://localhost:3000/api`.
 
-## Deploy
+### Backend
 
-Automático vía Vercel. Cada push a `main` en GitHub redeploya la app en <https://coordinacion-electoral.vercel.app>.
-
-No hay build step ni configuración adicional; Vercel sirve archivos estáticos directamente.
-
-## Configuración de Firebase (pasos manuales — solo una vez)
-
-### 1. Habilitar Anonymous Auth
-
-1. Ir a [Firebase Console](https://console.firebase.google.com/) → proyecto `comando-electoral-amva`.
-2. Menú: **Authentication** → **Sign-in method**.
-3. Buscar **Anonymous** → habilitarlo → **Guardar**.
-
-Sin este paso, la app muestra el error "Habilita Anonymous Auth..." al cargar.
-
-### 2. Publicar las reglas de Firestore
-
-1. En Firebase Console → **Firestore Database** → pestaña **Rules**.
-2. Reemplazar el contenido con el archivo `firestore.rules` de este repositorio:
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /estado/{doc} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
+```bash
+cd backend
+cp .env.local.example .env.local   # completar DATABASE_URL local
+pnpm install
+pnpm start:dev
 ```
 
-3. Hacer clic en **Publish**.
+Para conectar a Cloud SQL desde local: usar el proxy incluido en `scripts/local/`.
 
-Estas reglas bloquean el acceso externo directo a Firestore. Solo clientes que hayan completado el flujo de Anonymous Auth (es decir, la app web) pueden leer y escribir.
-
-## Cómo agregar o cambiar un usuario coordinador
-
-Editar `js/auth.js`, sección `const USERS`:
-
-```js
-const USERS = {
-  'coordinador1': { pass: 'Cord1.2026*', nombre: 'Coordinador 1' },
-  'coordinador2': { pass: 'Cord2.2026*', nombre: 'Coordinador 2' },
-  // agregar aquí:
-  'coordinador4': { pass: 'NuevaPass.2026*', nombre: 'Coordinador 4' }
-};
+```bash
+./scripts/local/cloud-sql-proxy.exe coordinacion-electoral:us-central1:defensores-pg --port=5432
 ```
 
-Hacer commit y push a `main`. Vercel redeploya en segundos.
+## Cómo agregar usuarios
 
-## Cómo restaurar datos por defecto
+Los usuarios se crean vía la API de admin. Se requiere un token de SUPER_ADMIN.
 
-Si el documento de Firestore queda en un estado corrupto:
-
-1. Ir a Firebase Console → **Firestore Database** → colección `estado`.
-2. Abrir el documento `amva26v2`.
-3. Eliminar el documento.
-
-Al siguiente login, la app lo recreará con los datos base definidos en `js/data.js`.
-
-## Estructura de archivos
-
-```
-/index.html              → HTML limpio + referencias a CSS y JS
-/css/styles.css          → Todos los estilos (extraídos del monolito original)
-/js/data.js              → RAW, PREG_BASE, MOV_PRELOAD, AMVA, TAGS (datos estáticos)
-/js/firebase-init.js     → firebaseConfig, inicialización de db y auth
-/js/auth.js              → USERS hardcoded, doLogin, doLogout, Anonymous Auth
-/js/sync.js              → onSnapshot listener, writeField, writeFields, deepMerge
-/js/app.js               → Render, handlers, exports PDF/Excel, startApp
-/firestore.rules         → Reglas de seguridad para Firestore
-/README.md               → Este archivo
+```bash
+# POST /api/users
+curl -X POST https://backend-210392280319.us-central1.run.app/api/users \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "nuevo@ejemplo.com",
+    "password": "TempPass.2026!",
+    "displayName": "Nombre Coordinador",
+    "role": "MUNICIPAL_COORDINATOR",
+    "mustChangePassword": true
+  }'
 ```
 
-## Limitaciones conocidas y notas de seguridad
+El usuario recibirá credenciales temporales y deberá cambiar su contraseña en el primer login.
 
-- **Contraseñas en código fuente**: los `USERS` con sus contraseñas están en `js/auth.js`, visible en el repositorio. Cualquiera con acceso al repo (o que descargue los estáticos) puede ver las credenciales. Esto es intencional por simplicidad operativa.
-- **Barrera real de seguridad**: las reglas de Firestore + Anonymous Auth bloquean el acceso externo directo a la base de datos. Un atacante que descargue los archivos JS pero no corra la app no puede autenticarse anónimamente y será rechazado por Firestore.
-- **Sincronización**: la app usa `onSnapshot()` para recibir cambios en tiempo real. Si dos usuarios editan el **mismo campo** simultáneamente, el último en hacer blur gana (comportamiento esperado con `update()` por campo).
-- **Sin internet**: Firestore persiste offline automáticamente. Los cambios se guardan localmente y sincronizan al recuperar la conexión.
+## Runbook — Día D (Elecciones)
+
+### Antes (06:00)
+
+1. Verificar health: `curl https://backend-210392280319.us-central1.run.app/api/healthz` → debe responder `{"status":"ok"}`
+2. Verificar instancias mínimas de Cloud Run: en GCP Console → Cloud Run → `backend` → min-instances debe ser ≥ 1
+3. Verificar Cloud SQL está activo: GCP Console → Cloud SQL → `defensores-pg` → estado `RUNNABLE`
+
+### Durante (06:00–20:00)
+
+- **Si el backend no responde**: revisar Cloud Run logs en GCP Console → Cloud Run → backend → Logs
+- **Si Cloud SQL responde lento**: revisar métricas en Cloud SQL → defensores-pg → Monitoring
+- **Si se necesita reiniciar**: GCP Console → Cloud Run → backend → Edit & Deploy New Revision (sin cambios fuerza restart)
+
+### Después (20:00)
+
+- Exportar datos si es necesario antes de pausar la instancia
+- Reducir min-instances a 0 si se quiere ahorrar costos (el backend tardará ~5s en el primer request)
+
+## Cómo pausar/reanudar Cloud SQL
+
+Cloud SQL cobra por instancia activa. Fuera del período electoral se puede pausar para reducir costos.
+
+### Pausar (ahorra ~$50/mes)
+
+```bash
+gcloud sql instances patch defensores-pg \
+  --activation-policy=NEVER \
+  --project=coordinacion-electoral
+```
+
+**Advertencia**: al pausar, Cloud Run no puede conectar a la base de datos. El health check fallará.
+
+### Reanudar
+
+```bash
+gcloud sql instances patch defensores-pg \
+  --activation-policy=ALWAYS \
+  --project=coordinacion-electoral
+```
+
+Esperar ~1 minuto para que la instancia esté disponible.
+
+## Estructura del repositorio
+
+```
+/index.html              → Página principal
+/css/styles.css          → Estilos
+/js/
+  api.js                 → ApiClient REST con Bearer token
+  auth.js                → Firebase Auth (email/password), inactividad 1h
+  app.js                 → Lógica de UI, estado local, handlers
+  data.js                → Datos estáticos (subregiones, municipios seed)
+  firebase-init.js       → Inicialización Firebase SDK
+/backend/
+  src/                   → NestJS: auth, users, resources, health, realtime
+  prisma/                → Schema PostgreSQL, migraciones
+  scripts/
+    bootstrap/           → Script de arranque (super-admin inicial)
+    seed/                → Scripts de carga inicial de datos
+    local/               → Cloud SQL Proxy para desarrollo local
+  cloudbuild.yaml        → Pipeline CI/CD para Cloud Build
+/tests/
+  adversarial.md         → Resultados de pruebas adversariales
+/POSTMORTEM.md           → Retrospectiva del proyecto
+/DISCOVERY.md            → Análisis de la arquitectura original Firestore
+```
+
+## Seguridad
+
+- Autenticación: Firebase Authentication (email/password) — tokens verificados en el backend con `firebase-admin.auth().verifyIdToken()`
+- Autorización: RBAC por roles (SUPER_ADMIN, REGIONAL_COORDINATOR, MUNICIPAL_COORDINATOR, ZONE_COORDINATOR, COMUNA_COORDINATOR, PUESTO_COORDINATOR)
+- Secrets: ninguna credencial en código fuente — todas en GCP Secret Manager
+- CORS: solo permite `https://coordinacion-electoral.vercel.app` en producción
+- Rate limiting: ThrottlerModule (10 req/min por IP)
+- Validación: class-validator con `whitelist: true` en todos los endpoints
