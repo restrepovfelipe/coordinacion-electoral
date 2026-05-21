@@ -2,7 +2,7 @@
 // Only initialize Auth — no Firestore
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBzLnvpt_cFKbYGvquwsINO7mhTqzQSIw0",
+  apiKey: "AIzaSyBmZtgzH8EFepEqUoOcNVWbajRCMD7CU_Y",
   authDomain: "comando-electoral-amva.firebaseapp.com",
   projectId: "comando-electoral-amva",
   storageBucket: "comando-electoral-amva.firebasestorage.app",
