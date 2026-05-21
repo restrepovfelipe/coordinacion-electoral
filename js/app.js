@@ -993,6 +993,12 @@ async function startApp() {
   buildExcelMenu();
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
+  // Show testigos management page button for authorized roles
+  const _tBtnRole = window.CURRENT_USER && window.CURRENT_USER.role;
+  if (_tBtnRole === 'SUPER_ADMIN' || _tBtnRole === 'REGIONAL_COORDINATOR') {
+    const _tBtn = document.getElementById('btn-testigos-page');
+    if (_tBtn) _tBtn.classList.remove('hidden');
+  }
 }
 
 // ═══ EXPORT PDF ═══
