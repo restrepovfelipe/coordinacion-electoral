@@ -421,8 +421,8 @@ function buildPT(n, puestos, ckKey) {
         <div class="pc-section">
           <div class="pc-section-title">Coordinador del puesto</div>
           <div class="pc-coord-row">
-            <input class="pc-inp" type="text" placeholder="Nombre coordinador" value="${ps.coord || ''}" id="${pcid}-coord">
-            <input class="pc-inp" type="text" placeholder="Teléfono" value="${ps.phone || ''}" id="${pcid}-phone" style="max-width:150px">
+            <input class="pc-inp" type="text" placeholder="Nombre coordinador" value="${esc(ps.coord)}" id="${pcid}-coord">
+            <input class="pc-inp" type="text" placeholder="Teléfono" value="${esc(ps.phone)}" id="${pcid}-phone" style="max-width:150px">
             <select class="pc-inp" id="${pcid}-tag" style="max-width:130px">
               <option value="n" ${t === 'n' ? 'selected' : ''}>Sin estado</option>
               <option value="ok" ${t === 'ok' ? 'selected' : ''}>✓ Cubierto</option>
@@ -608,13 +608,13 @@ function buildPregRows(n, ck, pName, rows, count, id, pKey) {
     const r = rows[i] || {};
     html += `<div class="preg-row">
       <span class="row-num">${i + 1}</span>
-      <input class="pi" style="flex:2" type="text" placeholder="Nombre" value="${r.nombre || ''}"
+      <input class="pi" style="flex:2" type="text" placeholder="Nombre" value="${esc(r.nombre)}"
         onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'nombre',this.value)">
-      <input class="pi pi-sm" type="text" placeholder="Cédula" value="${r.cedula || ''}"
+      <input class="pi pi-sm" type="text" placeholder="Cédula" value="${esc(r.cedula)}"
         onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'cedula',this.value)">
-      <input class="pi pi-sm" type="text" placeholder="Responsable" value="${r.responsable || ''}"
+      <input class="pi pi-sm" type="text" placeholder="Responsable" value="${esc(r.responsable)}"
         onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'responsable',this.value)">
-      <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${r.telefono || ''}"
+      <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${esc(r.telefono)}"
         onchange="updatePregField('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'telefono',this.value)">
       ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
     </div>`;
@@ -628,9 +628,9 @@ function buildTestRows(n, ck, pName, id, pKey) {
   const rows = getTestigos(n, ck, pName);
   if (!rows.length) return '<div style="font-size:10px;color:var(--t3);padding:2px 0">Sin testigos aún</div>';
   return rows.map((r, i) => `<div class="test-row">
-    <input class="pi" style="flex:2" type="text" placeholder="Nombre" value="${r.nombre || ''}"
+    <input class="pi" style="flex:2" type="text" placeholder="Nombre" value="${esc(r.nombre)}"
       onchange="updateTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'nombre',this.value)">
-    <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${r.telefono || ''}"
+    <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${esc(r.telefono)}"
       onchange="updateTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'telefono',this.value)">
     ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
     <button class="del-btn" onclick="delTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'${id}')">×</button>
@@ -751,9 +751,9 @@ function renderMovPanel(n, ck, id) {
       <div class="resp-card">
         <div class="resp-hd">
           <span class="resp-num">#${i + 1}</span>
-          <input class="resp-name-inp" type="text" placeholder="Nombre" value="${r.nombre || ''}"
+          <input class="resp-name-inp" type="text" placeholder="Nombre" value="${esc(r.nombre)}"
             onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'nombre',this.value,'${id}')">
-          <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${r.telefono || ''}"
+          <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${esc(r.telefono)}"
             onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'telefono',this.value,'${id}')">
           ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
           <button class="del-btn" onclick="delResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'${id}')">×</button>
@@ -1295,11 +1295,11 @@ function renderAbogadoPanel(n, ck, id) {
   pane.innerHTML = `<div class="mov-panel">
     <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Abogado responsable de esta zona/comuna</div>
     <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Nombre</label>
-      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${ab.nombre || ''}"
+      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(ab.nombre)}"
         onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','nombre',this.value)"></div>
     <div class="mof" style="margin-bottom:12px"><label style="font-size:10px;color:var(--t3)">Teléfono / WhatsApp</label>
       <div style="display:flex;gap:6px;align-items:center">
-        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${ab.telefono || ''}"
+        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(ab.telefono)}"
           onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','telefono',this.value)">
         ${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
       </div></div>
@@ -1333,11 +1333,11 @@ function renderRefrigPanel(n, ck, id) {
   pane.innerHTML = `<div class="mov-panel">
     <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Encargado de refrigerios para esta zona/comuna</div>
     <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Nombre</label>
-      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${rf.nombre || ''}"
+      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(rf.nombre)}"
         onchange="updateRefrig('${n}','${ck.replace(/'/g,"\\'")}','nombre',this.value)"></div>
     <div class="mof" style="margin-bottom:12px"><label style="font-size:10px;color:var(--t3)">Teléfono / WhatsApp</label>
       <div style="display:flex;gap:6px;align-items:center">
-        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${rf.telefono || ''}"
+        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(rf.telefono)}"
           onchange="updateRefrig('${n}','${ck.replace(/'/g,"\\'")}','telefono',this.value)">
         ${rf.telefono ? `<a class="wa-btn" href="https://wa.me/57${rf.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
       </div></div>
