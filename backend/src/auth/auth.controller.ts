@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Post,
@@ -12,6 +13,7 @@ import { AuthService } from './auth.service.js';
 import { AuthGuard } from '../common/guards/auth.guard.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../common/types/request-with-user.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 
 @ApiTags('auth')
 @ApiBearerAuth()
@@ -27,12 +29,13 @@ export class AuthController {
 
   @Post('password-changed')
   async passwordChanged(
+    @Body() dto: ChangePasswordDto,
     @CurrentUser() user: UserWithScopes,
     @Req() req: Request,
   ): Promise<void> {
     const ip = (req.headers['x-forwarded-for'] as string | undefined)
       ?? req.socket.remoteAddress;
-    await this.authService.passwordChanged(user, ip);
+    await this.authService.passwordChanged(user, dto.newPassword, ip);
   }
 
   @Post('logout')

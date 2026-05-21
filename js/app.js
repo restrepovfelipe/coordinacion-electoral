@@ -4,6 +4,16 @@ function esc(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ═══ WRITE ERROR BADGE ═══
+// Shows a temporary sync-badge error when a background API write fails.
+function _onWriteError(label, err) {
+  console.error(label, err?.status ?? err?.code ?? err?.message, err);
+  if (typeof setSyncBadge === 'function') {
+    setSyncBadge('error', '⚠ Error al guardar');
+    setTimeout(() => setSyncBadge('', 'Sin cambios'), 5000);
+  }
+}
+
 // ═══ PUESTO ID CACHE ═══
 // Cache: municipio name → { puestoName → backendId }
 const _puestoIdCache = {};
@@ -737,7 +747,7 @@ function addTestigo(n, ck, pKey, id) {
         // Store backend ID on the testigo object for future update/delete
         newT._backendId = created.id;
         saveLocalSt();
-      }).catch(err => console.warn('testigo create failed:', err && err.status));
+      }).catch(err => _onWriteError('testigo create failed', err));
     }
   }
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
@@ -757,7 +767,7 @@ function updateTestigo(n, ck, pKey, idx, field, val) {
     const fieldMap = { nombre: 'name', telefono: 'phone', notas: 'notes' };
     const backendField = fieldMap[field] || field;
     api.patch(`/testigos/${t._backendId}`, { [backendField]: val })
-      .catch(err => console.warn('testigo update failed:', err && err.status));
+      .catch(err => _onWriteError('testigo update failed', err));
   }
 }
 
@@ -767,7 +777,7 @@ function delTestigo(n, ck, pKey, idx, id) {
   s.testigos[ck][pName].splice(idx, 1); saveLocalSt();
   if (window.api && deletedTestigo?._backendId) {
     api.delete(`/testigos/${deletedTestigo._backendId}`)
-      .catch(err => console.warn('testigo delete failed:', err && err.status));
+      .catch(err => _onWriteError('testigo delete failed', err));
   }
   writeMuni(n);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
@@ -1382,7 +1392,7 @@ function saveAbogado(n, ck, id) {
             name: ab.nombre || '',
             phone: ab.telefono || undefined,
             notes: ab.firma || undefined,
-          }).catch(err => console.warn('abogado update failed:', err && err.status));
+          }).catch(err => _onWriteError('abogado update failed', err));
         } else {
           api.post(`/municipios/${muniBackendId}/abogados`, {
             name: ab.nombre || '',
@@ -1391,7 +1401,7 @@ function saveAbogado(n, ck, id) {
           }).then(created => {
             ab._backendId = created.id;
             saveLocalSt();
-          }).catch(err => console.warn('abogado create failed:', err && err.status));
+          }).catch(err => _onWriteError('abogado create failed', err));
         }
       }
     }
@@ -1444,7 +1454,7 @@ function saveRefrig(n, ck, id) {
         if (rf._backendId) {
           api.patch(`/refrigerios/${rf._backendId}`, {
             notes: rf.nombre || undefined,
-          }).catch(err => console.warn('refrigerio update failed:', err && err.status));
+          }).catch(err => _onWriteError('refrigerio update failed', err));
         } else {
           api.post('/refrigerios', {
             scopeType: 'MUNICIPIO',
@@ -1453,7 +1463,7 @@ function saveRefrig(n, ck, id) {
           }).then(created => {
             rf._backendId = created.id;
             saveLocalSt();
-          }).catch(err => console.warn('refrigerio create failed:', err && err.status));
+          }).catch(err => _onWriteError('refrigerio create failed', err));
         }
       }
     }
@@ -1535,7 +1545,7 @@ function addComparendo(n, ck, id) {
       }).then(created => {
         newC._backendId = created.id;
         saveLocalSt();
-      }).catch(err => console.warn('comparendo create failed:', err && err.status));
+      }).catch(err => _onWriteError('comparendo create failed', err));
     }
   }
   renderComparendosPanel(n, ck, id);
@@ -1561,7 +1571,7 @@ function saveComparendos(n, ck, id) {
           description: c.tipo || undefined,
           status: c.estado === 'resuelto' ? 'resuelto' : 'abierto',
           notes: c.notas || undefined,
-        }).catch(err => console.warn('comparendo update failed:', err && err.status));
+        }).catch(err => _onWriteError('comparendo update failed', err));
       }
     }
   }

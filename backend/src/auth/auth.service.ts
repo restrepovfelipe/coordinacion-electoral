@@ -33,7 +33,9 @@ export class AuthService {
     };
   }
 
-  async passwordChanged(user: UserWithScopes, auditIp?: string): Promise<void> {
+  async passwordChanged(user: UserWithScopes, newPassword: string, auditIp?: string): Promise<void> {
+    // Admin SDK bypasses the "requires-recent-login" restriction on the client SDK
+    await this.firebaseAdmin.auth.updateUser(user.cipUid, { password: newPassword });
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: user.id },

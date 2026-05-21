@@ -46,6 +46,7 @@ function buildUsersPanelHTML() {
         <div id="users-list-container">
           <div id="users-table"></div>
           <div id="users-pagination"></div>
+          <div id="users-action-error" class="error-msg"></div>
         </div>
         <hr>
         <h4>Crear usuario</h4>
@@ -75,7 +76,8 @@ async function loadUsersPage(page) {
     container.innerHTML = buildUsersTable(result.data);
     renderPagination(result.total, page);
   } catch (err) {
-    container.textContent = `Error cargando usuarios (${err.status})`;
+    console.error('loadUsersPage failed:', err.status ?? err.message, err);
+    container.textContent = errorToSpanish(err);
   }
 }
 
@@ -129,12 +131,15 @@ function attachUsersAdminListeners() {
     } else if (action === 'deactivate-user') {
       const userId = Number(btn.dataset.userId);
       const username = btn.dataset.username;
-      if (confirm(`¿Desactivar usuario "${username}"?`)) {
+      if (confirm(`¿Desactivar usuario "${escHtml(username)}"?`)) {
+        const actionErrorEl = document.getElementById('users-action-error');
+        if (actionErrorEl) actionErrorEl.textContent = '';
         try {
           await api.delete(`/users/${userId}`);
           await loadUsersPage(_currentPage);
         } catch (err) {
-          alert(`Error desactivando usuario: ${err.status}`);
+          console.error('Deactivate user failed:', err.status ?? err.message, err);
+          if (actionErrorEl) actionErrorEl.textContent = errorToSpanish(err);
         }
       }
     } else if (action === 'users-prev-page') {
@@ -167,7 +172,8 @@ async function handleCreateUser() {
     if (errorEl) errorEl.textContent = '';
     await loadUsersPage(1);
   } catch (err) {
-    if (errorEl) errorEl.textContent = `Error: ${err.body?.message || err.status}`;
+    console.error('Create user failed:', err.status ?? err.message, err);
+    if (errorEl) errorEl.textContent = errorToSpanish(err);
   }
 }
 
