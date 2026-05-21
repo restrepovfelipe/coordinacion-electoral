@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '../prisma/prisma.module.js';
 import { PermissionsService } from './permissions.service.js';
 
-// Skeleton — populated in T18: PermissionsService + transitive-scope CTE.
 @Module({
+  imports: [PrismaModule],
   providers: [PermissionsService],
   exports: [PermissionsService],
 })
