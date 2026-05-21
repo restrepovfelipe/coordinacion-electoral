@@ -44,6 +44,9 @@ function doLogin() {
       }
 
       if (errorEl) errorEl.textContent = '';
+      if (me.role === 'SUPER_ADMIN') {
+        document.getElementById('btn-users-admin')?.classList.remove('hidden');
+      }
       startApp(me);
     })
     .catch((err) => {
@@ -75,6 +78,9 @@ async function doChangePassword(newPassword) {
     if (modal) modal.classList.add('hidden');
     const me = await api.get('/auth/me');
     CURRENT_USER = me;
+    if (me.role === 'SUPER_ADMIN') {
+      document.getElementById('btn-users-admin')?.classList.remove('hidden');
+    }
     startApp(me);
   } catch (err) {
     console.error('Password change failed:', err.code || err.status);
@@ -99,6 +105,9 @@ auth.onAuthStateChanged(async (user) => {
       if (me.mustChangePassword) {
         showMustChangePasswordModal();
         return;
+      }
+      if (me.role === 'SUPER_ADMIN') {
+        document.getElementById('btn-users-admin')?.classList.remove('hidden');
       }
       startApp(me);
     } catch (err) {
