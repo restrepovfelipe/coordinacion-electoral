@@ -152,7 +152,7 @@ async function main(): Promise<void> {
 
   // 2. Load all puestos from DB → build (municipioId :: normalizedName) → puestoId
   const puestosDb = await prisma.puesto.findMany({
-    select: { id: true, name: true, municipioId: true },
+    select: { id: true, name: true, municipioId: true, mesas: true },
   });
   const municipiosDb = await prisma.municipio.findMany({
     select: { id: true, name: true },
@@ -165,8 +165,21 @@ async function main(): Promise<void> {
     `${municipioId}::${normalize(puestoNorm)}`;
 
   const puestoPorMuniYNombre = new Map<string, number>();
+  // municipioId → puesto id with most mesas (fallback for municipality-level testigos)
+  const principalPuestoPorMuni = new Map<number, number>();
+
   for (const p of puestosDb) {
     puestoPorMuniYNombre.set(puestoKey(p.municipioId, p.name), p.id);
+  }
+  // Build principal puesto per municipio (highest mesas count)
+  const puestosPorMuni = new Map<number, typeof puestosDb[0][]>();
+  for (const p of puestosDb) {
+    if (!puestosPorMuni.has(p.municipioId)) puestosPorMuni.set(p.municipioId, []);
+    puestosPorMuni.get(p.municipioId)!.push(p);
+  }
+  for (const [municipioId, puestos] of puestosPorMuni) {
+    const principal = puestos.reduce((best, p) => (p.mesas > best.mesas ? p : best));
+    principalPuestoPorMuni.set(municipioId, principal.id);
   }
 
   console.log(`DB: ${municipiosDb.length} municipios, ${puestosDb.length} puestos`);
@@ -232,7 +245,17 @@ async function main(): Promise<void> {
       continue;
     }
 
-    const pid = puestoPorMuniYNombre.get(puestoKey(municipioId, info.puestoNorm));
+    let pid = puestoPorMuniYNombre.get(puestoKey(municipioId, info.puestoNorm));
+    let fixedViaFallback = false;
+
+    // If no exact puesto match, assign to the puesto with the most mesas
+    // in that municipality (covers both "puesto = municipality name" and
+    // "puesto name not in DB" cases).
+    if (pid === undefined) {
+      pid = principalPuestoPorMuni.get(municipioId);
+      if (pid !== undefined) fixedViaFallback = true;
+    }
+
     if (pid === undefined) {
       stillUnresolved++;
       unresolved.push({ id: t.id, name: t.name || '', reason: `puesto_not_in_db: ${info.municipio} / ${info.puestoNorm}` });
@@ -240,7 +263,8 @@ async function main(): Promise<void> {
     }
 
     updates.push({ id: t.id, puestoId: pid });
-    if (method === 'name+phone') fixedViaPhone++;
+    if (fixedViaFallback) fixedViaMuni++; // count under muni bucket
+    else if (method === 'name+phone') fixedViaPhone++;
     else fixedViaMuni++;
   }
 
