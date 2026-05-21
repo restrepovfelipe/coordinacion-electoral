@@ -149,6 +149,18 @@ describe('PermissionsService', () => {
       prisma.municipio.count.mockResolvedValue(0);
       expect(await service.canAccess(user, ScopeType.SUBREGION, 999)).toBe(false);
     });
+
+    it('canAccess ZONA 1 → true (comuna count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 10n }, { id: 11n }]);
+      prisma.comuna.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.ZONA, 1)).toBe(true);
+    });
+
+    it('canAccess COMUNA 8 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 10n }, { id: 11n }]);
+      prisma.puesto.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.COMUNA, 8)).toBe(true);
+    });
   });
 
   // ── MUNICIPAL_COORDINATOR ─────────────────────────────────────────────────
@@ -182,6 +194,24 @@ describe('PermissionsService', () => {
       prisma.$queryRaw.mockResolvedValue([{ id: 20n }, { id: 21n }]);
       prisma.puesto.count.mockResolvedValue(0);
       expect(await service.canAccess(user, ScopeType.MUNICIPIO, 999)).toBe(false);
+    });
+
+    it('canAccess SUBREGION 2 → true (municipio count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 20n }, { id: 21n }]);
+      prisma.municipio.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.SUBREGION, 2)).toBe(true);
+    });
+
+    it('canAccess ZONA 3 → true (comuna count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 20n }, { id: 21n }]);
+      prisma.comuna.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.ZONA, 3)).toBe(true);
+    });
+
+    it('canAccess COMUNA 12 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 20n }, { id: 21n }]);
+      prisma.puesto.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.COMUNA, 12)).toBe(true);
     });
   });
 
@@ -217,6 +247,24 @@ describe('PermissionsService', () => {
       prisma.comuna.count.mockResolvedValue(0);
       expect(await service.canAccess(user, ScopeType.ZONA, 999)).toBe(false);
     });
+
+    it('canAccess MUNICIPIO 5 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 30n }, { id: 31n }]);
+      prisma.puesto.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.MUNICIPIO, 5)).toBe(true);
+    });
+
+    it('canAccess SUBREGION 1 → true (municipio count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 30n }, { id: 31n }]);
+      prisma.municipio.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.SUBREGION, 1)).toBe(true);
+    });
+
+    it('canAccess COMUNA 9 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 30n }, { id: 31n }]);
+      prisma.puesto.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.COMUNA, 9)).toBe(true);
+    });
   });
 
   // ── COMUNA_COORDINATOR ────────────────────────────────────────────────────
@@ -250,6 +298,24 @@ describe('PermissionsService', () => {
       prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }]);
       prisma.puesto.count.mockResolvedValue(0);
       expect(await service.canAccess(user, ScopeType.COMUNA, 999)).toBe(false);
+    });
+
+    it('canAccess MUNICIPIO 4 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }]);
+      prisma.puesto.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.MUNICIPIO, 4)).toBe(true);
+    });
+
+    it('canAccess SUBREGION 1 → true (municipio count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }]);
+      prisma.municipio.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.SUBREGION, 1)).toBe(true);
+    });
+
+    it('canAccess ZONA 2 → true (comuna count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }]);
+      prisma.comuna.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.ZONA, 2)).toBe(true);
     });
   });
 
@@ -297,6 +363,30 @@ describe('PermissionsService', () => {
       prisma.puesto.count.mockResolvedValue(0);
       expect(await service.canAccess(user, ScopeType.COMUNA, 999)).toBe(false);
     });
+
+    it('canAccess MUNICIPIO 7 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 50n }]);
+      prisma.puesto.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.MUNICIPIO, 7)).toBe(true);
+    });
+
+    it('canAccess SUBREGION 1 → true (municipio count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 50n }]);
+      prisma.municipio.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.SUBREGION, 1)).toBe(true);
+    });
+
+    it('canAccess ZONA 2 → true (comuna count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 50n }]);
+      prisma.comuna.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.ZONA, 2)).toBe(true);
+    });
+
+    it('canAccess COMUNA 6 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 50n }]);
+      prisma.puesto.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.COMUNA, 6)).toBe(true);
+    });
   });
 
   // ── default / unknown scopeType ───────────────────────────────────────────
@@ -309,6 +399,35 @@ describe('PermissionsService', () => {
       prisma.$queryRaw.mockResolvedValue([{ id: 5n }]);
       // Cast to bypass TypeScript enum check and exercise the default branch
       const result = await service.canAccess(user, 'UNKNOWN_TYPE' as ScopeType, 1);
+      expect(result).toBe(false);
+    });
+  });
+
+  // ── ZONE_COORDINATOR Amendment 4 — Nororiental named cases ──────────────
+
+  describe('ZONE_COORDINATOR Amendment 4 — Nororiental named cases', () => {
+    const norientalUser = makeUser(Role.ZONE_COORDINATOR, [{ scopeType: ScopeType.ZONA, scopeId: 3 }]);
+    // zona 3 = "Nororiental" in our test setup
+
+    beforeEach(() => {
+      // CTE returns puestos 101, 102, 103 — those in Nororiental's comunas
+      prisma.$queryRaw.mockResolvedValue([{ id: 101n }, { id: 102n }, { id: 103n }]);
+    });
+
+    it('puesto in Nororiental zona is accessible', async () => {
+      const result = await service.canAccess(norientalUser, ScopeType.PUESTO, 101);
+      expect(result).toBe(true);
+    });
+
+    it('puesto in a different zona (Sur Oriental) is NOT accessible', async () => {
+      // puesto 200 is not in the accessible set (Nororiental only returns 101-103)
+      const result = await service.canAccess(norientalUser, ScopeType.PUESTO, 200);
+      expect(result).toBe(false);
+    });
+
+    it('puesto outside Medellín entirely is NOT accessible', async () => {
+      // puesto 300 is in a different municipio, not accessible to this zona coordinator
+      const result = await service.canAccess(norientalUser, ScopeType.PUESTO, 300);
       expect(result).toBe(false);
     });
   });
