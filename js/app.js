@@ -1,3 +1,9 @@
+// ═══ XSS ESCAPE HELPER ═══
+function esc(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // ═══ STATE ═══
 let ST = {};
 let _initialized = false;
@@ -130,7 +136,7 @@ function buildSB() {
       const totP = Object.values(RAW[n]).reduce((a, c) => a + c.length, 0);
       const d = document.createElement('div');
       d.className = 'sb-item' + (n === CUR ? ' on' : ''); d.dataset.nm = n; d.onclick = () => selMuni(n);
-      d.innerHTML = `<div class="sb-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div><div class="sb-mt">${totP} puestos</div>${s.coord ? `<div class="sb-cd">👤 ${s.coord}</div>` : ''}`;
+      d.innerHTML = `<div class="sb-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div><div class="sb-mt">${totP} puestos</div>${s.coord ? `<div class="sb-cd">👤 ${esc(s.coord)}</div>` : ''}`;
       grp.appendChild(d);
     });
     list.appendChild(grp);
@@ -169,7 +175,7 @@ function renderMuni(n) {
         <div><div class="mh-t">${label}</div><div class="mh-s">${totP} puestos · ${ckeys.length} zonas · ${totV.toLocaleString('es-CO')} votantes</div></div>
       </div>
       <div class="mh-coord">
-        <div><div class="cl">Coordinador ${isMed ? 'ciudad' : 'municipal'}</div><div class="cv" id="mh-cv">${s.coord || '—'}</div>${s.phone ? `<div class="cp">${s.phone}</div>` : ''}</div>
+        <div><div class="cl">Coordinador ${isMed ? 'ciudad' : 'municipal'}</div><div class="cv" id="mh-cv">${esc(s.coord) || '—'}</div>${s.phone ? `<div class="cp">${esc(s.phone)}</div>` : ''}</div>
         <button class="ebtn" onclick="editMuni('${n}')">✎ Editar</button>
       </div>
     </div>
@@ -250,8 +256,8 @@ function buildZonaCard(n, zona) {
       <div class="zona-card-left">
         <div class="zona-card-nm">${zona.nombre}</div>
         <div class="zona-card-coord">
-          <span>Coord:</span><span id="${zid}-cv">${sz.coord || '—'}</span>
-          ${sz.phone ? `<span>· ${sz.phone}</span>` : ''}
+          <span>Coord:</span><span id="${zid}-cv">${esc(sz.coord) || '—'}</span>
+          ${sz.phone ? `<span>· ${esc(sz.phone)}</span>` : ''}
           <button class="zona-ced" onclick="event.stopPropagation();editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
         </div>
       </div>
@@ -286,8 +292,8 @@ function buildCCCard(n, ck) {
         <div class="cc-nm">${ck}</div>
         <div class="cc-crd-row">
           <span class="cc-crd-lbl">Coord:</span>
-          <span class="cc-crd-val" id="${id}-cv">${sc.coord || '—'}</span>
-          ${sc.phone ? `<span class="cc-crd-ph">· ${sc.phone}</span>` : ''}
+          <span class="cc-crd-val" id="${id}-cv">${esc(sc.coord) || '—'}</span>
+          ${sc.phone ? `<span class="cc-crd-ph">· ${esc(sc.phone)}</span>` : ''}
           <button class="cc-ced" onclick="event.stopPropagation();editCC('${n}','${ck.replace(/'/g, "\\'")}')">✎</button>
         </div>
       </div>
@@ -389,7 +395,7 @@ function buildPT(n, puestos, ckKey) {
     const divipole = `${String(p.dd).padStart(2, '0')}.${String(p.mm).padStart(3, '0')}.${String(p.zz).padStart(2, '0')}.${String(p.pp).padStart(2, '0')}`;
     const pcid = 'pc_' + k + '_' + btoa(unescape(encodeURIComponent(ckKey))).replace(/[^a-z0-9]/gi, '');
     const coordPill = ps.coord
-      ? `<span class="pc-pill coord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">👤 ${ps.coord}${ps.phone ? ' · ' + ps.phone : ''}</span>${ps.phone ? `<a class="wa-btn" href="https://wa.me/57${ps.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}`
+      ? `<span class="pc-pill coord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">👤 ${esc(ps.coord)}${ps.phone ? ' · ' + esc(ps.phone) : ''}</span>${ps.phone ? `<a class="wa-btn" href="https://wa.me/57${ps.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}`
       : `<span class="pc-pill nocoord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">+ Coord. puesto</span>`;
     return `<div class="pc" id="${pcid}">
       <div class="pc-hd" onclick="togglePC('${pcid}')">
@@ -432,7 +438,7 @@ function buildPT(n, puestos, ckKey) {
           <span>Mesas: <b>${p.mesas || 0}</b></span>
           <span>Votantes: <b>${(p.total || 0).toLocaleString('es-CO')}</b></span>
         </div>
-        ${ps.notes ? `<div style="font-size:11px;color:var(--t2);background:var(--bg);border-radius:5px;padding:6px 9px;margin-bottom:8px">📝 ${ps.notes}</div>` : ''}
+        ${ps.notes ? `<div style="font-size:11px;color:var(--t2);background:var(--bg);border-radius:5px;padding:6px 9px;margin-bottom:8px">📝 ${esc(ps.notes)}</div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -484,7 +490,7 @@ function buildAllPuestosSection(n, ck, puestos, s) {
   return `<div style="margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${ck}</div>
-      ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${sc.coord}${sc.phone ? ' · ' + sc.phone : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
+      ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
       <button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>
     </div>
     ${buildPT(n, puestos, ck)}
@@ -498,7 +504,7 @@ function renderAllPuestos(n) {
       const sz = (s.zonas || {})[zona.nombre] || {};
       html += `<div class="zona-hdr">
         <span style="flex:1">${zona.nombre}</span>
-        ${sz.coord ? `<span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--blue);font-weight:600">👤 ${sz.coord}${sz.phone ? ' · ' + sz.phone : ''}</span>` : ''}
+        ${sz.coord ? `<span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--blue);font-weight:600">👤 ${esc(sz.coord)}${sz.phone ? ' · ' + esc(sz.phone) : ''}</span>` : ''}
         <button class="zona-ced" onclick="editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
       </div>`;
       zona.comunas.forEach(ck => { if (RAW[n][ck]) html += buildAllPuestosSection(n, ck, RAW[n][ck], s); });
@@ -554,7 +560,7 @@ function renderPregPanel(n, ck, id) {
         <span class="pp-nm" title="${pName}">${pName}</span>
         <div class="pp-right">
           <div class="pp-pills">
-            ${coordPuesto.coord ? `<span class="pp-pill" style="color:var(--blue);border-color:rgba(74,158,255,.3)">👤 ${coordPuesto.coord}</span>` : ''}
+            ${coordPuesto.coord ? `<span class="pp-pill" style="color:var(--blue);border-color:rgba(74,158,255,.3)">👤 ${esc(coordPuesto.coord)}</span>` : ''}
             <span class="pp-pill ${regCnt > 0 ? 'ok' : ''}">📢 ${regCnt}/${savedCnt}</span>
             ${testReg > 0 ? `<span class="pp-pill test">🧾 ${testReg}</span>` : ''}
           </div>
@@ -931,7 +937,7 @@ function renderOV() {
       html += `<div class="ov-muni-card" onclick="selMuni('${n}')">
         <div class="ov-muni-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
-        ${s.coord ? `<div class="ov-muni-coord">👤 ${s.coord}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
+        ${s.coord ? `<div class="ov-muni-coord">👤 ${esc(s.coord)}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
         <div class="ov-muni-stats">
           <span class="ov-stat"><b>${pregReg}</b><span>preg.</span></span>
           <span class="ov-stat${pregFalt > 0 ? ' warn' : ''}"><b>${pregFalt}</b><span>p.falt.</span></span>
@@ -969,8 +975,8 @@ function renderDirectorio() {
     if (!items.length) return;
     html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n} (${items.length})</h3>
       ${items.map(it => `<div class="dir-row">
-        <div><div class="dir-name">${it.nombre}</div><div class="dir-role">${it.rol}${it.zona ? ' · ' + it.zona : ''}</div></div>
-        <div class="dir-phone">${it.phone || '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
+        <div><div class="dir-name">${esc(it.nombre)}</div><div class="dir-role">${esc(it.rol)}${it.zona ? ' · ' + esc(it.zona) : ''}</div></div>
+        <div class="dir-phone">${it.phone ? esc(it.phone) : '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
       </div>`).join('')}</div>`;
   });
   if (!html) html = '<div class="dir-empty">Aún no hay coordinadores registrados.</div>';
@@ -994,7 +1000,7 @@ function exportDirectorioPDF() {
       <h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:6px;margin-bottom:10px;font-size:14px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:11px">
         <tr style="background:#f0f0f0"><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Rol</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Teléfono</th></tr>
-        ${items.map(it => `<tr><td style="padding:5px 8px;border:1px solid #ddd">${it.nombre}</td><td style="padding:5px 8px;border:1px solid #ddd">${it.rol}</td><td style="padding:5px 8px;border:1px solid #ddd">${it.zona || '—'}</td><td style="padding:5px 8px;border:1px solid #ddd">${it.phone || '—'}</td></tr>`).join('')}
+        ${items.map(it => `<tr><td style="padding:5px 8px;border:1px solid #ddd">${esc(it.nombre)}</td><td style="padding:5px 8px;border:1px solid #ddd">${esc(it.rol)}</td><td style="padding:5px 8px;border:1px solid #ddd">${it.zona ? esc(it.zona) : '—'}</td><td style="padding:5px 8px;border:1px solid #ddd">${it.phone ? esc(it.phone) : '—'}</td></tr>`).join('')}
       </table></div>`;
   });
   const win = window.open('', '_blank', 'width=900,height=700');
@@ -1019,6 +1025,7 @@ async function startApp() {
   buildExportMenu();
   buildExcelMenu();
   startListener();
+  if (typeof initInactivityDetection === 'function') initInactivityDetection();
 }
 
 // ═══ EXPORT PDF ═══
@@ -1217,7 +1224,7 @@ function buildPrintHTML(tipo, muni, ck) {
         pregHTML = `<div style="margin-top:6px"><b style="font-size:11px;color:#6b4ed6">Pregoneros (${filled.length}/${cnt}):</b>
           <table style="width:100%;font-size:10px;border-collapse:collapse;margin-top:3px">
             <tr style="background:#f0eeff"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Nombre</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Cédula</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Responsable</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Teléfono</th></tr>
-            ${Array.from({ length: cnt }, (_, i) => { const r = pregRows[i] || {}; return `<tr><td style="padding:3px 6px;border:1px solid #ddd">${r.nombre || ''}</td><td style="padding:3px 6px;border:1px solid #ddd">${r.cedula || ''}</td><td style="padding:3px 6px;border:1px solid #ddd">${r.responsable || ''}</td><td style="padding:3px 6px;border:1px solid #ddd">${r.telefono || ''}</td></tr>`; }).join('')}
+            ${Array.from({ length: cnt }, (_, i) => { const r = pregRows[i] || {}; return `<tr><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.nombre)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.cedula)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.responsable)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.telefono)}</td></tr>`; }).join('')}
           </table></div>`;
       }
       let testHTML = '';
@@ -1225,7 +1232,7 @@ function buildPrintHTML(tipo, muni, ck) {
         testHTML = `<div style="margin-top:6px"><b style="font-size:11px;color:#1a8f4a">Testigos (${testRows.filter(r => r.nombre).length}):</b>
           <table style="width:100%;font-size:10px;border-collapse:collapse;margin-top:3px">
             <tr style="background:#efffef"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Nombre</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Teléfono</th></tr>
-            ${testRows.map(r => `<tr><td style="padding:3px 6px;border:1px solid #ddd">${r.nombre || ''}</td><td style="padding:3px 6px;border:1px solid #ddd">${r.telefono || ''}</td></tr>`).join('')}
+            ${testRows.map(r => `<tr><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.nombre)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.telefono)}</td></tr>`).join('')}
           </table></div>`;
       }
       const tagLabels = { n: 'Sin estado', ok: '✓ Cubierto', pr: '★ Prioritario', pe: '⏳ Pendiente', al: '⚠ Alerta' };
@@ -1235,19 +1242,19 @@ function buildPrintHTML(tipo, muni, ck) {
           <div style="text-align:right;font-size:10px">
             <div>${p.mesas || 0} mesas · ${(p.total || 0).toLocaleString('es-CO')} votantes</div>
             <div style="color:#888">${tagLabels[ps.tag || 'n']}</div>
-            ${ps.coord ? `<div style="color:#1a6fd4">👤 ${ps.coord}${ps.phone ? ' · ' + ps.phone : ''}</div>` : ''}
+            ${ps.coord ? `<div style="color:#1a6fd4">👤 ${esc(ps.coord)}${ps.phone ? ' · ' + esc(ps.phone) : ''}</div>` : ''}
           </div>
         </div>${pregHTML}${testHTML}</div>`;
     });
     const movHTML = respsP.length ? `<div style="margin-top:8px;padding:8px;background:#fff8e6;border:1px solid #f5c842;border-radius:6px;font-size:11px">
       <b>Movilidad:</b>
       <table style="font-size:10px;border-collapse:collapse;width:100%;margin-top:4px"><tr style="background:#f0f0f0"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Responsable</th><th style="padding:3px 6px;border:1px solid #ddd">Teléfono</th><th style="padding:3px 6px;border:1px solid #ddd">🏍</th><th style="padding:3px 6px;border:1px solid #ddd">🚗</th></tr>
-      ${respsP.map(r => `<tr><td style="padding:3px 6px;border:1px solid #ddd">${r.nombre || ''}</td><td style="padding:3px 6px;border:1px solid #ddd">${r.telefono || ''}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.motos || 0}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.carros || 0}</td></tr>`).join('')}
+      ${respsP.map(r => `<tr><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.nombre)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.telefono)}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.motos || 0}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.carros || 0}</td></tr>`).join('')}
       </table></div>` : '';
     return `<div style="margin-bottom:24px;page-break-inside:avoid">
       <div style="background:#1a2030;color:#f5c842;padding:10px 14px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
         <b style="font-size:14px">${comunaKey}</b>
-        <span style="font-size:11px;color:#aaa">Coord. zona: ${sc.coord || '—'}${sc.phone ? ' · ' + sc.phone : ''}</span>
+        <span style="font-size:11px;color:#aaa">Coord. zona: ${esc(sc.coord) || '—'}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>
       </div>${movHTML}<div style="margin-top:10px">${puestosHTML}</div></div>`;
   }
   if (tipo === 'all') {
@@ -1255,7 +1262,7 @@ function buildPrintHTML(tipo, muni, ck) {
     ALL_MUNIS.forEach(n => {
       if (!RAW[n]) return; const s = gs(n);
       sections += `<div style="page-break-before:always;padding-top:16px">
-        <h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n} — Coordinador: ${s.coord || 'Sin asignar'}${s.phone ? ' · ' + s.phone : ''}</h2>
+        <h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n} — Coordinador: ${esc(s.coord) || 'Sin asignar'}${s.phone ? ' · ' + esc(s.phone) : ''}</h2>
         ${Object.keys(RAW[n]).sort().map(ck => sectionForComuna(n, ck)).join('')}</div>`;
     });
   } else if (tipo === 'zona') {
@@ -1263,14 +1270,14 @@ function buildPrintHTML(tipo, muni, ck) {
     if (zona) {
       const s = gs('MEDELLIN'); const sz = (s.zonas || {})[ck] || {};
       title = `Reporte — MEDELLÍN · ${ck}`;
-      sections = `<div><h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${ck}${sz.coord ? ' — Coord: ' + sz.coord + (sz.phone ? ' · ' + sz.phone : '') : ''}</h2>
+      sections = `<div><h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${ck}${sz.coord ? ' — Coord: ' + esc(sz.coord) + (sz.phone ? ' · ' + esc(sz.phone) : '') : ''}</h2>
         ${zona.comunas.filter(c => RAW['MEDELLIN'][c]).map(c => sectionForComuna('MEDELLIN', c)).join('')}</div>`;
     }
   } else if (tipo === 'comuna') {
     const s = gs(muni); title = `Reporte — MEDELLÍN · ${ck}`; sections = sectionForComuna(muni, ck);
   } else {
     const s = gs(muni); title = `Reporte — ${muni}`;
-    sections = `<div><h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${muni} — Coordinador: ${s.coord || 'Sin asignar'}${s.phone ? ' · ' + s.phone : ''}</h2>
+    sections = `<div><h2 style="color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:8px;margin-bottom:16px">${muni} — Coordinador: ${esc(s.coord) || 'Sin asignar'}${s.phone ? ' · ' + esc(s.phone) : ''}</h2>
       ${Object.keys(RAW[muni]).sort().map(comunaKey => sectionForComuna(muni, comunaKey)).join('')}</div>`;
   }
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${title}</title>
@@ -1478,8 +1485,8 @@ function renderDirTestigos() {
       });
       if (!items.length) return;
       muniHtml += `<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;color:var(--gold);margin-bottom:4px">${ck}</div>
-        ${items.map(it => `<div class="dir-row"><div><div class="dir-name">${it.nombre}</div><div class="dir-role">Testigo · ${it.puesto}</div></div>
-          <div class="dir-phone">${it.telefono ? `<a class="wa-btn" href="https://wa.me/57${it.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${it.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`).join('')}</div>`;
+        ${items.map(it => `<div class="dir-row"><div><div class="dir-name">${esc(it.nombre)}</div><div class="dir-role">Testigo · ${esc(it.puesto)}</div></div>
+          <div class="dir-phone">${it.telefono ? `<a class="wa-btn" href="https://wa.me/57${it.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${esc(it.telefono)}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`).join('')}</div>`;
     });
     if (!muniHtml) return;
     html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>${muniHtml}</div>`;
@@ -1496,7 +1503,7 @@ function exportDirTestigosPDF() {
       Object.entries(testByCk).forEach(([puesto, rows]) => {
         if (!Array.isArray(rows)) return;
         rows.filter(r => r.nombre).forEach(r => {
-          muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${puesto}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.telefono||'—'}</td></tr>`;
+          muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${puesto}</td><td style="padding:4px 8px;border:1px solid #ddd">${esc(r.nombre)}</td><td style="padding:4px 8px;border:1px solid #ddd">${r.telefono ? esc(r.telefono) : '—'}</td></tr>`;
         });
       });
     });
@@ -1519,8 +1526,8 @@ function renderDirAbogados() {
     Object.keys(RAW[n]).sort().forEach(ck => {
       const ab = s.abogados?.[ck];
       if (!ab || !ab.nombre) return;
-      muniHtml += `<div class="dir-row" style="margin-bottom:6px"><div><div class="dir-name">${ab.nombre}</div><div class="dir-role">⚖️ Abogado · ${ck}${ab.firma ? ' · ' + ab.firma : ''}</div></div>
-        <div class="dir-phone">${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${ab.telefono}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`;
+      muniHtml += `<div class="dir-row" style="margin-bottom:6px"><div><div class="dir-name">${esc(ab.nombre)}</div><div class="dir-role">⚖️ Abogado · ${ck}${ab.firma ? ' · ' + esc(ab.firma) : ''}</div></div>
+        <div class="dir-phone">${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${esc(ab.telefono)}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`;
     });
     if (!muniHtml) return;
     html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>${muniHtml}</div>`;
@@ -1534,7 +1541,7 @@ function exportDirAbogadosPDF() {
     const s = gs(n); let muniRows = '';
     Object.keys(RAW[n]).sort().forEach(ck => {
       const ab = s.abogados?.[ck];
-      if (ab && ab.nombre) muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.nombre}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.firma||'—'}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono||'—'}</td></tr>`;
+      if (ab && ab.nombre) muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${esc(ab.nombre)}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.firma ? esc(ab.firma) : '—'}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono ? esc(ab.telefono) : '—'}</td></tr>`;
     });
     if (!muniRows) return;
     sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Firma</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>${muniRows}</table></div>`;

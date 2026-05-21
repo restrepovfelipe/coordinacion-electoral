@@ -60,11 +60,47 @@ function doLogin() {
 }
 
 function showMustChangePasswordModal() {
-  // TODO (T40): Add #modal-change-password to index.html
-  // The modal must collect: current password, new password, confirm new password
-  // On submit: call doChangePassword(newPassword)
   const modal = document.getElementById('modal-change-password');
   if (modal) modal.classList.remove('hidden');
+}
+
+function handlePasswordChangeSubmit() {
+  const newPwd = document.getElementById('new-password-input')?.value;
+  const confirmPwd = document.getElementById('confirm-password-input')?.value;
+  const errorEl = document.getElementById('change-password-error');
+
+  if (!newPwd || newPwd.length < 8) {
+    if (errorEl) errorEl.textContent = 'La contraseña debe tener al menos 8 caracteres';
+    return;
+  }
+  if (newPwd !== confirmPwd) {
+    if (errorEl) errorEl.textContent = 'Las contraseñas no coinciden';
+    return;
+  }
+
+  doChangePassword(newPwd).catch(err => {
+    if (errorEl) errorEl.textContent = 'Error cambiando contraseña. Intenta de nuevo.';
+  });
+}
+window.handlePasswordChangeSubmit = handlePasswordChangeSubmit;
+
+// Inactivity timeout: 30 minutes
+const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 min in ms
+let _inactivityTimer = null;
+
+function resetInactivityTimer() {
+  clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(() => {
+    // Force logout on inactivity
+    doLogout();
+  }, INACTIVITY_TIMEOUT);
+}
+
+function initInactivityDetection() {
+  ['mousemove', 'keydown', 'click', 'touchstart'].forEach(event => {
+    document.addEventListener(event, resetInactivityTimer, { passive: true });
+  });
+  resetInactivityTimer(); // start timer
 }
 
 async function doChangePassword(newPassword) {
