@@ -976,6 +976,7 @@ function renderOV() {
       const ckeys = Object.keys(RAW[n]);
       const totP = ckeys.reduce((a, c) => a + RAW[n][c].length, 0);
       const totM = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.mesas || 0), 0), 0);
+      const totV = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.total || 0), 0), 0);
       let testReg = 0, testFalt = 0;
       ckeys.forEach(c => {
         const st = _ccStats(n, c);
@@ -987,6 +988,7 @@ function renderOV() {
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
         ${s.coord ? `<div class="ov-muni-coord">👤 ${esc(s.coord)}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
         <div class="ov-muni-stats">
+          <span class="ov-stat"><b>${(totV/1000).toFixed(0)}K</b><span>Votantes</span></span>
           <span class="ov-stat"><b>${testReg}</b><span>Testigos</span></span>
           <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>Mesas sin testigo</span></span>
           <span class="ov-stat"><b>${pct}%</b><span>Cobertura</span></span>
