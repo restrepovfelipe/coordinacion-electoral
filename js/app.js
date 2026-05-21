@@ -656,7 +656,7 @@ async function renderTestigosPanel(n, ck, id) {
         </div>
       </div>
       <div class="pp-body" id="${ppid}">
-        ${coordPuesto.coord ? `<div style="font-size:11px;color:var(--t2);background:var(--bg);border-radius:5px;padding:6px 9px;margin-bottom:8px"><b>Coordinador:</b> 👤 ${esc(coordPuesto.coord)}${coordPuesto.phone ? ' · <a class="wa-btn" style="font-size:10px" href="https://wa.me/57' + coordPuesto.phone.replace(/\D/g,'') + '" target="_blank">💬 ' + esc(coordPuesto.phone) + '</a>' : ''}</div>` : ''}
+        ${coordPuesto.coord ? `<div style="font-size:11px;color:var(--t2);background:var(--bg);border-radius:5px;padding:6px 9px;margin-bottom:8px;display:flex;align-items:center;gap:6px"><b>Coordinador:</b> 👤 ${esc(coordPuesto.coord)}${coordPuesto.phone ? ` · <span>${esc(coordPuesto.phone)}</span><a class="wa-btn" href="https://wa.me/57${coordPuesto.phone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : ''}</div>` : ''}
         <div class="test-section">
           <h5>🧾 Testigos electorales <span style="color:var(--t3);font-weight:400">(${testReg})</span></h5>
           <div id="${id}-test-${btoa(pKey).replace(/=/g, '')}">${buildTestRows(n, ck, pName, id, pKey)}</div>
