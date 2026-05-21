@@ -118,8 +118,16 @@ async function doChangePassword(newPassword) {
     return;
   }
 
-  // Close modal before re-login sequence
+  // Show success feedback before re-login
+  if (errorEl) {
+    errorEl.style.color = 'var(--green, #2ed87a)';
+    errorEl.textContent = '✓ Contraseña actualizada exitosamente. Iniciando sesión...';
+  }
+  await new Promise(r => setTimeout(r, 900));
+
+  // Close modal and reset error style
   if (modal) modal.classList.add('hidden');
+  if (errorEl) { errorEl.textContent = ''; errorEl.style.color = ''; }
 
   try {
     // Sign out old session, then re-authenticate with new password.
