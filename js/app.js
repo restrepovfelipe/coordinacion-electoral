@@ -207,9 +207,9 @@ function renderMuni(n) {
   ckeys.forEach(c => {
     comunas[c].forEach(p => { totP++; totM += (p.mesas || 0); totV += (p.total || 0); });
     const st = _ccStats(n, c);
-    totTestReg += st.testReg; totTestFalt += st.testFalt; totCov += st.testPuCub;
+    totTestReg += st.testReg; totTestFalt += st.testFalt;
   });
-  const pctCov = totP ? Math.round(totCov / totP * 100) : 0;
+  const pctCov = totM ? Math.round(totTestReg / totM * 100) : 0;
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
@@ -228,7 +228,7 @@ function renderMuni(n) {
       <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${ckeys.length}</div></div>
       <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
       <div class="sc"><div class="sl">Testigos</div><div class="sv" id="mh-test-reg">${totTestReg}</div></div>
-      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Test. faltantes</div><div class="sv">${totTestFalt}</div></div>
+      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Mesas sin testigo</div><div class="sv">${totTestFalt}</div></div>
       <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${pctCov}%</div></div>
     </div>
     <div class="otabs">
@@ -261,9 +261,9 @@ function _ccStats(n, ck) {
     testReg += rows.length;
     if (rows.length > 0) testPuCub++;
   });
-  const testFalt = totPuestos - testPuCub;
+  const testFalt = Math.max(0, totMesas - testReg);
   const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
-  const pct = totPuestos ? Math.round(testPuCub / totPuestos * 100) : 0;
+  const pct = totMesas ? Math.round(testReg / totMesas * 100) : 0;
   const resps = (s.movilidad?.[ck]?.responsables) || [];
   const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
@@ -340,9 +340,9 @@ function buildZonaCard(n, zona) {
     const st = _ccStats(n, ck);
     totPuestos += st.totPuestos; totMesas += st.totMesas;
     totTestReg += st.testReg; totTestFalt += st.testFalt;
-    totMotos += st.totMotos; totCarros += st.totCarros; totCov += st.testPuCub;
+    totMotos += st.totMotos; totCarros += st.totCarros;
   });
-  const pct = totPuestos ? Math.round(totCov / totPuestos * 100) : 0;
+  const pct = totMesas ? Math.round(totTestReg / totMesas * 100) : 0;
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
   const isOpen = OPEN_Z.has(n + zona.nombre);
   const el = document.createElement('div'); el.className = 'zona-card'; el.id = zid;
@@ -362,7 +362,7 @@ function buildZonaCard(n, zona) {
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
       <div class="cc-st"><div class="v" id="${zid}-s-t">${totTestReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totTestFalt}</div><div class="l">Test. faltantes</div></div>
+      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totTestFalt}</div><div class="l">Mesas sin testigo</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
@@ -396,7 +396,7 @@ function buildCCCard(n, ck) {
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
       <div class="cc-st"><div class="v" id="${id}-s-t">${testReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${testFalt}</div><div class="l">Test. faltantes</div></div>
+      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${testFalt}</div><div class="l">Mesas sin testigo</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
@@ -946,16 +946,16 @@ function renderOV() {
     if (!validMusis.length) return;
     const rTotP = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.length, 0), 0);
     const rTotM = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.mesas || 0), 0), 0), 0);
-    let rTestReg = 0, rTestFalt = 0, rCov = 0;
+    let rTestReg = 0, rTestFalt = 0;
     validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
       const st = _ccStats(n, c);
-      rTestReg += st.testReg; rTestFalt += st.testFalt; rCov += st.covPuestos;
+      rTestReg += st.testReg; rTestFalt += st.testFalt;
     }));
-    const rPct = rTotP ? Math.round(rCov / rTotP * 100) : 0;
+    const rPct = rTotM ? Math.round(rTestReg / rTotM * 100) : 0;
     html += `<div class="sec-t" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
       <span style="font-size:10px;font-weight:700">${region} — ${validMusis.length} municipios · ${rTotP} puestos · ${rTotM.toLocaleString('es-CO')} mesas</span>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:10px;color:var(--t2)">Test: <b>${rTestReg}</b> · T.falt: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
+        <span style="font-size:10px;color:var(--t2)">Test: <b>${rTestReg}</b> · M.s.test: <b style="${rTestFalt > 0 ? 'color:var(--red)' : ''}">${rTestFalt}</b> · Cob: <b>${rPct}%</b></span>
         <button class="export-btn" style="font-size:10px;padding:4px 10px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
       </div>
     </div>`;
@@ -965,19 +965,19 @@ function renderOV() {
       const ckeys = Object.keys(RAW[n]);
       const totP = ckeys.reduce((a, c) => a + RAW[n][c].length, 0);
       const totM = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.mesas || 0), 0), 0);
-      let testReg = 0, testFalt = 0, covP = 0;
+      let testReg = 0, testFalt = 0;
       ckeys.forEach(c => {
         const st = _ccStats(n, c);
-        testReg += st.testReg; testFalt += st.testFalt; covP += st.covPuestos;
+        testReg += st.testReg; testFalt += st.testFalt;
       });
-      const pct = totP ? Math.round(covP / totP * 100) : 0;
+      const pct = totM ? Math.round(testReg / totM * 100) : 0;
       html += `<div class="ov-muni-card" onclick="selMuni('${n}')">
         <div class="ov-muni-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
         ${s.coord ? `<div class="ov-muni-coord">👤 ${esc(s.coord)}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
         <div class="ov-muni-stats">
           <span class="ov-stat"><b>${testReg}</b><span>test.</span></span>
-          <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>t.falt.</span></span>
+          <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>m.s.test.</span></span>
           <span class="ov-stat"><b>${pct}%</b><span>cob.</span></span>
         </div>
       </div>`;
@@ -1837,7 +1837,7 @@ function renderMuniMap(n) {
     allLats.push(lat); allLngs.push(lng);
 
     const st = _ccStats(n, ck);
-    communeData.push({ ck, lat, lng, testPct: st.pct, testPuCub: st.testPuCub, totPuestos: st.totPuestos });
+    communeData.push({ ck, lat, lng, testPct: st.pct, testReg: st.testReg, totMesas: st.totMesas });
   });
 
   const fallback = MUNI_COORDS[n] || [6.2442, -75.5812];
@@ -1851,7 +1851,7 @@ function renderMuniMap(n) {
   }).addTo(_muniLeafletMap);
 
   const bounds = [];
-  communeData.forEach(({ ck, lat, lng, testPct, testPuCub, totPuestos }) => {
+  communeData.forEach(({ ck, lat, lng, testPct, testReg, totMesas }) => {
     bounds.push([lat, lng]);
     const color = _testPctColor(testPct);
     const coord = s.comunas?.[ck]?.coord || '';
@@ -1860,7 +1860,7 @@ function renderMuniMap(n) {
     L.circleMarker([lat, lng], {
       radius: 14, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
     }).addTo(_muniLeafletMap)
-      .bindPopup(`<b>${esc(ck)}</b><br>Testigos: ${testPct}% (${testPuCub}/${totPuestos} puestos)${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
+      .bindPopup(`<b>${esc(ck)}</b><br>Cobertura: ${testPct}% (${testReg}/${totMesas} mesas)${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
   });
 
   if (bounds.length > 1) _muniLeafletMap.fitBounds(bounds, { padding: [30, 30] });
@@ -1905,9 +1905,9 @@ function openRegionMap(region) {
     const coord = MUNI_COORDS[n];
     if (!coord) return;
     bounds.push(coord);
-    let totPuestos = 0, testPuCub = 0;
-    if (RAW[n]) Object.keys(RAW[n]).forEach(ck => { const st = _ccStats(n, ck); totPuestos += st.totPuestos; testPuCub += st.testPuCub; });
-    const pct = totPuestos ? Math.round(testPuCub / totPuestos * 100) : 0;
+    let totMesasN = 0, testRegN = 0;
+    if (RAW[n]) Object.keys(RAW[n]).forEach(ck => { const st = _ccStats(n, ck); totMesasN += st.totMesas; testRegN += st.testReg; });
+    const pct = totMesasN ? Math.round(testRegN / totMesasN * 100) : 0;
     const color = _testPctColor(pct);
     const s = gs(n);
     const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
@@ -1915,7 +1915,7 @@ function openRegionMap(region) {
     L.circleMarker(coord, {
       radius: 16, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
     }).addTo(_regionLeafletMap)
-      .bindPopup(`<b>${label}</b><br>Testigos: ${pct}% (${testPuCub}/${totPuestos} puestos)${s.coord ? '<br>👤 ' + s.coord : ''}`);
+      .bindPopup(`<b>${label}</b><br>Cobertura: ${pct}% (${testRegN}/${totMesasN} mesas)${s.coord ? '<br>👤 ' + s.coord : ''}`);
 
     L.tooltip({ permanent: true, direction: 'top', offset: [0, -18], className: 'map-muni-label' })
       .setContent(label).setLatLng(coord).addTo(_regionLeafletMap);
