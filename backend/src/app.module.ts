@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -16,6 +17,7 @@ import { MustChangePasswordInterceptor } from './common/interceptors/must-change
 @Module({
   imports: [
     ConfigModule.forRoot({ envFilePath: '.env.local', isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     PrismaModule,
     HealthModule,
     AuthModule,
