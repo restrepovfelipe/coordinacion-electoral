@@ -66,7 +66,9 @@ class RealtimeClient {
       return;
     }
 
-    const url = '/api/events?token=' + encodeURIComponent(token);
+    // Use absolute URL so this works on Vercel (static host) → Cloud Run (API host)
+    const base = (typeof window.API_BASE !== 'undefined' ? window.API_BASE : '/api').replace(/\/+$/, '');
+    const url = `${base}/events?token=${encodeURIComponent(token)}`;
 
     const es = new EventSource(url);
     this._es = es;

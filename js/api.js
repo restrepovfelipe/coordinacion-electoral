@@ -101,6 +101,10 @@ function errorToSpanish(err) {
     switch (err.status) {
       case 401: return 'Sesión expirada. Por favor inicia sesión de nuevo.';
       case 403: return 'No tienes permiso para esta acción.';
+      case 412:
+        if (err.body?.code === 'PASSWORD_CHANGE_REQUIRED')
+          return 'Debes cambiar tu contraseña antes de continuar.';
+        return 'Conflicto de versión. Recarga la página e intenta de nuevo.';
       case 429: return 'Demasiadas peticiones. Espera un momento e intenta de nuevo.';
     }
     if (err.status >= 500) return 'Error del servidor. Si persiste, contacta soporte.';
@@ -115,3 +119,4 @@ function errorToSpanish(err) {
 window.ApiClient = ApiClient;
 window.ApiError = ApiError;
 window.errorToSpanish = errorToSpanish;
+window.API_BASE = API_BASE;
