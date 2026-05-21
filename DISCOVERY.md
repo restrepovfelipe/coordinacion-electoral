@@ -500,6 +500,31 @@ has pregoneros); the `resources/pregoneros/` entry in the §4 tree; the
 `pregonero.changed` channel in §5/§5.2; "×6 resource modules" in §4 / TASKS T24 /
 T30. When Phases 4–6 execute, "pregoneros" is treated as removed.
 
+### Amendment 11 — Testigo schema is the schema actually applied in production
+
+> **Provenance: owner diagnostic, 2026-05-21.** The earlier proposal for a
+> multi-field Testigo schema (separate primer/segundo nombre/apellido,
+> telefonoStd/Raw/Cat columns) was never applied to the production database.
+> The seed script adapted to the existing schema. The owner reviewed the
+> production state and ratified the current schema as canonical.
+
+**Amendment 11 — Testigo schema is the schema actually applied in production.**
+Columns: `id`, `puestoId` (nullable — 889 seeded rows have no puesto match),
+`name` (concatenated full name from CSV), `cedula` (empty for all 7,283 rows —
+CSV had no cédula column), `phone`, `status` (default `'pendiente'`), `notes`
+(semicolon-delimited free text preserving `quality_flag` and `correo` from the
+original CSV), `createdById` (nullable), `createdAt`, `updatedAt`.
+
+The earlier proposal with separate `primerNombre`/`segundoNombre`/`primerApellido`/
+`segundoApellido` and `telefonoStd`/`telefonoRaw`/`telefonoCat` fields was not
+applied; the seed script adapted to the existing schema. Original CSV nuances
+(email, quality_flag) preserved in `notes` as semicolon-delimited text.
+
+State as of 2026-05-21: 7,283 total rows; 6,394 with valid `puestoId`; 889
+with `puestoId = NULL`; all `cedula` values empty; schema matches
+`backend/prisma/schema.prisma` `model Testigo` (puestoId nullable per migration
+`20260521054752_make_testigo_fields_nullable`).
+
 ---
 
 ## 6. Status

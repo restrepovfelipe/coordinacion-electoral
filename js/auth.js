@@ -12,6 +12,7 @@ async function getIdToken() {
 
 // Create the API client (api.js must be loaded first)
 const api = new ApiClient(getIdToken);
+window.api = api;
 
 // ─── Login form error helpers ─────────────────────────────────────────────────
 // #l-err has CSS class login-err (display:none by default; .show makes it visible)
@@ -49,6 +50,7 @@ function doLogin() {
     .then(async () => {
       const me = await api.get('/auth/me');
       CURRENT_USER = me;
+      window.CURRENT_USER = me;
 
       if (me.mustChangePassword) {
         showMustChangePasswordModal();
@@ -167,6 +169,7 @@ function doLogout() {
   api.post('/auth/logout', {}).catch(() => {});
   auth.signOut().then(() => {
     CURRENT_USER = null;
+    window.CURRENT_USER = null;
     location.reload();
   });
 }
@@ -178,6 +181,7 @@ auth.onAuthStateChanged(async (user) => {
     try {
       const me = await api.get('/auth/me');
       CURRENT_USER = me;
+      window.CURRENT_USER = me;
       if (me.mustChangePassword) {
         showMustChangePasswordModal();
         return;
