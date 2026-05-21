@@ -1,2 +1,8 @@
 .idea/
 CLAUDE_2.md
+.claude
+
+backend/.gcp-key*.json
+backend/.env.local
+backend/node_modules/
+backend/dist/

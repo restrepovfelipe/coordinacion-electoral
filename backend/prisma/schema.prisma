@@ -1,0 +1,222 @@
+// Comando Electoral 2026 — data model.
+// Canonical source: MIGRATION_SPEC.md §5, with DISCOVERY.md §5 Amendment 1
+// (Comuna ⇄ Zona link). Prisma pinned to 6.x per Amendment 9.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  REGIONAL_COORDINATOR
+  MUNICIPAL_COORDINATOR
+  ZONE_COORDINATOR
+  COMUNA_COORDINATOR
+  PUESTO_COORDINATOR
+}
+
+enum ScopeType {
+  SUBREGION
+  MUNICIPIO
+  ZONA
+  COMUNA
+  PUESTO
+}
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  username            String    @unique
+  displayName         String
+  phone               String?
+  notes               String?
+  role                Role
+  active              Boolean   @default(true)
+  cipUid              String    @unique
+  mustChangePassword  Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  createdByUserId     Int?
+  createdBy           User?     @relation("UserCreator", fields: [createdByUserId], references: [id])
+  createdUsers        User[]    @relation("UserCreator")
+  lastLoginAt         DateTime?
+  scopes              UserScope[]
+  testigosCreated     Testigo[]
+  abogadosCreated     Abogado[]
+  movilidadCreated    Movilidad[]
+  refrigeriosCreated  Refrigerio[]
+  comparendosCreated  Comparendo[]
+  auditEntries        AuditLog[]
+
+  @@index([active])
+  @@index([role])
+}
+
+model UserScope {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopeType ScopeType
+  scopeId   Int
+
+  @@unique([userId, scopeType, scopeId])
+  @@index([scopeType, scopeId])
+}
+
+model Subregion {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  municipios Municipio[]
+}
+
+model Municipio {
+  id          Int        @id @default(autoincrement())
+  subregionId Int
+  subregion   Subregion  @relation(fields: [subregionId], references: [id])
+  name        String
+  divipola    String     @unique
+  comunas     Comuna[]
+  puestos     Puesto[]
+  abogados    Abogado[]
+
+  @@index([subregionId])
+}
+
+model Comuna {
+  id          Int        @id @default(autoincrement())
+  municipioId Int
+  municipio   Municipio  @relation(fields: [municipioId], references: [id])
+  name        String
+  zonaId      Int?
+  zona        Zona?      @relation(fields: [zonaId], references: [id])
+  puestos     Puesto[]
+
+  @@unique([municipioId, name])
+  @@index([zonaId])
+}
+
+model Zona {
+  id      Int      @id @default(autoincrement())
+  name    String   @unique
+  comunas Comuna[]
+}
+
+model Puesto {
+  id          Int        @id @default(autoincrement())
+  municipioId Int
+  municipio   Municipio  @relation(fields: [municipioId], references: [id])
+  comunaId    Int?
+  comuna      Comuna?    @relation(fields: [comunaId], references: [id])
+  divipola    String     @unique
+  name        String
+  address     String
+  lat         Float
+  lng         Float
+  mesas       Int        @default(0)
+  votantes    Int        @default(0)
+  testigos    Testigo[]
+
+  @@index([municipioId])
+  @@index([comunaId])
+}
+
+model Testigo {
+  id          Int      @id @default(autoincrement())
+  puestoId    Int
+  puesto      Puesto   @relation(fields: [puestoId], references: [id])
+  name        String
+  cedula      String?
+  phone       String?
+  status      String   @default("pendiente")
+  notes       String?
+  createdById Int
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([puestoId])
+}
+
+model Abogado {
+  id          Int       @id @default(autoincrement())
+  municipioId Int
+  municipio   Municipio @relation(fields: [municipioId], references: [id])
+  name        String
+  phone       String?
+  notes       String?
+  createdById Int
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([municipioId])
+}
+
+model Movilidad {
+  id           Int       @id @default(autoincrement())
+  scopeType    ScopeType
+  scopeId      Int
+  vehicleType  String
+  plate        String
+  driverName   String
+  driverPhone  String?
+  notes        String?
+  createdById  Int
+  createdBy    User      @relation(fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([scopeType, scopeId])
+}
+
+model Refrigerio {
+  id          Int       @id @default(autoincrement())
+  scopeType   ScopeType
+  scopeId     Int
+  count       Int       @default(0)
+  status      String    @default("pendiente")
+  notes       String?
+  createdById Int
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([scopeType, scopeId])
+}
+
+model Comparendo {
+  id          Int       @id @default(autoincrement())
+  scopeType   ScopeType
+  scopeId     Int
+  date        DateTime
+  description String
+  status      String    @default("abierto")
+  notes       String?
+  createdById Int
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([scopeType, scopeId])
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  actorUserId  Int
+  actor        User     @relation(fields: [actorUserId], references: [id])
+  action       String
+  targetType   String
+  targetId     Int?
+  beforeJson   Json?
+  afterJson    Json?
+  ip           String?
+  userAgent    String?
+  ts           DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([targetType, targetId])
+  @@index([ts])
+}

@@ -1,0 +1,12 @@
+# pnpm 11 build-script approval. All are trusted dependencies:
+#   @nestjs/core     - NestJS framework core (opencollective donation banner postinstall)
+#   unrs-resolver    - native module resolver used by ESLint / typescript-eslint
+#   prisma           - Prisma CLI
+#   @prisma/engines  - downloads the Prisma query-engine binary (required for Prisma to run)
+#   @prisma/client   - runs `prisma generate` on install (Prisma 6.x)
+allowBuilds:
+  '@nestjs/core': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  unrs-resolver: true
