@@ -317,6 +317,29 @@ describe('PermissionsService', () => {
       prisma.comuna.count.mockResolvedValue(1);
       expect(await service.canAccess(user, ScopeType.ZONA, 2)).toBe(true);
     });
+
+    it('canAccess SUBREGION 3 → true (municipio count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }]);
+      prisma.municipio.count.mockResolvedValue(2);
+      expect(await service.canAccess(user, ScopeType.SUBREGION, 3)).toBe(true);
+    });
+
+    it('canAccess MUNICIPIO 6 → true (puesto count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }]);
+      prisma.puesto.count.mockResolvedValue(3);
+      expect(await service.canAccess(user, ScopeType.MUNICIPIO, 6)).toBe(true);
+    });
+
+    it('canAccess ZONA 5 → true (comuna count > 0)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }]);
+      prisma.comuna.count.mockResolvedValue(1);
+      expect(await service.canAccess(user, ScopeType.ZONA, 5)).toBe(true);
+    });
+
+    it('canAccess PUESTO 45 → true (in accessible set)', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ id: 40n }, { id: 41n }, { id: 45n }]);
+      expect(await service.canAccess(user, ScopeType.PUESTO, 45)).toBe(true);
+    });
   });
 
   // ── PUESTO_COORDINATOR ────────────────────────────────────────────────────
