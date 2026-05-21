@@ -1545,19 +1545,18 @@ function renderMapPanel(n, ck, id) {
   setTimeout(() => {
     if (_maps[mapId]) { _maps[mapId].remove(); delete _maps[mapId]; }
     const s = gs(n);
-    const tagColors = { ok: '#2ecc71', pr: '#e67e22', pe: '#f1c40f', al: '#e74c3c', n: '#7f8c8d' };
     const center = [validPuestos[0].lat, validPuestos[0].lon];
     const map = L.map(mapId, { scrollWheelZoom: false }).setView(center, 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap', maxZoom: 18
     }).addTo(map);
     validPuestos.forEach(p => {
-      const tag = (s.puestos?.[pk(p)]?.tag) || 'n';
-      const color = tagColors[tag];
+      const ts = (s.testigos?.[ck]?.[p.puesto] || []).length;
+      const color = _testPctColor(ts > 0 ? 100 : 0);
       const marker = L.circleMarker([p.lat, p.lon], {
         radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
       }).addTo(map);
-      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes</span>`);
+      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes · ${ts} testigo${ts !== 1 ? 's' : ''}</span>`);
     });
     map.fitBounds(validPuestos.map(p => [p.lat, p.lon]), { padding: [20, 20] });
     _maps[mapId] = map;
@@ -1785,6 +1784,11 @@ const MUNI_COORDS = {
   'YONDO-CASABE':       [6.8182, -74.4441],
 };
 
+function _testPctColor(pct) {
+  if (pct >= 71) return '#22c55e';
+  if (pct >= 41) return '#f5c842';
+  return '#ef4444';
+}
 function _coverageColor(tag) {
   if (tag === 'ok') return '#22c55e';
   if (tag === 'pr') return '#f5c842';
@@ -1832,15 +1836,8 @@ function renderMuniMap(n) {
     const lng = withCoords.reduce((s, p) => s + p.lon, 0) / withCoords.length;
     allLats.push(lat); allLngs.push(lng);
 
-    let total = puestos.length, ok = 0, al = 0, pr = 0, pe = 0;
-    puestos.forEach(p => {
-      const tag = s.puestos?.[pk(p)]?.tag || 'n';
-      if (tag === 'ok') ok++;
-      else if (tag === 'al') al++;
-      else if (tag === 'pr') pr++;
-      else if (tag === 'pe') pe++;
-    });
-    communeData.push({ ck, lat, lng, total, ok, al, pr, pe });
+    const st = _ccStats(n, ck);
+    communeData.push({ ck, lat, lng, testPct: st.pct, testPuCub: st.testPuCub, totPuestos: st.totPuestos });
   });
 
   const fallback = MUNI_COORDS[n] || [6.2442, -75.5812];
@@ -1854,18 +1851,16 @@ function renderMuniMap(n) {
   }).addTo(_muniLeafletMap);
 
   const bounds = [];
-  communeData.forEach(({ ck, lat, lng, total, ok, al, pr, pe }) => {
+  communeData.forEach(({ ck, lat, lng, testPct, testPuCub, totPuestos }) => {
     bounds.push([lat, lng]);
-    const dominant = al > 0 ? 'al' : pe > 0 ? 'pe' : pr > 0 ? 'pr' : (ok === total && total > 0) ? 'ok' : 'n';
-    const color = _coverageColor(dominant);
-    const pct = total > 0 ? Math.round((ok / total) * 100) : 0;
+    const color = _testPctColor(testPct);
     const coord = s.comunas?.[ck]?.coord || '';
     const phone = s.comunas?.[ck]?.phone || '';
 
     L.circleMarker([lat, lng], {
       radius: 14, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
     }).addTo(_muniLeafletMap)
-      .bindPopup(`<b>${esc(ck)}</b><br>${pct}% cubierto (${ok}/${total})${al > 0 ? '<br>⚠ ' + al + ' alertas' : ''}${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
+      .bindPopup(`<b>${esc(ck)}</b><br>Testigos: ${testPct}% (${testPuCub}/${totPuestos} puestos)${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
   });
 
   if (bounds.length > 1) _muniLeafletMap.fitBounds(bounds, { padding: [30, 30] });
@@ -1874,12 +1869,10 @@ function renderMuniMap(n) {
   legend.onAdd = () => {
     const div = L.DomUtil.create('div', '');
     div.style.cssText = 'background:rgba(15,23,42,.88);color:#e2e8f0;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.9';
-    div.innerHTML = '<b>Estado puestos</b><br>' +
-      '<span style="color:#22c55e">●</span> Cubierto<br>' +
-      '<span style="color:#f5c842">●</span> Prioritario<br>' +
-      '<span style="color:#fb923c">●</span> Pendiente<br>' +
-      '<span style="color:#ef4444">●</span> Alerta<br>' +
-      '<span style="color:#64748b">●</span> Sin estado';
+    div.innerHTML = '<b>Cobertura testigos</b><br>' +
+      '<span style="color:#22c55e">●</span> 71–100%<br>' +
+      '<span style="color:#f5c842">●</span> 41–70%<br>' +
+      '<span style="color:#ef4444">●</span> 0–40%';
     return div;
   };
   legend.addTo(_muniLeafletMap);
@@ -1912,17 +1905,17 @@ function openRegionMap(region) {
     const coord = MUNI_COORDS[n];
     if (!coord) return;
     bounds.push(coord);
-    const { total, ok, al, pr, pe } = _muniCoverageStats(n);
-    const pct = total > 0 ? Math.round((ok / total) * 100) : 0;
-    const dominant = al > 0 ? 'al' : pe > 0 ? 'pe' : pr > 0 ? 'pr' : (ok === total && total > 0) ? 'ok' : 'n';
-    const color = _coverageColor(dominant);
+    let totPuestos = 0, testPuCub = 0;
+    if (RAW[n]) Object.keys(RAW[n]).forEach(ck => { const st = _ccStats(n, ck); totPuestos += st.totPuestos; testPuCub += st.testPuCub; });
+    const pct = totPuestos ? Math.round(testPuCub / totPuestos * 100) : 0;
+    const color = _testPctColor(pct);
     const s = gs(n);
     const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
 
     L.circleMarker(coord, {
       radius: 16, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
     }).addTo(_regionLeafletMap)
-      .bindPopup(`<b>${label}</b><br>${pct}% cubierto (${ok}/${total} puestos)${al > 0 ? '<br>⚠ ' + al + ' alertas' : ''}${s.coord ? '<br>👤 ' + s.coord : ''}`);
+      .bindPopup(`<b>${label}</b><br>Testigos: ${pct}% (${testPuCub}/${totPuestos} puestos)${s.coord ? '<br>👤 ' + s.coord : ''}`);
 
     L.tooltip({ permanent: true, direction: 'top', offset: [0, -18], className: 'map-muni-label' })
       .setContent(label).setLatLng(coord).addTo(_regionLeafletMap);
@@ -1934,12 +1927,10 @@ function openRegionMap(region) {
   legend.onAdd = () => {
     const div = L.DomUtil.create('div', '');
     div.style.cssText = 'background:rgba(15,23,42,.88);color:#e2e8f0;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.9';
-    div.innerHTML = '<b>Cobertura municipio</b><br>' +
-      '<span style="color:#22c55e">●</span> 100% cubierto<br>' +
-      '<span style="color:#f5c842">●</span> Prioritario<br>' +
-      '<span style="color:#fb923c">●</span> Pendiente<br>' +
-      '<span style="color:#ef4444">●</span> Alertas<br>' +
-      '<span style="color:#64748b">●</span> Sin estado';
+    div.innerHTML = '<b>Cobertura testigos</b><br>' +
+      '<span style="color:#22c55e">●</span> 71–100%<br>' +
+      '<span style="color:#f5c842">●</span> 41–70%<br>' +
+      '<span style="color:#ef4444">●</span> 0–40%';
     return div;
   };
   legend.addTo(_regionLeafletMap);
