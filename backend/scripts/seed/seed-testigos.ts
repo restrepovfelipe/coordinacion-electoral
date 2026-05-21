@@ -6,6 +6,7 @@
  */
 
 import * as fs from 'fs';
+import { existsSync } from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { PrismaClient } from '@prisma/client';
@@ -129,6 +130,27 @@ async function readCsv(filePath: string): Promise<CsvRow[]> {
 async function main(): Promise<void> {
   const csvPath = path.resolve(__dirname, '../../../data/testigos_clean.csv');
   const reportPath = path.resolve(__dirname, '../../../data/testigos_seed_report.xlsx');
+
+  // 0a. Verify CSV file exists before attempting to read it
+  if (!existsSync(csvPath)) {
+    console.error(`ERROR: CSV file not found at ${csvPath}`);
+    console.error('Expected: data/testigos_clean.csv relative to project root');
+    process.exit(1);
+  }
+
+  // 0b. Idempotency guard — prevent accidental duplicate inserts
+  if (process.argv.includes('--force')) {
+    await prisma.testigo.deleteMany({});
+    console.log('Existing testigos deleted (--force flag).');
+  } else {
+    const existingCount = await prisma.testigo.count();
+    if (existingCount > 0) {
+      console.error(`ERROR: Database already has ${existingCount} testigo records.`);
+      console.error('To re-seed, first delete existing records or pass --force flag.');
+      console.error('Run: npx tsx scripts/seed/seed-testigos.ts --force');
+      process.exit(1);
+    }
+  }
 
   // 1. Read CSV
   const csvRows = await readCsv(csvPath);
