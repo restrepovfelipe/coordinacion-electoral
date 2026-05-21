@@ -5,12 +5,14 @@ import { PermissionsService } from '../../permissions/permissions.service.js';
 import { UserWithScopes } from '../../common/types/request-with-user.js';
 import { CreateTestigoDto } from './dto/create-testigo.dto.js';
 import { UpdateTestigoDto } from './dto/update-testigo.dto.js';
+import { RealtimeService } from '../../realtime/realtime.service.js';
 
 @Injectable()
 export class TestigosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async create(
@@ -18,7 +20,7 @@ export class TestigosService {
     dto: CreateTestigoDto,
     user: UserWithScopes,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const testigo = await tx.testigo.create({
         data: {
           ...dto,
@@ -37,6 +39,8 @@ export class TestigosService {
       });
       return testigo;
     });
+    await this.realtime.notify({ type: 'testigo.create', puestoId, payload: { id: result.id } });
+    return result;
   }
 
   async update(id: number, dto: UpdateTestigoDto, user: UserWithScopes) {
@@ -47,7 +51,7 @@ export class TestigosService {
     const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, existing.puestoId);
     if (!canAccess) throw new ForbiddenException();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.testigo.update({ where: { id }, data: dto });
       await tx.auditLog.create({
         data: {
@@ -61,6 +65,8 @@ export class TestigosService {
       });
       return updated;
     });
+    await this.realtime.notify({ type: 'testigo.update', puestoId: existing.puestoId, payload: { id } });
+    return result;
   }
 
   async remove(id: number, user: UserWithScopes) {
@@ -83,5 +89,6 @@ export class TestigosService {
       });
       await tx.testigo.delete({ where: { id } });
     });
+    await this.realtime.notify({ type: 'testigo.delete', puestoId: existing.puestoId, payload: { id } });
   }
 }

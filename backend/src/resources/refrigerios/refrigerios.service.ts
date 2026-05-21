@@ -11,12 +11,14 @@ import { PermissionsService } from '../../permissions/permissions.service.js';
 import { UserWithScopes } from '../../common/types/request-with-user.js';
 import { CreateRefrigerioDto } from './dto/create-refrigerio.dto.js';
 import { UpdateRefrigerioDto } from './dto/update-refrigerio.dto.js';
+import { RealtimeService } from '../../realtime/realtime.service.js';
 
 @Injectable()
 export class RefrigeriosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async create(dto: CreateRefrigerioDto, user: UserWithScopes) {
@@ -27,7 +29,7 @@ export class RefrigeriosService {
     );
     if (!canAccess) throw new ForbiddenException();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const refrigerio = await tx.refrigerio.create({
         data: {
           ...dto,
@@ -45,6 +47,8 @@ export class RefrigeriosService {
       });
       return refrigerio;
     });
+    await this.realtime.notify({ type: 'refrigerio.create', scopeType: dto.scopeType, scopeId: dto.scopeId, payload: { id: result.id } });
+    return result;
   }
 
   async update(
@@ -63,7 +67,7 @@ export class RefrigeriosService {
       throw new HttpException('Precondition Failed', HttpStatus.PRECONDITION_FAILED);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.refrigerio.update({ where: { id }, data: dto });
       await tx.auditLog.create({
         data: {
@@ -77,6 +81,8 @@ export class RefrigeriosService {
       });
       return updated;
     });
+    await this.realtime.notify({ type: 'refrigerio.update', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
+    return result;
   }
 
   async remove(id: number, user: UserWithScopes) {
@@ -98,5 +104,6 @@ export class RefrigeriosService {
       });
       await tx.refrigerio.delete({ where: { id } });
     });
+    await this.realtime.notify({ type: 'refrigerio.delete', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
   }
 }

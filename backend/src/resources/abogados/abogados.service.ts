@@ -5,12 +5,14 @@ import { PermissionsService } from '../../permissions/permissions.service.js';
 import { UserWithScopes } from '../../common/types/request-with-user.js';
 import { CreateAbogadoDto } from './dto/create-abogado.dto.js';
 import { UpdateAbogadoDto } from './dto/update-abogado.dto.js';
+import { RealtimeService } from '../../realtime/realtime.service.js';
 
 @Injectable()
 export class AbogadosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async create(
@@ -18,7 +20,7 @@ export class AbogadosService {
     dto: CreateAbogadoDto,
     user: UserWithScopes,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const abogado = await tx.abogado.create({
         data: {
           ...dto,
@@ -37,6 +39,8 @@ export class AbogadosService {
       });
       return abogado;
     });
+    await this.realtime.notify({ type: 'abogado.create', municipioId, payload: { id: result.id } });
+    return result;
   }
 
   async update(id: number, dto: UpdateAbogadoDto, user: UserWithScopes) {
@@ -46,7 +50,7 @@ export class AbogadosService {
     const canAccess = await this.permissions.canAccess(user, ScopeType.MUNICIPIO, existing.municipioId);
     if (!canAccess) throw new ForbiddenException();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.abogado.update({ where: { id }, data: dto });
       await tx.auditLog.create({
         data: {
@@ -60,6 +64,8 @@ export class AbogadosService {
       });
       return updated;
     });
+    await this.realtime.notify({ type: 'abogado.update', municipioId: existing.municipioId, payload: { id } });
+    return result;
   }
 
   async remove(id: number, user: UserWithScopes) {
@@ -81,5 +87,6 @@ export class AbogadosService {
       });
       await tx.abogado.delete({ where: { id } });
     });
+    await this.realtime.notify({ type: 'abogado.delete', municipioId: existing.municipioId, payload: { id } });
   }
 }

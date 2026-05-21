@@ -5,12 +5,14 @@ import { PermissionsService } from '../../permissions/permissions.service.js';
 import { UserWithScopes } from '../../common/types/request-with-user.js';
 import { CreateMovilidadDto } from './dto/create-movilidad.dto.js';
 import { UpdateMovilidadDto } from './dto/update-movilidad.dto.js';
+import { RealtimeService } from '../../realtime/realtime.service.js';
 
 @Injectable()
 export class MovilidadService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async create(dto: CreateMovilidadDto, user: UserWithScopes) {
@@ -21,7 +23,7 @@ export class MovilidadService {
     );
     if (!canAccess) throw new ForbiddenException();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const movilidad = await tx.movilidad.create({
         data: {
           ...dto,
@@ -39,6 +41,8 @@ export class MovilidadService {
       });
       return movilidad;
     });
+    await this.realtime.notify({ type: 'movilidad.create', scopeType: dto.scopeType, scopeId: dto.scopeId, payload: { id: result.id } });
+    return result;
   }
 
   async update(id: number, dto: UpdateMovilidadDto, user: UserWithScopes) {
@@ -48,7 +52,7 @@ export class MovilidadService {
     const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
     if (!hasAccess) throw new ForbiddenException();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.movilidad.update({ where: { id }, data: dto });
       await tx.auditLog.create({
         data: {
@@ -62,6 +66,8 @@ export class MovilidadService {
       });
       return updated;
     });
+    await this.realtime.notify({ type: 'movilidad.update', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
+    return result;
   }
 
   async remove(id: number, user: UserWithScopes) {
@@ -83,5 +89,6 @@ export class MovilidadService {
       });
       await tx.movilidad.delete({ where: { id } });
     });
+    await this.realtime.notify({ type: 'movilidad.delete', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
   }
 }

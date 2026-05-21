@@ -1,5 +1,13 @@
 import { Module } from '@nestjs/common';
+import { CommonModule } from '../common/common.module.js';
+import { PermissionsModule } from '../permissions/permissions.module.js';
+import { RealtimeController } from './realtime.controller.js';
+import { RealtimeService } from './realtime.service.js';
 
-// Skeleton — populated in Phase 5 (T28-T31): @Sse() endpoint + pg-listen bridge.
-@Module({})
+@Module({
+  imports: [CommonModule, PermissionsModule],
+  controllers: [RealtimeController],
+  providers: [RealtimeService],
+  exports: [RealtimeService],
+})
 export class RealtimeModule {}
