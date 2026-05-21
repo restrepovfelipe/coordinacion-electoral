@@ -22,6 +22,7 @@ async function loadPuestoIds(muniName) {
     // Get puestos for this municipio
     const puestos = await api.get(`/puestos?municipioId=${muni.id}`);
     _puestoIdCache[muniName] = {};
+    _puestoIdCache[muniName]._muniId = muni.id;
     for (const p of puestos) {
       _puestoIdCache[muniName][p.name.toUpperCase()] = p.id;
     }
@@ -1368,6 +1369,32 @@ function saveAbogado(n, ck, id) {
   writeMuni(n);
   const ok = document.getElementById(id + '-abog-ok');
   if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  // Best-effort API sync
+  if (window.api && window.CURRENT_USER) {
+    const muniBackendId = _puestoIdCache[n]?._muniId;
+    if (muniBackendId) {
+      const s = gs(n);
+      const ab = s.abogados[ck];
+      if (ab) {
+        if (ab._backendId) {
+          api.patch(`/abogados/${ab._backendId}`, {
+            name: ab.nombre || '',
+            phone: ab.telefono || undefined,
+            notes: ab.firma || undefined,
+          }).catch(err => console.warn('abogado update failed:', err && err.status));
+        } else {
+          api.post(`/municipios/${muniBackendId}/abogados`, {
+            name: ab.nombre || '',
+            phone: ab.telefono || undefined,
+            notes: ab.firma || undefined,
+          }).then(created => {
+            ab._backendId = created.id;
+            saveLocalSt();
+          }).catch(err => console.warn('abogado create failed:', err && err.status));
+        }
+      }
+    }
+  }
   renderAbogadoPanel(n, ck, id);
 }
 
@@ -1406,6 +1433,30 @@ function saveRefrig(n, ck, id) {
   writeMuni(n);
   const ok = document.getElementById(id + '-refrig-ok');
   if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  // Best-effort API sync
+  if (window.api && window.CURRENT_USER) {
+    const muniBackendId = _puestoIdCache[n]?._muniId;
+    if (muniBackendId) {
+      const s = gs(n);
+      const rf = s.refrigerios[ck];
+      if (rf) {
+        if (rf._backendId) {
+          api.patch(`/refrigerios/${rf._backendId}`, {
+            notes: rf.nombre || undefined,
+          }).catch(err => console.warn('refrigerio update failed:', err && err.status));
+        } else {
+          api.post('/refrigerios', {
+            scopeType: 'MUNICIPIO',
+            scopeId: muniBackendId,
+            notes: rf.nombre || undefined,
+          }).then(created => {
+            rf._backendId = created.id;
+            saveLocalSt();
+          }).catch(err => console.warn('refrigerio create failed:', err && err.status));
+        }
+      }
+    }
+  }
   renderRefrigPanel(n, ck, id);
 }
 
@@ -1468,6 +1519,24 @@ function addComparendo(n, ck, id) {
   if (!s.comparendos[ck]) s.comparendos[ck] = [];
   s.comparendos[ck].push({ pregonero: '', puesto: '', fecha: '', tipo: '', notas: '', estado: 'pendiente' });
   saveLocalSt();
+  // Best-effort API sync
+  if (window.api && window.CURRENT_USER) {
+    const muniBackendId = _puestoIdCache[n]?._muniId;
+    if (muniBackendId) {
+      const newC = s.comparendos[ck][s.comparendos[ck].length - 1];
+      api.post('/comparendos', {
+        scopeType: 'MUNICIPIO',
+        scopeId: muniBackendId,
+        date: newC.fecha ? new Date(newC.fecha).toISOString() : new Date().toISOString(),
+        description: newC.tipo || 'Sin descripción',
+        status: 'abierto',
+        notes: newC.notas || undefined,
+      }).then(created => {
+        newC._backendId = created.id;
+        saveLocalSt();
+      }).catch(err => console.warn('comparendo create failed:', err && err.status));
+    }
+  }
   renderComparendosPanel(n, ck, id);
 }
 function delComparendo(n, ck, idx, id) {
@@ -1480,6 +1549,21 @@ function saveComparendos(n, ck, id) {
   writeMuni(n);
   const ok = document.getElementById(id + '-comp-ok');
   if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  // Best-effort API sync: patch existing comparendos
+  if (window.api && window.CURRENT_USER) {
+    const s = gs(n);
+    const list = s.comparendos?.[ck] || [];
+    for (const c of list) {
+      if (c._backendId) {
+        api.patch(`/comparendos/${c._backendId}`, {
+          date: c.fecha ? new Date(c.fecha).toISOString() : undefined,
+          description: c.tipo || undefined,
+          status: c.estado === 'resuelto' ? 'resuelto' : 'abierto',
+          notes: c.notas || undefined,
+        }).catch(err => console.warn('comparendo update failed:', err && err.status));
+      }
+    }
+  }
 }
 
 // ═══ MAPA DE PUESTOS (punto 4) ═══
