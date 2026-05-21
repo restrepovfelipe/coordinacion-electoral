@@ -276,16 +276,14 @@ async function _openEditModal(userId) {
       btn.disabled = true;
       if (errEl) errEl.textContent = '';
       try {
-        const newScope = await window.api.post(`/users/${userId}/scopes`, { scopeType, scopeId: scopeIdVal });
-        // Add new tag to list
+        await window.api.post(`/users/${userId}/scopes`, { scopeType, scopeId: scopeIdVal });
+        // Re-fetch user to get updated scopes with their DB IDs
+        const refreshed = await window.api.get(`/users/${userId}`);
         const list = document.getElementById('up-ed-scope-list');
         if (list) {
-          const placeholder = list.querySelector('span:not(.up-scope-tag)');
-          if (placeholder) placeholder.remove();
-          const tag = document.createElement('span');
-          tag.className = 'up-scope-tag';
-          tag.innerHTML = `${esc(newScope.scopeType)}:${esc(String(newScope.scopeId))} <button data-action="remove-scope" data-scope-id="${newScope.id}" title="Eliminar scope">×</button>`;
-          list.appendChild(tag);
+          list.innerHTML = (refreshed.scopes || []).map(s =>
+            `<span class="up-scope-tag">${esc(s.scopeType)}:${esc(String(s.scopeId))} <button data-action="remove-scope" data-scope-id="${s.id}" title="Eliminar scope">×</button></span>`
+          ).join('') || '<span style="color:var(--t3);font-size:11px">Sin scopes asignados</span>';
         }
         document.getElementById('up-scope-id').value = '';
       } catch (err) {

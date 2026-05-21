@@ -295,7 +295,7 @@ function _attachListeners() {
 // ── Load municipios into filter select ────────────────────────────────────
 async function _loadMunicipios() {
   try {
-    const munis = await window.api.get('/municipios');
+    const munis = window._municipiosCache || (window._municipiosCache = await window.api.get('/municipios'));
     const sel = document.getElementById('t-municipio-sel');
     munis.forEach(m => {
       _tMunicipiosMap[m.id] = m.name;
@@ -337,20 +337,22 @@ function _openPuestoPicker() {
   `;
   _testigosPanel.appendChild(overlay);
 
-  // Populate municipios
-  window.api.get('/municipios').then(munis => {
-    const sel = overlay.querySelector('#t-pk-municipio');
-    if (!sel) return;
-    munis.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.name;
-      sel.appendChild(opt);
+  // Populate municipios (use cached list if available)
+  Promise.resolve(window._municipiosCache || window.api.get('/municipios'))
+    .then(munis => {
+      if (!window._municipiosCache) window._municipiosCache = munis;
+      const sel = overlay.querySelector('#t-pk-municipio');
+      if (!sel) return;
+      munis.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        sel.appendChild(opt);
+      });
+    }).catch(err => {
+      const errEl = overlay.querySelector('#t-pk-err');
+      if (errEl) errEl.textContent = errorToSpanish(err);
     });
-  }).catch(err => {
-    const errEl = overlay.querySelector('#t-pk-err');
-    if (errEl) errEl.textContent = errorToSpanish(err);
-  });
 
   // Municipio change → load puestos
   overlay.querySelector('#t-pk-municipio').addEventListener('change', async e => {
