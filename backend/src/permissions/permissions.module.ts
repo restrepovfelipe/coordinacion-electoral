@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
+import { PermissionsService } from './permissions.service.js';
 
-// Skeleton — populated in Phase 3 (T18): PermissionsService + transitive-scope CTE.
-@Module({})
+// Skeleton — populated in T18: PermissionsService + transitive-scope CTE.
+@Module({
+  providers: [PermissionsService],
+  exports: [PermissionsService],
+})
 export class PermissionsModule {}
