@@ -22,7 +22,7 @@ import { UpdateRefrigerioDto } from './dto/update-refrigerio.dto.js';
 @ApiTags('refrigerios')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api/refrigerios')
+@Controller('refrigerios')
 export class RefrigeriosController {
   constructor(private readonly refrigeriosService: RefrigeriosService) {}
 

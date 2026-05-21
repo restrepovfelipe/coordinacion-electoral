@@ -24,7 +24,7 @@ import { UpdateAbogadoDto } from './dto/update-abogado.dto.js';
 @ApiTags('abogados')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api/municipios')
+@Controller('municipios')
 export class AbogadosController {
   constructor(private readonly abogadosService: AbogadosService) {}
 
@@ -43,7 +43,7 @@ export class AbogadosController {
 @ApiTags('abogados')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api/abogados')
+@Controller('abogados')
 export class AbogadosStandaloneController {
   constructor(private readonly abogadosService: AbogadosService) {}
 

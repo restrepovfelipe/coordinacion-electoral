@@ -24,7 +24,7 @@ import { UpdateTestigoDto } from './dto/update-testigo.dto.js';
 @ApiTags('testigos')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api/puestos')
+@Controller('puestos')
 export class TestigosController {
   constructor(private readonly testigosService: TestigosService) {}
 
@@ -61,7 +61,7 @@ export class TestigosController {
 @ApiTags('testigos')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api/testigos')
+@Controller('testigos')
 export class TestigosStandaloneController {
   constructor(private readonly testigosService: TestigosService) {}
 

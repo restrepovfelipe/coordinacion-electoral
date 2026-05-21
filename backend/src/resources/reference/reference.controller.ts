@@ -9,7 +9,7 @@ import { ReferenceService } from './reference.service.js';
 @ApiTags('reference')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api')
+@Controller('')
 export class ReferenceController {
   constructor(private readonly referenceService: ReferenceService) {}
 

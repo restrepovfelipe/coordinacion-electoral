@@ -29,7 +29,7 @@ import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 @ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN)
-@Controller('api/users')
+@Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

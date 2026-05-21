@@ -22,7 +22,7 @@ import { UpdateComparendoDto } from './dto/update-comparendo.dto.js';
 @ApiTags('comparendos')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api/comparendos')
+@Controller('comparendos')
 export class ComparendosController {
   constructor(private readonly comparendosService: ComparendosService) {}
 

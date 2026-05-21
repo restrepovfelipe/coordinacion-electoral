@@ -21,7 +21,7 @@ import { UpdateMovilidadDto } from './dto/update-movilidad.dto.js';
 @ApiTags('movilidad')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
-@Controller('api/movilidad')
+@Controller('movilidad')
 export class MovilidadController {
   constructor(private readonly movilidadService: MovilidadService) {}
 
