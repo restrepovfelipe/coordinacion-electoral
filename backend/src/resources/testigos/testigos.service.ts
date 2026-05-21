@@ -43,6 +43,7 @@ export class TestigosService {
     const existing = await this.prisma.testigo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Testigo not found');
 
+    if (existing.puestoId === null) throw new ForbiddenException();
     const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, existing.puestoId);
     if (!canAccess) throw new ForbiddenException();
 
@@ -66,6 +67,7 @@ export class TestigosService {
     const existing = await this.prisma.testigo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Testigo not found');
 
+    if (existing.puestoId === null) throw new ForbiddenException();
     const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, existing.puestoId);
     if (!canAccess) throw new ForbiddenException();
 
