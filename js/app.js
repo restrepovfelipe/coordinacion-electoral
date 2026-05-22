@@ -383,7 +383,7 @@ function buildCCCard(n, ck) {
   card.innerHTML = `
     <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
       <div>
-        <div class="cc-nm">${ck}</div>
+        <div class="cc-nm">${_ckLabel(n, ck)}</div>
         <div class="cc-crd-row">
           <span class="cc-crd-lbl">Coord:</span>
           <span class="cc-crd-val" id="${id}-cv">${esc(sc.coord) || '—'}</span>
@@ -575,7 +575,7 @@ function buildAllPuestosSection(n, ck, puestos, s) {
   const sc = (s.comunas || {})[ck] || {};
   return `<div style="margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${ck}</div>
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${_ckLabel(n, ck)}</div>
       ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
       <button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>
     </div>
@@ -1810,6 +1810,10 @@ const MUNI_COORDS = {
   'YONDO-CASABE':       [6.8182, -74.4441],
 };
 
+function _ckLabel(n, ck) {
+  return ck === 'SIN COMUNA' ? (n === 'MEDELLIN' ? 'MEDELLÍN' : n) : ck;
+}
+
 function _testPctColor(pct) {
   if (pct >= 71) return '#22c55e';
   if (pct >= 41) return '#f5c842';
@@ -1886,7 +1890,7 @@ function renderMuniMap(n) {
     L.circleMarker([lat, lng], {
       radius: 14, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
     }).addTo(_muniLeafletMap)
-      .bindPopup(`<b>${esc(ck)}</b><br>Cobertura: ${testPct}% (${testReg}/${totMesas} mesas)${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
+      .bindPopup(`<b>${esc(_ckLabel(n, ck))}</b><br>Cobertura: ${testPct}% (${testReg}/${totMesas} mesas)${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
   });
 
   if (bounds.length > 1) _muniLeafletMap.fitBounds(bounds, { padding: [30, 30] });
