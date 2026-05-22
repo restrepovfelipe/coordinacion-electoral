@@ -18,10 +18,11 @@ set -euo pipefail
 : "${DB_APP_USER_PASSWORD:?DB_APP_USER_PASSWORD must be set}"
 : "${DB_INSTANCE_CONN:?DB_INSTANCE_CONN must be set}"
 
-# ─── Generate PgBouncer config files in /tmp (writable in Cloud Run) ──────────
+# ─── Generate PgBouncer config files in /tmp (writable at runtime) ────────────
 
 # auth_type=trust means clients on localhost need no password;
 # PgBouncer uses the password from [databases] to authenticate to PostgreSQL.
+# pidfile in /tmp because the container may not have write access elsewhere.
 cat > /tmp/pgbouncer.ini <<EOF
 [databases]
 defensores = host=/cloudsql/${DB_INSTANCE_CONN} dbname=defensores user=app_user password=${DB_APP_USER_PASSWORD}
@@ -31,6 +32,7 @@ listen_port     = 5432
 listen_addr     = 127.0.0.1
 auth_type       = trust
 auth_file       = /tmp/pgbouncer-userlist.txt
+pidfile         = /tmp/pgbouncer.pid
 pool_mode       = transaction
 max_client_conn = 100
 default_pool_size   = 5
@@ -47,7 +49,9 @@ EOF
 printf '"app_user" ""\n' > /tmp/pgbouncer-userlist.txt
 
 # ─── Start PgBouncer ──────────────────────────────────────────────────────────
-pgbouncer /tmp/pgbouncer.ini &
+# -u nobody: drop from root to nobody after binding the port (required by PgBouncer).
+# Logs go to stdout (no logfile= set) so Cloud Run captures them.
+pgbouncer -u nobody /tmp/pgbouncer.ini &
 PGB_PID=$!
 
 echo "[entrypoint] PgBouncer starting (pid ${PGB_PID})..."
