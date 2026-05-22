@@ -1,6 +1,7 @@
 {
   "displayName": "PMU Electoral Day D Dashboard",
   "mosaicLayout": {
+    "columns": 24,
     "tiles": [
       {
         "width": 8,
