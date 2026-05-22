@@ -18,9 +18,8 @@ export interface MunicipioStat {
   municipioNombre: string;
   testigosCount: number;
   mesasCount: number;
+  mesasCubiertas: number;
   coberturaPct: number;
-  /** Ratio used for required-testigos calculation; clients should use this for local formula alignment. */
-  ratioMesasAlta: number;
   prioridadAltaCount: number;
   prioridadMediaCount: number;
   prioridadBajaCount: number;
@@ -74,6 +73,7 @@ interface RawStatRow {
   municipioNombre: string;
   testigosCount: bigint;
   mesasCount: bigint;
+  mesasCubiertas: bigint;
   altaCount: bigint;
   mediaCount: bigint;
   bajaCount: bigint;
@@ -201,11 +201,24 @@ export class DashboardService {
 
     if (isBroad) {
       rows = await this.prisma.$queryRaw<RawStatRow[]>(Prisma.sql`
+        WITH puesto_cov AS (
+          SELECT
+            p."municipioId",
+            SUM(p.mesas)                                         AS "totalMesas",
+            SUM(LEAST(COALESCE(tc.cnt, 0), p.mesas))             AS "mesasCubiertas",
+            SUM(COALESCE(tc.cnt, 0))                             AS "totalTestigos"
+          FROM "Puesto" p
+          LEFT JOIN (
+            SELECT "puestoId", COUNT(*) AS cnt FROM "Testigo" GROUP BY "puestoId"
+          ) tc ON tc."puestoId" = p.id
+          GROUP BY p."municipioId"
+        )
         SELECT
           m.id                                     AS "municipioId",
           m.name                                   AS "municipioNombre",
-          COUNT(DISTINCT t.id)                     AS "testigosCount",
-          SUM(DISTINCT p.mesas)                    AS "mesasCount",
+          pc."totalTestigos"                       AS "testigosCount",
+          pc."totalMesas"                          AS "mesasCount",
+          pc."mesasCubiertas"                      AS "mesasCubiertas",
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'ALTA')  AS "altaCount",
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'MEDIA') AS "mediaCount",
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'BAJA')  AS "bajaCount",
@@ -221,12 +234,13 @@ export class DashboardService {
           MAX(cfg."ratioMesasMedia")               AS "ratioMesasMedia",
           MAX(cfg."ratioMesasBaja")                AS "ratioMesasBaja"
         FROM "Municipio" m
-        LEFT JOIN "Puesto" p            ON p."municipioId" = m.id
-        LEFT JOIN "Testigo" t           ON t."puestoId"    = p.id
-        LEFT JOIN "PuestoPrioridad" pp  ON pp."puestoId"   = p.id
-        LEFT JOIN "Puesto" p2           ON p2.id           = pp."puestoId"
+        JOIN puesto_cov pc              ON pc."municipioId"  = m.id
+        LEFT JOIN "Puesto" p            ON p."municipioId"   = m.id
+        LEFT JOIN "Testigo" t           ON t."puestoId"      = p.id
+        LEFT JOIN "PuestoPrioridad" pp  ON pp."puestoId"     = p.id
+        LEFT JOIN "Puesto" p2           ON p2.id             = pp."puestoId"
         CROSS JOIN (SELECT * FROM "PrioridadConfig" LIMIT 1) cfg
-        GROUP BY m.id, m.name
+        GROUP BY m.id, m.name, pc."totalTestigos", pc."totalMesas", pc."mesasCubiertas"
         ORDER BY m.name
       `);
     } else {
@@ -263,12 +277,26 @@ export class DashboardService {
           SELECT p.id, p."municipioId" FROM "Puesto" p
           INNER JOIN "UserScope" us ON us."scopeId" = p.id
           WHERE us."userId" = ${user.id} AND us."scopeType" = 'PUESTO'
+        ),
+        puesto_cov AS (
+          SELECT
+            up."municipioId",
+            SUM(p.mesas)                                         AS "totalMesas",
+            SUM(LEAST(COALESCE(tc.cnt, 0), p.mesas))             AS "mesasCubiertas",
+            SUM(COALESCE(tc.cnt, 0))                             AS "totalTestigos"
+          FROM user_puestos up
+          JOIN "Puesto" p ON p.id = up.id
+          LEFT JOIN (
+            SELECT "puestoId", COUNT(*) AS cnt FROM "Testigo" GROUP BY "puestoId"
+          ) tc ON tc."puestoId" = up.id
+          GROUP BY up."municipioId"
         )
         SELECT
           m.id                                     AS "municipioId",
           m.name                                   AS "municipioNombre",
-          COUNT(DISTINCT t.id)                     AS "testigosCount",
-          SUM(DISTINCT p.mesas)                    AS "mesasCount",
+          pc."totalTestigos"                       AS "testigosCount",
+          pc."totalMesas"                          AS "mesasCount",
+          pc."mesasCubiertas"                      AS "mesasCubiertas",
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'ALTA')  AS "altaCount",
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'MEDIA') AS "mediaCount",
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'BAJA')  AS "bajaCount",
@@ -283,14 +311,15 @@ export class DashboardService {
           MAX(cfg."ratioMesasAlta")                AS "ratioMesasAlta",
           MAX(cfg."ratioMesasMedia")               AS "ratioMesasMedia",
           MAX(cfg."ratioMesasBaja")                AS "ratioMesasBaja"
-        FROM user_puestos up
-        JOIN "Municipio" m              ON m.id            = up."municipioId"
+        FROM puesto_cov pc
+        JOIN "Municipio" m              ON m.id            = pc."municipioId"
+        LEFT JOIN user_puestos up       ON up."municipioId" = m.id
         LEFT JOIN "Puesto" p            ON p.id            = up.id
         LEFT JOIN "Testigo" t           ON t."puestoId"    = up.id
         LEFT JOIN "PuestoPrioridad" pp  ON pp."puestoId"   = up.id
         LEFT JOIN "Puesto" p2           ON p2.id           = pp."puestoId"
         CROSS JOIN (SELECT * FROM "PrioridadConfig" LIMIT 1) cfg
-        GROUP BY m.id, m.name
+        GROUP BY m.id, m.name, pc."totalTestigos", pc."totalMesas", pc."mesasCubiertas"
         ORDER BY m.name
       `);
     }
@@ -298,26 +327,21 @@ export class DashboardService {
     return rows.map((r) => {
       const testigosCount = Number(r.testigosCount);
       const mesasCount = Number(r.mesasCount) || 0;
+      const mesasCubiertas = Number(r.mesasCubiertas) || 0;
       const altaCount = Number(r.altaCount);
       const mediaCount = Number(r.mediaCount);
       const bajaCount = Number(r.bajaCount);
       const criticosUncovered = Number(r.criticosUncovered);
-      const ratioAlta = Number(r.ratioMesasAlta) || 0.5;
-      const ratioMedia = Number(r.ratioMesasMedia) || 0.4;
-      const ratioBaja = Number(r.ratioMesasBaja) || 0.33;
 
-      // Municipal aggregate uses ALTA ratio (most demanding) as the coverage standard.
-      const { pct: coberturaPct } = this.coverage.computeCoverage(
-        testigosCount, mesasCount, 'ALTA', ratioAlta, ratioMedia, ratioBaja,
-      );
+      const coberturaPct = this.coverage.computePhysicalCoverage(mesasCubiertas, mesasCount);
 
       return {
         municipioId: Number(r.municipioId),
         municipioNombre: r.municipioNombre,
         testigosCount,
         mesasCount,
+        mesasCubiertas,
         coberturaPct,
-        ratioMesasAlta: ratioAlta,
         prioridadAltaCount: altaCount,
         prioridadMediaCount: mediaCount,
         prioridadBajaCount: bajaCount,
@@ -536,10 +560,9 @@ export class DashboardService {
       const ratioBaja = Number(r.ratioMesasBaja);
       const votosTotal = Number(r.votosTotal);
 
-      const { required, pct } = this.coverage.computeCoverage(
-        testigosAsignados, mesas, nivel,
-        ratioAlta, ratioMedia, ratioBaja,
-      );
+      const required = this.coverage.requiredTestigos(mesas, nivel, ratioAlta, ratioMedia, ratioBaja);
+      const mesasCub = this.coverage.cappedMesasCovered(testigosAsignados, mesas);
+      const pct = this.coverage.computePhysicalCoverage(mesasCub, mesas);
 
       const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, required);
 
@@ -678,8 +701,8 @@ export class DashboardService {
       const mesas = Number(r.mesas);
       const testigosAsignados = Number(r.testigosAsignados);
       const votosTotal = Number(r.votosTotal);
-      const { required } = this.coverage.computeCoverage(
-        testigosAsignados, mesas, nivel,
+      const required = this.coverage.requiredTestigos(
+        mesas, nivel,
         Number(r.ratioMesasAlta), Number(r.ratioMesasMedia), Number(r.ratioMesasBaja),
       );
       const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, required);

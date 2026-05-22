@@ -24,15 +24,13 @@ const _testigoCountsByMuni = {}; // { [municipioName]: number }
 // Populated from GET /api/dashboard/stats (Phase 14); updated via SSE.
 const _dashboardStatsByMuni = {}; // { [municipioName]: MunicipioStat }
 let _muniIdToName = null; // { [municipioId]: municipioName } — built lazily
-// Global ratio from PrioridadConfig (shared across all municipalities).
-// Seeded from the first /dashboard/stats response; matches the backend formula.
-let _ratioMesasAlta = 0.5;
-
-/** Coverage % using the same formula as the backend (testigos vs. required = CEIL(mesas × ratio)). */
-function _coveragePct(testReg, totMesas) {
+/**
+ * Physical coverage % — mesas with ≥1 testigo / total mesas.
+ * mesasCubiertas must be pre-computed as SUM(MIN(testigos_per_puesto, mesas_per_puesto)).
+ */
+function _coveragePct(mesasCubiertas, totMesas) {
   if (!totMesas) return 0;
-  const required = Math.ceil(totMesas * _ratioMesasAlta);
-  return required > 0 ? Math.min(100, Math.round(testReg / required * 100)) : 100;
+  return Math.floor((mesasCubiertas / totMesas) * 100);
 }
 
 async function _buildMuniIdMap() {
@@ -91,10 +89,6 @@ async function loadDashboardStats() {
     for (const s of stats) {
       const name = map[s.municipioId];
       if (name) _dashboardStatsByMuni[name] = s;
-    }
-    // Seed global ratio so drill-down views use the same formula as the backend.
-    if (stats.length > 0 && stats[0].ratioMesasAlta) {
-      _ratioMesasAlta = stats[0].ratioMesasAlta;
     }
     _applyDashboardStatsToDom();
   } catch (err) {
@@ -309,12 +303,13 @@ function renderMuni(n) {
   const comunas = RAW[n]; const s = gs(n); const ckeys = Object.keys(comunas).sort();
   let totP = 0, totM = 0, totV = 0;
   let totTestReg = 0, totTestFalt = 0, totCov = 0;
+  let totMesasCub = 0;
   ckeys.forEach(c => {
     comunas[c].forEach(p => { totP++; totM += (p.mesas || 0); totV += (p.total || 0); });
     const st = _ccStats(n, c);
-    totTestReg += st.testReg; totTestFalt += st.testFalt;
+    totTestReg += st.testReg; totTestFalt += st.testFalt; totMesasCub += st.mesasCubiertas;
   });
-  const pctCov = _coveragePct(totTestReg, totM);
+  const pctCov = _coveragePct(totMesasCub, totM);
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
@@ -363,19 +358,21 @@ function _ccStats(n, ck) {
   const puestos = RAW[n][ck] || [];
   const totPuestos = puestos.length;
   const totMesas = puestos.reduce((a, p) => a + (p.mesas || 0), 0);
-  let testReg = 0, testPuCub = 0;
+  let testReg = 0, mesasCubiertas = 0, testPuCub = 0;
   puestos.forEach(p => {
     const rows = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre);
     testReg += rows.length;
+    // Physical formula: each testigo covers 1 mesa, capped at puesto's mesas count
+    mesasCubiertas += Math.min(rows.length, p.mesas || 0);
     if (rows.length > 0) testPuCub++;
   });
-  const testFalt = Math.max(0, totMesas - testReg);
+  const testFalt = Math.max(0, totMesas - mesasCubiertas);
   const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
-  const pct = _coveragePct(testReg, totMesas);
+  const pct = _coveragePct(mesasCubiertas, totMesas);
   const resps = (s.movilidad?.[ck]?.responsables) || [];
   const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
-  return { totPuestos, totMesas, testReg, testFalt, testPuCub, covPuestos, pct, totMotos, totCarros };
+  return { totPuestos, totMesas, mesasCubiertas, testReg, testFalt, testPuCub, covPuestos, pct, totMotos, totCarros };
 }
 
 function _refreshCCStats(n, ck) {
@@ -442,16 +439,17 @@ async function loadAllTestigosForMuni(n) {
 // ═══ ZONA CARDS ═══
 function buildZonaCard(n, zona) {
   const s = gs(n); const sz = (s.zonas || {})[zona.nombre] || {};
-  let totPuestos = 0, totMesas = 0;
-  let totTestReg = 0, totTestFalt = 0, totMotos = 0, totCarros = 0, totCov = 0;
+  let totPuestos = 0, totMesas = 0, totMesasCub = 0;
+  let totTestReg = 0, totTestFalt = 0, totMotos = 0, totCarros = 0;
   zona.comunas.forEach(ck => {
     if (!RAW[n][ck]) return;
     const st = _ccStats(n, ck);
     totPuestos += st.totPuestos; totMesas += st.totMesas;
     totTestReg += st.testReg; totTestFalt += st.testFalt;
+    totMesasCub += st.mesasCubiertas;
     totMotos += st.totMotos; totCarros += st.totCarros;
   });
-  const pct = _coveragePct(totTestReg, totMesas);
+  const pct = _coveragePct(totMesasCub, totMesas);
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
   const isOpen = OPEN_Z.has(n + zona.nombre);
   const el = document.createElement('div'); el.className = 'zona-card'; el.id = zid;
@@ -1057,12 +1055,12 @@ function renderOV() {
     const rTotM = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.mesas || 0), 0), 0), 0);
     const rTotV = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.total || 0), 0), 0), 0);
     const rTotZ = validMusis.reduce((a, n) => a + Object.keys(RAW[n]).length, 0);
-    let rTestReg = 0, rTestFalt = 0;
+    let rTestReg = 0, rTestFalt = 0, rMesasCub = 0;
     validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
       const st = _ccStats(n, c);
-      rTestReg += st.testReg; rTestFalt += st.testFalt;
+      rTestReg += st.testReg; rTestFalt += st.testFalt; rMesasCub += st.mesasCubiertas;
     }));
-    const rPct = _coveragePct(rTestReg, rTotM);
+    const rPct = _coveragePct(rMesasCub, rTotM);
     html += `
     <div style="margin-top:22px;margin-bottom:4px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
@@ -1086,12 +1084,12 @@ function renderOV() {
       const totP = ckeys.reduce((a, c) => a + RAW[n][c].length, 0);
       const totM = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.mesas || 0), 0), 0);
       const totV = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.total || 0), 0), 0);
-      let testReg = 0, testFalt = 0;
+      let testReg = 0, testFalt = 0, mCub = 0;
       ckeys.forEach(c => {
         const st = _ccStats(n, c);
-        testReg += st.testReg; testFalt += st.testFalt;
+        testReg += st.testReg; testFalt += st.testFalt; mCub += st.mesasCubiertas;
       });
-      const pct = _coveragePct(testReg, totM);
+      const pct = _coveragePct(mCub, totM);
       const apiCount = _testigoCountsByMuni[n];
       const displayCount = apiCount !== undefined ? apiCount : testReg;
       const apiStat = _dashboardStatsByMuni[n];
@@ -1680,7 +1678,7 @@ function renderMapPanel(n, ck, id) {
     }).addTo(map);
     validPuestos.forEach(p => {
       const ts = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length;
-      const pct = _coveragePct(ts, p.mesas);
+      const pct = _coveragePct(Math.min(ts, p.mesas || 0), p.mesas);
       const color = _testPctColor(pct);
       const marker = L.circleMarker([p.lat, p.lon], {
         radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
