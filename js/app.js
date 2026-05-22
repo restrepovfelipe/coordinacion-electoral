@@ -328,6 +328,7 @@ async function loadAllTestigosForMuni(n) {
   const comunas = Object.keys(RAW[n] || {});
   await Promise.all(comunas.map(ck => loadTestigosForComune(n, ck)));
   _refreshMuniStats(n);
+  if (n === CUR && document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(n);
 }
 
 // ═══ ZONA CARDS ═══
