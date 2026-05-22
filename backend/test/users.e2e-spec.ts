@@ -214,6 +214,7 @@ describe('UsersController (e2e)', () => {
       username: 'newuser',
       displayName: 'New User',
       role: Role.PUESTO_COORDINATOR,
+      password: 'securePass1',
     };
 
     return request(appSuperAdmin.getHttpServer() as Server)
@@ -231,7 +232,7 @@ describe('UsersController (e2e)', () => {
     return request(appSuperAdmin.getHttpServer() as Server)
       .post('/api/users')
       .set('Authorization', 'Bearer fake-super-admin-token')
-      .send({ username: 'incomplete' }) // missing displayName and role
+      .send({ username: 'incomplete' }) // missing displayName, role, and password
       .expect(400);
   });
 
