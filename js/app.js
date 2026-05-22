@@ -328,6 +328,7 @@ async function loadAllTestigosForMuni(n) {
   const comunas = Object.keys(RAW[n] || {});
   await Promise.all(comunas.map(ck => loadTestigosForComune(n, ck)));
   _refreshMuniStats(n);
+  if (n === CUR && document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(n);
 }
 
 // ═══ ZONA CARDS ═══
@@ -382,7 +383,7 @@ function buildCCCard(n, ck) {
   card.innerHTML = `
     <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
       <div>
-        <div class="cc-nm">${ck}</div>
+        <div class="cc-nm">${_ckLabel(n, ck)}</div>
         <div class="cc-crd-row">
           <span class="cc-crd-lbl">Coord:</span>
           <span class="cc-crd-val" id="${id}-cv">${esc(sc.coord) || '—'}</span>
@@ -574,7 +575,7 @@ function buildAllPuestosSection(n, ck, puestos, s) {
   const sc = (s.comunas || {})[ck] || {};
   return `<div style="margin-bottom:14px">
     <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
-      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${ck}</div>
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${_ckLabel(n, ck)}</div>
       ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
       <button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>
     </div>
@@ -1564,14 +1565,26 @@ function renderMapPanel(n, ck, id) {
       attribution: '© OpenStreetMap', maxZoom: 18
     }).addTo(map);
     validPuestos.forEach(p => {
-      const ts = (s.testigos?.[ck]?.[p.puesto] || []).length;
-      const color = _testPctColor(ts > 0 ? 100 : 0);
+      const ts = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length;
+      const pct = p.mesas ? Math.round(ts / p.mesas * 100) : 0;
+      const color = _testPctColor(pct);
       const marker = L.circleMarker([p.lat, p.lon], {
         radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
       }).addTo(map);
-      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes · ${ts} testigo${ts !== 1 ? 's' : ''}</span>`);
+      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes · ${ts} testigo${ts !== 1 ? 's' : ''} · <b>Cobertura: ${pct}%</b></span>`);
     });
     map.fitBounds(validPuestos.map(p => [p.lat, p.lon]), { padding: [20, 20] });
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = () => {
+      const div = L.DomUtil.create('div', '');
+      div.style.cssText = 'background:rgba(15,23,42,.88);color:#e2e8f0;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.9';
+      div.innerHTML = '<b>Cobertura testigos</b><br>' +
+        '<span style="color:#22c55e">●</span> 71–100%<br>' +
+        '<span style="color:#f5c842">●</span> 41–70%<br>' +
+        '<span style="color:#ef4444">●</span> 0–40%';
+      return div;
+    };
+    legend.addTo(map);
     _maps[mapId] = map;
   }, 50);
 }
@@ -1797,6 +1810,10 @@ const MUNI_COORDS = {
   'YONDO-CASABE':       [6.8182, -74.4441],
 };
 
+function _ckLabel(n, ck) {
+  return ck === 'SIN COMUNA' ? (n === 'MEDELLIN' ? 'MEDELLÍN' : n) : ck;
+}
+
 function _testPctColor(pct) {
   if (pct >= 71) return '#22c55e';
   if (pct >= 41) return '#f5c842';
@@ -1873,7 +1890,7 @@ function renderMuniMap(n) {
     L.circleMarker([lat, lng], {
       radius: 14, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
     }).addTo(_muniLeafletMap)
-      .bindPopup(`<b>${esc(ck)}</b><br>Cobertura: ${testPct}% (${testReg}/${totMesas} mesas)${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
+      .bindPopup(`<b>${esc(_ckLabel(n, ck))}</b><br>Cobertura: ${testPct}% (${testReg}/${totMesas} mesas)${coord ? '<br>👤 ' + esc(coord) : ''}${phone ? '<br>📞 ' + esc(phone) : ''}`);
   });
 
   if (bounds.length > 1) _muniLeafletMap.fitBounds(bounds, { padding: [30, 30] });
