@@ -24,6 +24,12 @@ steps:
       - 'us-central1'
       - '--project'
       - 'coordinacion-electoral'
+      - '--max-instances'
+      - '5'
+      - '--set-env-vars'
+      - 'DB_INSTANCE_CONN=coordinacion-electoral:us-central1:defensores-pg'
+      - '--update-secrets'
+      - 'DATABASE_URL=DATABASE_URL:latest,DIRECT_DATABASE_URL=DIRECT_DATABASE_URL:latest,DB_APP_USER_PASSWORD=DB_APP_USER_PASSWORD:latest,CIP_WEB_API_KEY=CIP_WEB_API_KEY:latest'
 
 images:
   - 'us-central1-docker.pkg.dev/coordinacion-electoral/defensores/backend:$SHORT_SHA'

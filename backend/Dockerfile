@@ -34,8 +34,10 @@ FROM node:24-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
+# pgbouncer: connection pooler (sidecar, listens on 127.0.0.1:5432).
+# openssl: required by the Prisma query engine.
 RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends openssl \
+    && apt-get install -y --no-install-recommends openssl pgbouncer \
     && rm -rf /var/lib/apt/lists/*
 
 # Production node_modules (incl. the generated Prisma client), compiled output,
@@ -45,6 +47,10 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/prisma ./prisma
 
+# Entrypoint starts PgBouncer, waits for it, then exec node.
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Cloud Run injects PORT; main.ts listens on process.env.PORT ?? 3000.
 EXPOSE 3000
-CMD ["node", "dist/main"]
+ENTRYPOINT ["/entrypoint.sh"]

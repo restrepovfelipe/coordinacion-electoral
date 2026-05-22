@@ -318,7 +318,94 @@ ORDER BY duration DESC;
 
 ---
 
-## 8. Contactos y escalación
+## 8. PgBouncer — Diagnóstico y recuperación
+
+PgBouncer corre como proceso sidecar dentro del contenedor del backend. Escucha en `localhost:5432` y hace pool de conexiones hacia Cloud SQL. **El backend nunca conecta directamente a Cloud SQL** (excepto el cliente de LISTEN/NOTIFY para eventos en tiempo real).
+
+### CRÍTICO: PgBouncer no responde
+
+**Síntoma:** `/api/healthz` falla, los logs del backend muestran `ECONNREFUSED 127.0.0.1:5432`, o el backend no levanta.
+
+**Diagnóstico:**
+
+```bash
+# Ver logs del contenedor durante el arranque
+gcloud run services logs tail backend \
+  --project=coordinacion-electoral \
+  --region=us-central1 \
+  --limit=50
+
+# Buscar en los logs:
+#   "[entrypoint] PgBouncer starting" → el sidecar arrancó
+#   "[entrypoint] PgBouncer started on localhost:5432" → listo
+#   "ERROR: PgBouncer did not start within 5 s" → falla de arranque
+```
+
+**Causa probable:**
+1. **Falta `DB_APP_USER_PASSWORD`** en el entorno → el entrypoint falla en `set -u`. Verificar secretos en Cloud Run.
+2. **Socket de Cloud SQL no montado** → `DB_INSTANCE_CONN` incorrecto o el SA no tiene `roles/cloudsql.client`. Verificar `--add-cloudsql-instances`.
+
+**Recuperación:**
+
+```bash
+# Opción 1: Rollback a la revisión anterior (sin PgBouncer)
+gcloud run revisions list \
+  --service=backend --region=us-central1 --project=coordinacion-electoral
+
+gcloud run services update-traffic backend \
+  --to-revisions=<REVISION-ANTERIOR>=100 \
+  --region=us-central1 --project=coordinacion-electoral
+
+# Opción 2: Verificar y corregir los secretos montados
+gcloud run services describe backend \
+  --region=us-central1 --project=coordinacion-electoral \
+  --format='value(spec.template.spec.containers[0].env)'
+```
+
+---
+
+### WARNING: Conexiones del pool agotadas
+
+**Síntoma:** Las requests se encolan (latencia alta), los logs muestran `no more connections allowed` de PgBouncer, o el widget "Pool DB activo" del dashboard sube al máximo.
+
+**Diagnóstico via PgBouncer admin (requiere shell en el contenedor):**
+
+> Cloud Run no permite `exec` en contenedores en producción. Usar en cambio los logs y Cloud SQL Studio.
+
+```sql
+-- En Cloud SQL Studio: ver conexiones activas por estado
+SELECT state, count(*) FROM pg_stat_activity
+WHERE datname = 'defensores'
+GROUP BY state;
+
+-- Queries lentas que bloquean conexiones
+SELECT pid, now() - query_start AS duration, left(query, 100), state
+FROM pg_stat_activity
+WHERE state != 'idle' AND datname = 'defensores'
+ORDER BY duration DESC;
+```
+
+**Acción:**
+
+1. Si hay queries colgadas en `idle in transaction`: terminarlas (ver §3 Cloud SQL connections > 20).
+2. Si el pool está agotado por carga legítima: verificar instancias Cloud Run activas.
+   - Pool real = instancias × 5 conexiones.
+   - Con 5 instancias: 25 conexiones máximo al Cloud SQL.
+   - **NO aumentar `max-instances` sin ajustar `pool_size` en `entrypoint.sh`** (ver `docs/INFRA.md`).
+
+---
+
+### Checklist adicional para Día D (PgBouncer)
+
+```
+[ ] Logs del backend muestran "[entrypoint] PgBouncer started" en el arranque
+[ ] Cloud SQL: < 10 conexiones activas en reposo (PgBouncer mantiene min_pool_size=2 × instancias)
+[ ] Cloud Run max-instances confirmado en 5 (NO modificar sin recalcular pool_size)
+```
+
+---
+
+## 9. Contactos y escalación
 
 | Rol | Responsabilidad | Contacto |
 |-----|----------------|---------|

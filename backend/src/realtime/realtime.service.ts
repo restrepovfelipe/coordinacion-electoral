@@ -30,7 +30,10 @@ export class RealtimeService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    this.pgClient = new Client({ connectionString: process.env['DATABASE_URL'] });
+    // Use DIRECT_DATABASE_URL when PgBouncer is active: transaction-mode pooling
+    // drops persistent state (LISTEN channels) after each transaction.
+    const dsn = process.env['DIRECT_DATABASE_URL'] ?? process.env['DATABASE_URL'];
+    this.pgClient = new Client({ connectionString: dsn });
     await this.pgClient.connect();
     await this.pgClient.query('LISTEN app_events');
     this.pgClient.on('notification', (msg) => {
