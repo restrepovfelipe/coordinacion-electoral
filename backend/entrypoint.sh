@@ -71,10 +71,13 @@ done
 
 # ─── Apply pending Prisma migrations via PgBouncer ────────────────────────────
 # Idempotent: Prisma tracks applied migrations in _prisma_migrations table.
-# Advisory locks work within a single transaction in PgBouncer transaction mode.
+# DIRECT_DATABASE_URL secret uses Cloud SQL socket format (empty host) which
+# Prisma 6 rejects at parse time — override it with DATABASE_URL (PgBouncer).
 echo "[entrypoint] Running prisma migrate deploy..."
-/app/node_modules/.bin/prisma migrate deploy
-echo "[entrypoint] Migrations complete."
+DIRECT_DATABASE_URL="${DATABASE_URL}" /app/node_modules/.bin/prisma migrate deploy || {
+  echo "[entrypoint] WARN: prisma migrate deploy failed — check logs above" >&2
+}
+echo "[entrypoint] Migrations step complete."
 
 # ─── Hand off to NestJS ───────────────────────────────────────────────────────
 exec node /app/dist/main
