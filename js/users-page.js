@@ -17,6 +17,30 @@ const _UP_ROLES = [
   'PUESTO_COORDINATOR',
 ];
 
+function _roleClass(role) {
+  const map = {
+    SUPER_ADMIN: 'up-role-super-admin',
+    REGIONAL_COORDINATOR: 'up-role-regional',
+    MUNICIPAL_COORDINATOR: 'up-role-municipal',
+    ZONE_COORDINATOR: 'up-role-zone',
+    COMUNA_COORDINATOR: 'up-role-comuna',
+    PUESTO_COORDINATOR: 'up-role-puesto',
+  };
+  return map[role] || 'up-role';
+}
+
+function _roleLabel(role) {
+  const map = {
+    SUPER_ADMIN: 'Super Admin',
+    REGIONAL_COORDINATOR: 'Regional',
+    MUNICIPAL_COORDINATOR: 'Municipal',
+    ZONE_COORDINATOR: 'Zonal',
+    COMUNA_COORDINATOR: 'Comunal',
+    PUESTO_COORDINATOR: 'Puesto',
+  };
+  return map[role] || role;
+}
+
 // ── Open / Close ───────────────────────────────────────────────────────────
 function openUsersPage() {
   if (!window.CURRENT_USER || window.CURRENT_USER.role !== 'SUPER_ADMIN') return;
@@ -43,10 +67,12 @@ function _buildUsersPageHTML() {
   const assignableRoles = isRegional
     ? _UP_ROLES.filter(r => r !== 'SUPER_ADMIN')
     : _UP_ROLES;
-  const roleOptions = assignableRoles.map(r => `<option value="${r}">${r}</option>`).join('');
+  const roleOptions = assignableRoles.map(r =>
+    `<option value="${r}">${_roleLabel(r)}</option>`
+  ).join('');
   return `
     <div class="dir-box t-page-box" style="position:relative;max-width:1100px">
-      <div class="dir-hd">
+      <div class="dir-hd" style="position:sticky;top:0;background:var(--card);z-index:2;padding-bottom:14px;border-bottom:1px solid var(--b1);margin-bottom:0">
         <div style="display:flex;align-items:center;gap:10px">
           <h2>👥 Gestión de Usuarios</h2>
           <span class="t-counter" id="up-counter">—</span>
@@ -54,39 +80,63 @@ function _buildUsersPageHTML() {
         <button class="dir-close" data-action="close-users-page">Cerrar ✕</button>
       </div>
 
-      <div class="t-table-wrap" id="up-table-wrap">
-        <p style="color:var(--t3);font-size:12px;padding:20px 0">Cargando...</p>
+      <div style="padding:16px 0">
+        <div class="up-card" style="padding:0;overflow:hidden">
+          <div class="t-table-wrap" id="up-table-wrap">
+            <p style="color:var(--t3);font-size:12px;padding:20px 24px">Cargando...</p>
+          </div>
+        </div>
+        <div class="t-pagination" id="up-pagination" style="justify-content:center;gap:8px;margin-top:12px"></div>
       </div>
 
-      <div class="t-pagination" id="up-pagination"></div>
-
-      <hr style="border:none;border-top:1px solid var(--b1);margin:18px 0">
-
       <div class="up-create-section">
-        <h4>Crear nuevo usuario</h4>
-        <div class="up-create-grid">
-          <input id="up-new-username" placeholder="nombre.apellido" type="text">
-          <input id="up-new-displayname" placeholder="Nombre completo" type="text">
-          <input id="up-new-phone" placeholder="Teléfono (opcional)" type="text">
-          <input id="up-new-password" placeholder="Contraseña inicial (mín. 8 chars)" type="password">
-          <select id="up-new-role" data-action="up-role-changed">
-            ${roleOptions}
-          </select>
-        </div>
-        <div id="up-cascade-wrap" style="margin-top:10px;display:none">
-          <div class="up-create-grid" id="up-cascade-row1" style="display:none">
-            <select id="up-cascade-municipio" data-action="up-municipio-changed">
-              <option value="">— Municipio —</option>
-            </select>
+        <div class="up-card">
+          <h4>Crear nuevo usuario</h4>
+          <div class="up-create-form">
+            <div class="up-form-field">
+              <label for="up-new-username">Usuario</label>
+              <input id="up-new-username" placeholder="nombre.apellido" type="text" autocomplete="off">
+            </div>
+            <div class="up-form-field">
+              <label for="up-new-displayname">Nombre completo</label>
+              <input id="up-new-displayname" placeholder="Nombre completo" type="text">
+            </div>
+            <div class="up-form-field">
+              <label for="up-new-phone">Teléfono <span style="color:var(--t3);font-weight:400">(opcional)</span></label>
+              <input id="up-new-phone" placeholder="300 000 0000" type="text">
+            </div>
+            <div class="up-form-field">
+              <label for="up-new-password">Contraseña inicial</label>
+              <input id="up-new-password" placeholder="Mínimo 8 caracteres" type="password">
+            </div>
+            <div class="up-form-field">
+              <label for="up-new-role">Rol</label>
+              <select id="up-new-role" data-action="up-role-changed">
+                ${roleOptions}
+              </select>
+            </div>
+            <div id="up-cascade-wrap" style="display:none">
+              <div id="up-cascade-row1" style="display:none">
+                <div class="up-form-field">
+                  <label>Municipio</label>
+                  <select id="up-cascade-municipio" data-action="up-municipio-changed">
+                    <option value="">— Municipio —</option>
+                  </select>
+                </div>
+              </div>
+              <div id="up-cascade-row2" style="display:none">
+                <div class="up-form-field">
+                  <label id="up-cascade-child-label">Ámbito</label>
+                  <select id="up-cascade-child">
+                    <option value="">— Seleccionar —</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div id="up-create-err" class="t-err"></div>
+            <button class="t-btn-primary" data-action="up-create-user" style="margin-top:4px">Crear usuario</button>
           </div>
-          <div class="up-create-grid" id="up-cascade-row2" style="display:none">
-            <select id="up-cascade-child">
-              <option value="">— Seleccionar —</option>
-            </select>
-          </div>
         </div>
-        <div id="up-create-err" class="t-err"></div>
-        <button class="t-btn-primary" data-action="up-create-user">Crear usuario</button>
       </div>
     </div>
   `;
@@ -95,7 +145,7 @@ function _buildUsersPageHTML() {
 // ── Load & Render ──────────────────────────────────────────────────────────
 async function _loadUsersPage(page) {
   const wrap = document.getElementById('up-table-wrap');
-  if (wrap) wrap.innerHTML = '<p style="color:var(--t3);font-size:12px;padding:20px 0">Cargando...</p>';
+  if (wrap) wrap.innerHTML = '<p style="color:var(--t3);font-size:12px;padding:20px 24px">Cargando...</p>';
 
   try {
     const result = await window.api.get(`/users?page=${page}&limit=${_UP_LIMIT}`);
@@ -108,7 +158,7 @@ async function _loadUsersPage(page) {
     if (badge) badge.textContent = `${_upTotal} usuarios`;
   } catch (err) {
     console.error('_loadUsersPage failed:', err);
-    if (wrap) wrap.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px 0">${esc(errorToSpanish(err))}</p>`;
+    if (wrap) wrap.innerHTML = `<p style="color:var(--red);font-size:12px;padding:20px 24px">${esc(errorToSpanish(err))}</p>`;
   }
 }
 
@@ -117,7 +167,7 @@ function _renderUsersTable() {
   if (!wrap) return;
 
   if (!_upData.length) {
-    wrap.innerHTML = '<p style="color:var(--t3);font-size:12px;padding:20px 0">No se encontraron usuarios.</p>';
+    wrap.innerHTML = '<p style="color:var(--t3);font-size:12px;padding:20px 24px">No se encontraron usuarios.</p>';
     return;
   }
 
@@ -125,7 +175,7 @@ function _renderUsersTable() {
     const activeBadge = u.active
       ? '<span class="up-active">Activo</span>'
       : '<span class="up-inactive">Inactivo</span>';
-    const roleBadge = `<span class="up-role">${esc(u.role)}</span>`;
+    const roleBadge = `<span class="${_roleClass(u.role)}">${_roleLabel(u.role)}</span>`;
 
     const deactivateBtn = u.active
       ? `<button class="t-btn-cancel" data-action="deactivate-user" data-id="${u.id}" style="font-size:11px;padding:3px 10px;color:var(--orange)">Desactivar</button>`
@@ -172,19 +222,86 @@ function _renderUsersPagination() {
   if (!el) return;
   const totalPages = Math.max(1, Math.ceil(_upTotal / _UP_LIMIT));
   el.innerHTML = `
-    <button class="t-btn-cancel" data-action="up-prev" ${_upPage <= 1 ? 'disabled' : ''}>‹ Anterior</button>
-    <span>Página ${_upPage} de ${totalPages}</span>
-    <button class="t-btn-cancel" data-action="up-next" ${_upPage >= totalPages ? 'disabled' : ''}>Siguiente ›</button>
+    <button class="up-page-btn" data-action="up-prev" ${_upPage <= 1 ? 'disabled' : ''}>‹ Anterior</button>
+    <span class="up-page-info">Página ${_upPage} de ${totalPages}</span>
+    <button class="up-page-btn" data-action="up-next" ${_upPage >= totalPages ? 'disabled' : ''}>Siguiente ›</button>
   `;
+}
+
+// ── Edit modal cascade state ────────────────────────────────────────────────
+let _edCascadeState = { scopeType: null, needsMunicipio: false };
+
+async function _onEdRoleChanged(role, overlay) {
+  const wrap = overlay.querySelector('#ed-cascade-wrap');
+  const row1 = overlay.querySelector('#ed-cascade-row1');
+  const row2 = overlay.querySelector('#ed-cascade-row2');
+  const muniSel = overlay.querySelector('#ed-cascade-municipio');
+  const childSel = overlay.querySelector('#ed-cascade-child');
+  const notice = overlay.querySelector('#ed-role-notice');
+  _edCascadeState = { scopeType: null, needsMunicipio: false };
+
+  if (notice) {
+    notice.textContent = 'Cambiar el rol limpiará el alcance actual. Selecciona un nuevo ámbito.';
+    notice.style.display = 'block';
+  }
+
+  if (!role || !wrap) return;
+
+  try {
+    const res = await window.api.get(`/admin/cascade-options?role=${encodeURIComponent(role)}`);
+    _edCascadeState.scopeType = res.scopeType;
+    _edCascadeState.needsMunicipio = res.needsMunicipio;
+
+    if (!res.scopeType) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    wrap.style.display = 'block';
+
+    if (res.needsMunicipio) {
+      muniSel.innerHTML = '<option value="">— Municipio —</option>' +
+        res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+      row1.style.display = 'block';
+      row2.style.display = 'none';
+      childSel.innerHTML = '<option value="">— Seleccionar —</option>';
+    } else {
+      row1.style.display = 'none';
+      childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
+        res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+      row2.style.display = 'block';
+    }
+  } catch (_) {
+    if (wrap) wrap.style.display = 'none';
+  }
+}
+
+async function _onEdMunicipioChanged(municipioId, role, overlay) {
+  const row2 = overlay.querySelector('#ed-cascade-row2');
+  const childSel = overlay.querySelector('#ed-cascade-child');
+
+  if (!municipioId || !_edCascadeState.scopeType) {
+    if (row2) row2.style.display = 'none';
+    return;
+  }
+
+  try {
+    const res = await window.api.get(
+      `/admin/cascade-options?role=${encodeURIComponent(role)}&municipioId=${municipioId}`
+    );
+    childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
+      res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+    if (row2) row2.style.display = 'block';
+  } catch (_) {
+    if (row2) row2.style.display = 'none';
+  }
 }
 
 // ── Edit modal ─────────────────────────────────────────────────────────────
 async function _openEditModal(userId) {
-  // Remove any existing edit overlay
   const existing = _usersPage.querySelector('.t-edit-overlay');
   if (existing) existing.remove();
 
-  // Fetch fresh user data
   let user;
   try {
     user = await window.api.get(`/users/${userId}`);
@@ -193,12 +310,12 @@ async function _openEditModal(userId) {
     return;
   }
 
-  const roleOptions = _UP_ROLES.map(r =>
-    `<option value="${r}" ${user.role === r ? 'selected' : ''}>${r}</option>`
-  ).join('');
-
-  const scopeTags = (user.scopes || []).map(s =>
-    `<span class="up-scope-tag">${esc(s.scopeType)}:${esc(String(s.scopeId))} <button data-action="remove-scope" data-scope-id="${s.id}" title="Eliminar scope">×</button></span>`
+  const isSuperAdmin = window.CURRENT_USER?.role === 'SUPER_ADMIN';
+  const assignableRoles = isSuperAdmin
+    ? _UP_ROLES
+    : _UP_ROLES.filter(r => r !== 'SUPER_ADMIN');
+  const roleOptions = assignableRoles.map(r =>
+    `<option value="${r}" ${user.role === r ? 'selected' : ''}>${_roleLabel(r)}</option>`
   ).join('');
 
   const overlay = document.createElement('div');
@@ -216,8 +333,8 @@ async function _openEditModal(userId) {
       <label style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Rol</label>
       <select id="up-ed-role">${roleOptions}</select>
 
-      <label style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Nueva contraseña (dejar en blanco para no cambiar, mín. 8 chars)</label>
-      <input type="password" id="up-ed-password" placeholder="Nueva contraseña...">
+      <label style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Nueva contraseña</label>
+      <input type="password" id="up-ed-password" placeholder="Dejar en blanco para no cambiar">
 
       <label style="font-size:11px;color:var(--t3);margin-bottom:6px;display:flex;align-items:center;gap:6px;cursor:pointer">
         <input type="checkbox" id="up-ed-mustchange" ${user.mustChangePassword ? 'checked' : ''}>
@@ -225,20 +342,22 @@ async function _openEditModal(userId) {
       </label>
 
       <hr style="border:none;border-top:1px solid var(--b1);margin:10px 0">
-      <p style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px">Gestionar scopes</p>
 
-      <div class="up-scope-list" id="up-ed-scope-list">${scopeTags || '<span style="color:var(--t3);font-size:11px">Sin scopes asignados</span>'}</div>
+      <div id="ed-role-notice" class="up-role-notice" style="display:none"></div>
 
-      <div class="up-scope-add">
-        <select id="up-scope-type">
-          <option value="SUBREGION">SUBREGION</option>
-          <option value="MUNICIPIO">MUNICIPIO</option>
-          <option value="ZONA">ZONA</option>
-          <option value="COMUNA">COMUNA</option>
-          <option value="PUESTO">PUESTO</option>
-        </select>
-        <input type="number" id="up-scope-id" min="1" placeholder="ID scope" style="width:90px">
-        <button class="t-btn-cancel" data-action="add-scope">Agregar</button>
+      <div id="ed-cascade-wrap" style="display:none">
+        <div id="ed-cascade-row1" style="display:none">
+          <label style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Municipio</label>
+          <select id="ed-cascade-municipio">
+            <option value="">— Municipio —</option>
+          </select>
+        </div>
+        <div id="ed-cascade-row2" style="display:none">
+          <label id="ed-cascade-child-label" style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Ámbito</label>
+          <select id="ed-cascade-child">
+            <option value="">— Seleccionar —</option>
+          </select>
+        </div>
       </div>
 
       <div class="t-err" id="up-ed-err"></div>
@@ -250,12 +369,74 @@ async function _openEditModal(userId) {
   `;
   _usersPage.appendChild(overlay);
 
+  // Pre-fill cascade based on user's current role and scope
+  _edCascadeState = { scopeType: null, needsMunicipio: false };
+  const userScope = (user.scopes || [])[0] || null;
+  const scopeId = userScope?.scopeId || null;
+
+  if (user.role) {
+    try {
+      const url = scopeId
+        ? `/admin/cascade-options?role=${encodeURIComponent(user.role)}&scopeId=${scopeId}`
+        : `/admin/cascade-options?role=${encodeURIComponent(user.role)}`;
+      const res = await window.api.get(url);
+      _edCascadeState.scopeType = res.scopeType;
+      _edCascadeState.needsMunicipio = res.needsMunicipio;
+
+      const wrap = overlay.querySelector('#ed-cascade-wrap');
+      const row1 = overlay.querySelector('#ed-cascade-row1');
+      const row2 = overlay.querySelector('#ed-cascade-row2');
+      const muniSel = overlay.querySelector('#ed-cascade-municipio');
+      const childSel = overlay.querySelector('#ed-cascade-child');
+
+      if (res.scopeType) {
+        wrap.style.display = 'block';
+        if (res.needsMunicipio) {
+          muniSel.innerHTML = '<option value="">— Municipio —</option>' +
+            res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+          row1.style.display = 'block';
+
+          if (res.preselect?.municipioId) {
+            muniSel.value = String(res.preselect.municipioId);
+            // Load children for the preselected municipio
+            const res2 = await window.api.get(
+              `/admin/cascade-options?role=${encodeURIComponent(user.role)}&municipioId=${res.preselect.municipioId}`
+            );
+            childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
+              res2.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+            row2.style.display = 'block';
+            if (res.preselect?.childId) {
+              childSel.value = String(res.preselect.childId);
+            }
+          }
+        } else {
+          row1.style.display = 'none';
+          childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
+            res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+          row2.style.display = 'block';
+          if (res.preselect?.childId) {
+            childSel.value = String(res.preselect.childId);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   // Close on backdrop click
   overlay.addEventListener('click', e => {
     if (e.target === overlay) overlay.remove();
   });
 
-  // Delegated events inside overlay
+  // Cascade change handlers inside the overlay
+  overlay.addEventListener('change', async e => {
+    if (e.target.id === 'up-ed-role') {
+      await _onEdRoleChanged(e.target.value, overlay);
+    } else if (e.target.id === 'ed-cascade-municipio') {
+      const role = overlay.querySelector('#up-ed-role').value;
+      await _onEdMunicipioChanged(e.target.value, role, overlay);
+    }
+  });
+
   overlay.addEventListener('click', async e => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
@@ -264,58 +445,14 @@ async function _openEditModal(userId) {
     if (action === 'close-edit-modal') {
       overlay.remove();
 
-    } else if (action === 'remove-scope') {
-      const scopeId = Number(btn.dataset.scopeId);
-      btn.disabled = true;
-      try {
-        await window.api.delete(`/users/${userId}/scopes/${scopeId}`);
-        // Remove the tag from DOM
-        const tag = btn.closest('.up-scope-tag');
-        if (tag) tag.remove();
-        const list = document.getElementById('up-ed-scope-list');
-        if (list && !list.querySelector('.up-scope-tag')) {
-          list.innerHTML = '<span style="color:var(--t3);font-size:11px">Sin scopes asignados</span>';
-        }
-      } catch (err) {
-        const errEl = document.getElementById('up-ed-err');
-        if (errEl) errEl.textContent = errorToSpanish(err);
-        btn.disabled = false;
-      }
-
-    } else if (action === 'add-scope') {
-      const scopeType = document.getElementById('up-scope-type').value;
-      const scopeIdVal = Number(document.getElementById('up-scope-id').value);
-      const errEl = document.getElementById('up-ed-err');
-      if (!scopeIdVal || scopeIdVal < 1) {
-        if (errEl) errEl.textContent = 'ID de scope inválido.';
-        return;
-      }
-      btn.disabled = true;
-      if (errEl) errEl.textContent = '';
-      try {
-        await window.api.post(`/users/${userId}/scopes`, { scopeType, scopeId: scopeIdVal });
-        // Re-fetch user to get updated scopes with their DB IDs
-        const refreshed = await window.api.get(`/users/${userId}`);
-        const list = document.getElementById('up-ed-scope-list');
-        if (list) {
-          list.innerHTML = (refreshed.scopes || []).map(s =>
-            `<span class="up-scope-tag">${esc(s.scopeType)}:${esc(String(s.scopeId))} <button data-action="remove-scope" data-scope-id="${s.id}" title="Eliminar scope">×</button></span>`
-          ).join('') || '<span style="color:var(--t3);font-size:11px">Sin scopes asignados</span>';
-        }
-        document.getElementById('up-scope-id').value = '';
-      } catch (err) {
-        if (errEl) errEl.textContent = errorToSpanish(err);
-      }
-      btn.disabled = false;
-
     } else if (action === 'save-edit-user') {
       const saveBtn = btn;
-      const errEl = document.getElementById('up-ed-err');
-      const displayName = document.getElementById('up-ed-displayname').value.trim();
-      const phone = document.getElementById('up-ed-phone').value.trim();
-      const role = document.getElementById('up-ed-role').value;
-      const newPassword = document.getElementById('up-ed-password').value;
-      const mustChangePassword = document.getElementById('up-ed-mustchange').checked;
+      const errEl = overlay.querySelector('#up-ed-err');
+      const displayName = overlay.querySelector('#up-ed-displayname').value.trim();
+      const phone = overlay.querySelector('#up-ed-phone').value.trim();
+      const role = overlay.querySelector('#up-ed-role').value;
+      const newPassword = overlay.querySelector('#up-ed-password').value;
+      const mustChangePassword = overlay.querySelector('#up-ed-mustchange').checked;
 
       if (!displayName) {
         if (errEl) errEl.textContent = 'El nombre es requerido.';
@@ -326,7 +463,21 @@ async function _openEditModal(userId) {
         return;
       }
 
-      const body = { displayName, role, mustChangePassword };
+      // Collect scope from cascade
+      let scope;
+      if (_edCascadeState.scopeType === null) {
+        scope = null; // SUPER/REGIONAL: clear all scopes
+      } else {
+        const childSel = overlay.querySelector('#ed-cascade-child');
+        const childId = childSel ? Number(childSel.value) : 0;
+        if (!childId) {
+          if (errEl) errEl.textContent = 'Selecciona el ámbito geográfico.';
+          return;
+        }
+        scope = { type: _edCascadeState.scopeType, id: childId };
+      }
+
+      const body = { displayName, role, mustChangePassword, scope };
       if (phone) body.phone = phone;
       if (newPassword) body.newPassword = newPassword;
 
@@ -395,7 +546,7 @@ function _confirmDelete(userId, username) {
   });
 }
 
-// ── Cascade scope helpers ──────────────────────────────────────────────────
+// ── Create cascade state & helpers ─────────────────────────────────────────
 let _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
 
 async function _onRoleChanged(role) {
@@ -404,6 +555,7 @@ async function _onRoleChanged(role) {
   const row2 = document.getElementById('up-cascade-row2');
   const muniSel = document.getElementById('up-cascade-municipio');
   const childSel = document.getElementById('up-cascade-child');
+  const childLabel = document.getElementById('up-cascade-child-label');
   _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
 
   if (!role || !wrap) return;
@@ -420,23 +572,27 @@ async function _onRoleChanged(role) {
       return;
     }
 
+    if (childLabel) {
+      const labelMap = { MUNICIPIO: 'Municipio', ZONA: 'Zona', COMUNA: 'Comuna', PUESTO: 'Puesto de votación' };
+      childLabel.textContent = labelMap[res.scopeType] || 'Ámbito';
+    }
+
     wrap.style.display = 'block';
 
     if (res.needsMunicipio) {
       muniSel.innerHTML = '<option value="">— Municipio —</option>' +
         res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
-      row1.style.display = 'grid';
+      row1.style.display = 'block';
       row2.style.display = 'none';
       childSel.innerHTML = '<option value="">— Seleccionar —</option>';
     } else {
-      muniSel.innerHTML = '';
       row1.style.display = 'none';
       childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
         res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
-      row2.style.display = 'grid';
+      row2.style.display = 'block';
     }
   } catch (_) {
-    wrap.style.display = 'none';
+    if (wrap) wrap.style.display = 'none';
   }
 }
 
@@ -457,7 +613,7 @@ async function _onMunicipioChanged(municipioId) {
     );
     childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
       res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
-    if (row2) row2.style.display = 'grid';
+    if (row2) row2.style.display = 'block';
   } catch (_) {
     if (row2) row2.style.display = 'none';
   }
@@ -484,16 +640,11 @@ async function _handleCreateUser() {
     const muniSel = document.getElementById('up-cascade-municipio');
     if (_cascadeState.needsMunicipio) {
       if (!_cascadeState.municipioId) {
-        if (_cascadeState.scopeType === 'MUNICIPIO') {
-          scopeId = Number(muniSel?.value);
-          if (!scopeId) { if (errEl) errEl.textContent = 'Selecciona un municipio.'; return; }
-        } else {
-          if (errEl) errEl.textContent = 'Selecciona un municipio primero.'; return;
-        }
-      } else {
-        scopeId = childSel ? Number(childSel.value) : _cascadeState.municipioId;
-        if (!scopeId) { if (errEl) errEl.textContent = `Selecciona ${_cascadeState.scopeType.toLowerCase()}.`; return; }
+        if (errEl) errEl.textContent = 'Selecciona un municipio primero.';
+        return;
       }
+      scopeId = childSel ? Number(childSel.value) : null;
+      if (!scopeId) { if (errEl) errEl.textContent = `Selecciona el ${_cascadeState.scopeType.toLowerCase()}.`; return; }
     } else {
       scopeId = childSel ? Number(childSel.value) : null;
       if (!scopeId) { if (errEl) errEl.textContent = 'Selecciona el ámbito geográfico.'; return; }
@@ -593,7 +744,7 @@ function _attachUsersListeners() {
     }
   });
 
-  // Role change → cascade
+  // Role change → cascade (create form only; edit modal has its own listener)
   _usersPage.addEventListener('change', async e => {
     const target = e.target;
     if (target.dataset.action === 'up-role-changed') {
