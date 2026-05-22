@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -47,6 +48,12 @@ export class CreateUserDto {
   @ApiProperty({ enum: Role, description: 'User role' })
   @IsEnum(Role)
   role!: Role;
+
+  @ApiProperty({ description: 'Initial password for the user (minimum 8 characters)' })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  password!: string;
 
   @ApiPropertyOptional({ type: [ScopeItemDto], description: 'Initial scopes assigned to the user' })
   @IsArray()

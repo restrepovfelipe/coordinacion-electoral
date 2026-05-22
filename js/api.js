@@ -173,13 +173,15 @@ function errorToSpanish(err) {
     switch (err.status) {
       case 401: return 'Sesión expirada. Por favor inicia sesión de nuevo.';
       case 403: return 'No tienes permiso para esta acción.';
+      case 409: return err.body?.message || 'El recurso ya existe. Verifica los datos e intenta de nuevo.';
       case 412:
         if (err.body?.code === 'PASSWORD_CHANGE_REQUIRED')
           return 'Debes cambiar tu contraseña antes de continuar.';
         return 'Conflicto de versión. Recarga la página e intenta de nuevo.';
       case 429: return 'Demasiadas peticiones. Espera un momento e intenta de nuevo.';
     }
-    if (err.status >= 500) return 'Error del servidor. Si persiste, contacta soporte.';
+    if (err.status >= 500) return err.body?.message || 'Error del servidor. Si persiste, contacta soporte.';
+    if (err.status >= 400) return err.body?.message || `Error ${err.status}. Verifica los datos e intenta de nuevo.`;
     const detail = err.body?.message || err.body?.code || String(err.status);
     return `Algo salió mal (${detail}). Intenta de nuevo o contacta soporte.`;
   }

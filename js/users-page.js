@@ -63,6 +63,33 @@ function closeUsersPage() {
 
 // ── Build HTML ─────────────────────────────────────────────────────────────
 function _buildUsersPageHTML() {
+  return `
+    <div class="dir-box t-page-box up-page-box">
+      <div class="up-page-header">
+        <div class="up-page-title-group">
+          <span class="up-page-icon">👥</span>
+          <h2 class="up-page-title">Gestión de Usuarios</h2>
+          <span class="t-counter" id="up-counter">—</span>
+        </div>
+        <div class="up-page-actions">
+          <button class="up-btn-new" data-action="open-create-modal">+ Nuevo usuario</button>
+          <button class="dir-close up-btn-close" data-action="close-users-page">✕</button>
+        </div>
+      </div>
+
+      <div class="up-page-body">
+        <div class="up-card up-table-card">
+          <div class="t-table-wrap" id="up-table-wrap">
+            <p class="up-loading-msg">Cargando...</p>
+          </div>
+        </div>
+        <div class="t-pagination" id="up-pagination"></div>
+      </div>
+    </div>
+  `;
+}
+
+function _buildCreateModalHTML() {
   const isRegional = window.CURRENT_USER?.role === 'REGIONAL_COORDINATOR';
   const assignableRoles = isRegional
     ? _UP_ROLES.filter(r => r !== 'SUPER_ADMIN')
@@ -71,75 +98,77 @@ function _buildUsersPageHTML() {
     `<option value="${r}">${_roleLabel(r)}</option>`
   ).join('');
   return `
-    <div class="dir-box t-page-box" style="position:relative;max-width:1100px">
-      <div class="dir-hd" style="position:sticky;top:0;background:var(--card);z-index:2;padding-bottom:14px;border-bottom:1px solid var(--b1);margin-bottom:0">
-        <div style="display:flex;align-items:center;gap:10px">
-          <h2>👥 Gestión de Usuarios</h2>
-          <span class="t-counter" id="up-counter">—</span>
+    <div class="up-create-overlay" id="up-create-overlay">
+      <div class="up-create-box">
+        <div class="up-create-header">
+          <h4 class="up-create-title">Nuevo usuario</h4>
+          <button class="up-create-close" data-action="close-create-modal" aria-label="Cerrar">✕</button>
         </div>
-        <button class="dir-close" data-action="close-users-page">Cerrar ✕</button>
-      </div>
-
-      <div style="padding:16px 0">
-        <div class="up-card" style="padding:0;overflow:hidden">
-          <div class="t-table-wrap" id="up-table-wrap">
-            <p style="color:var(--t3);font-size:12px;padding:20px 24px">Cargando...</p>
+        <div class="up-create-form-grid">
+          <div class="up-form-field">
+            <label for="up-new-username">Usuario</label>
+            <input id="up-new-username" placeholder="nombre.apellido" type="text" autocomplete="off" spellcheck="false">
           </div>
-        </div>
-        <div class="t-pagination" id="up-pagination" style="justify-content:center;gap:8px;margin-top:12px"></div>
-      </div>
-
-      <div class="up-create-section">
-        <div class="up-card">
-          <h4>Crear nuevo usuario</h4>
-          <div class="up-create-form">
-            <div class="up-form-field">
-              <label for="up-new-username">Usuario</label>
-              <input id="up-new-username" placeholder="nombre.apellido" type="text" autocomplete="off">
-            </div>
-            <div class="up-form-field">
-              <label for="up-new-displayname">Nombre completo</label>
-              <input id="up-new-displayname" placeholder="Nombre completo" type="text">
-            </div>
-            <div class="up-form-field">
-              <label for="up-new-phone">Teléfono <span style="color:var(--t3);font-weight:400">(opcional)</span></label>
-              <input id="up-new-phone" placeholder="300 000 0000" type="text">
-            </div>
-            <div class="up-form-field">
-              <label for="up-new-password">Contraseña inicial</label>
-              <input id="up-new-password" placeholder="Mínimo 8 caracteres" type="password">
-            </div>
-            <div class="up-form-field">
-              <label for="up-new-role">Rol</label>
-              <select id="up-new-role" data-action="up-role-changed">
-                ${roleOptions}
+          <div class="up-form-field">
+            <label for="up-new-displayname">Nombre completo</label>
+            <input id="up-new-displayname" placeholder="Nombre completo" type="text">
+          </div>
+          <div class="up-form-field">
+            <label for="up-new-phone">Teléfono <span class="up-label-optional">(opcional)</span></label>
+            <input id="up-new-phone" placeholder="300 000 0000" type="text">
+          </div>
+          <div class="up-form-field">
+            <label for="up-new-password">Contraseña inicial</label>
+            <input id="up-new-password" placeholder="Mínimo 8 caracteres" type="password">
+          </div>
+          <div class="up-form-field up-form-field-full">
+            <label for="up-new-role">Rol</label>
+            <select id="up-new-role" data-action="up-role-changed">
+              ${roleOptions}
+            </select>
+          </div>
+          <div id="up-cascade-wrap" class="up-form-field-full" style="display:none">
+            <div id="up-cascade-row1" style="display:none" class="up-form-field">
+              <label>Municipio</label>
+              <select id="up-cascade-municipio" data-action="up-municipio-changed">
+                <option value="">— Municipio —</option>
               </select>
             </div>
-            <div id="up-cascade-wrap" style="display:none">
-              <div id="up-cascade-row1" style="display:none">
-                <div class="up-form-field">
-                  <label>Municipio</label>
-                  <select id="up-cascade-municipio" data-action="up-municipio-changed">
-                    <option value="">— Municipio —</option>
-                  </select>
-                </div>
-              </div>
-              <div id="up-cascade-row2" style="display:none">
-                <div class="up-form-field">
-                  <label id="up-cascade-child-label">Ámbito</label>
-                  <select id="up-cascade-child">
-                    <option value="">— Seleccionar —</option>
-                  </select>
-                </div>
-              </div>
+            <div id="up-cascade-row2" style="display:none" class="up-form-field">
+              <label id="up-cascade-child-label">Ámbito</label>
+              <select id="up-cascade-child">
+                <option value="">— Seleccionar —</option>
+              </select>
             </div>
-            <div id="up-create-err" class="t-err"></div>
-            <button class="t-btn-primary" data-action="up-create-user" style="margin-top:4px">Crear usuario</button>
           </div>
+        </div>
+        <div id="up-create-err" class="t-err up-create-err"></div>
+        <div class="up-create-footer">
+          <button class="t-btn-cancel" data-action="close-create-modal">Cancelar</button>
+          <button class="t-btn-primary" data-action="up-create-user">Crear usuario</button>
         </div>
       </div>
     </div>
   `;
+}
+
+function _openCreateModal() {
+  const existing = document.getElementById('up-create-overlay');
+  if (existing) existing.remove();
+  _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
+  const overlay = document.createElement('div');
+  overlay.innerHTML = _buildCreateModalHTML();
+  const modal = overlay.firstElementChild;
+  _usersPage.appendChild(modal);
+  document.getElementById('up-new-username')?.focus();
+  // Trigger cascade for default role
+  const defaultRole = document.getElementById('up-new-role')?.value;
+  if (defaultRole) _onRoleChanged(defaultRole);
+}
+
+function _closeCreateModal() {
+  document.getElementById('up-create-overlay')?.remove();
+  _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
 }
 
 // ── Load & Render ──────────────────────────────────────────────────────────
@@ -656,26 +685,20 @@ async function _handleCreateUser() {
   if (errEl) errEl.textContent = '';
 
   try {
-    const newUser = await window.api.post('/users', { username, displayName, phone: phone || undefined, role });
-    await window.api.patch(`/users/${newUser.id}`, { newPassword: password });
-    if (_cascadeState.scopeType && scopeId) {
-      await window.api.post(`/users/${newUser.id}/scopes`, {
-        scopeType: _cascadeState.scopeType,
-        scopeId,
-      });
-    }
-    ['up-new-username', 'up-new-displayname', 'up-new-phone', 'up-new-password'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
+    await window.api.post('/users', {
+      username,
+      displayName,
+      phone: phone || undefined,
+      role,
+      password,
+      scopes: (_cascadeState.scopeType && scopeId)
+        ? [{ scopeType: _cascadeState.scopeType, scopeId }]
+        : undefined,
     });
-    if (errEl) errEl.textContent = '';
-    _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
-    const wrap = document.getElementById('up-cascade-wrap');
-    if (wrap) wrap.style.display = 'none';
+    _closeCreateModal();
     await _loadUsersPage(1);
   } catch (err) {
     if (errEl) errEl.textContent = errorToSpanish(err);
-  } finally {
     if (createBtn) { createBtn.disabled = false; createBtn.textContent = 'Crear usuario'; }
   }
 }
@@ -687,6 +710,7 @@ function _attachUsersListeners() {
   // Close on backdrop click
   _usersPage.addEventListener('click', e => {
     if (e.target === _usersPage) closeUsersPage();
+    if (e.target.id === 'up-create-overlay') _closeCreateModal();
   });
 
   // Delegated clicks
@@ -697,6 +721,12 @@ function _attachUsersListeners() {
 
     if (action === 'close-users-page') {
       closeUsersPage();
+
+    } else if (action === 'open-create-modal') {
+      _openCreateModal();
+
+    } else if (action === 'close-create-modal') {
+      _closeCreateModal();
 
     } else if (action === 'up-prev') {
       if (_upPage > 1) _loadUsersPage(_upPage - 1);

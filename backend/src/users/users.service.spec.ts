@@ -45,7 +45,10 @@ function makeExisting(overrides: Partial<{ id: number; role: Role; cipUid: strin
 
 function makeMockTx(updatedUser: any, newScopes: any[] = []) {
   return {
-    user: { update: jest.fn().mockResolvedValue({ ...updatedUser, scopes: newScopes }) },
+    user: {
+      update: jest.fn().mockResolvedValue({ ...updatedUser, scopes: newScopes }),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ ...updatedUser, scopes: newScopes }),
+    },
     userScope: {
       deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       create: jest.fn().mockResolvedValue({ id: 20, userId: 2, scopeType: ScopeType.MUNICIPIO, scopeId: 5 }),

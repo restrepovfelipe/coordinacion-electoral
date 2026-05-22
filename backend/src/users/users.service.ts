@@ -1,5 +1,11 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, Role, ScopeType, User, UserScope } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FirebaseAdminService } from '../common/firebase/firebase-admin.service.js';
@@ -112,58 +118,79 @@ export class UsersService {
       throw new ForbiddenException('Coordinador Regional no puede crear Super Administradores');
     }
 
-    const password = randomBytes(12).toString('base64url');
+    // Create the Firebase user first (outside the Prisma transaction so we can roll back if needed)
+    let cipUid: string | null = null;
+    try {
+      const firebaseUser = await this.firebaseAdmin.auth.createUser({
+        email: `${dto.username}@defensores.local`,
+        password: dto.password,
+        emailVerified: false,
+      });
+      cipUid = firebaseUser.uid;
+    } catch (err: any) {
+      if (err?.code === 'auth/email-already-exists') {
+        throw new ConflictException(`El usuario '${dto.username}' ya existe en el sistema`);
+      }
+      throw new InternalServerErrorException(
+        `Error al crear el usuario en autenticación: ${err?.message ?? 'desconocido'}`,
+      );
+    }
 
-    const firebaseUser = await this.firebaseAdmin.auth.createUser({
-      email: `${dto.username}@cmd.local`,
-      password,
-      emailVerified: false,
-    });
+    try {
+      const user = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            username: dto.username,
+            displayName: dto.displayName,
+            phone: dto.phone,
+            notes: dto.notes,
+            role: dto.role,
+            cipUid,
+            mustChangePassword: false,
+            createdByUserId: actor.id,
+            scopes: dto.scopes
+              ? {
+                  create: dto.scopes.map((s) => ({
+                    scopeType: s.scopeType,
+                    scopeId: s.scopeId,
+                  })),
+                }
+              : undefined,
+          },
+          include: { scopes: true },
+        });
 
-    const cipUid = firebaseUser.uid;
+        await tx.auditLog.create({
+          data: {
+            actorUserId: actor.id,
+            action: 'user.create',
+            targetType: 'User',
+            targetId: created.id,
+            afterJson: {
+              id: created.id,
+              username: created.username,
+              displayName: created.displayName,
+              role: created.role,
+              scopes: created.scopes.map(s => ({ scopeType: s.scopeType, scopeId: s.scopeId })),
+            } as Prisma.InputJsonValue,
+          },
+        });
 
-    const user = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          username: dto.username,
-          displayName: dto.displayName,
-          phone: dto.phone,
-          notes: dto.notes,
-          role: dto.role,
-          cipUid,
-          mustChangePassword: false,
-          createdByUserId: actor.id,
-          scopes: dto.scopes
-            ? {
-                create: dto.scopes.map((s) => ({
-                  scopeType: s.scopeType,
-                  scopeId: s.scopeId,
-                })),
-              }
-            : undefined,
-        },
-        include: { scopes: true },
+        return created;
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId: actor.id,
-          action: 'user.create',
-          targetType: 'User',
-          targetId: created.id,
-          afterJson: {
-            id: created.id,
-            username: created.username,
-            displayName: created.displayName,
-            role: created.role,
-          } as Prisma.InputJsonValue,
-        },
-      });
-
-      return created;
-    });
-
-    return this.omitCipUid(user);
+      return this.omitCipUid(user);
+    } catch (err: any) {
+      // Roll back the Firebase user so the system stays in sync
+      if (cipUid) {
+        await this.firebaseAdmin.auth.deleteUser(cipUid).catch(() => {});
+      }
+      // Translate Prisma unique-constraint violation into a meaningful 409
+      if (err?.code === 'P2002') {
+        throw new ConflictException(`El nombre de usuario '${dto.username}' ya está en uso`);
+      }
+      throw err;
+    }
   }
 
   async update(id: number, dto: UpdateUserDto, actor: UserWithScopes): Promise<UserWithoutCipUid> {
@@ -197,19 +224,21 @@ export class UsersService {
       await this.firebaseAdmin.auth.updateUser(existing.cipUid, { password: dto.newPassword });
     }
 
+    // Build only the Prisma model fields that are actually provided in the DTO
+    // (avoids PrismaClientValidationError when data ends up empty after stripping undefineds)
+    const modelData: Prisma.UserUpdateInput = {
+      ...(dto.displayName !== undefined && { displayName: dto.displayName }),
+      ...(dto.phone !== undefined && { phone: dto.phone }),
+      ...(dto.notes !== undefined && { notes: dto.notes }),
+      ...(dto.role !== undefined && { role: dto.role }),
+      ...(dto.active !== undefined && { active: dto.active }),
+      ...(dto.mustChangePassword !== undefined && { mustChangePassword: dto.mustChangePassword }),
+    };
+
     const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.user.update({
-        where: { id },
-        data: {
-          displayName: dto.displayName,
-          phone: dto.phone,
-          notes: dto.notes,
-          role: dto.role,
-          active: dto.active,
-          mustChangePassword: dto.mustChangePassword,
-        },
-        include: { scopes: true },
-      });
+      const result = Object.keys(modelData).length > 0
+        ? await tx.user.update({ where: { id }, data: modelData, include: { scopes: true } })
+        : await tx.user.findUniqueOrThrow({ where: { id }, include: { scopes: true } });
 
       // Replace scopes if 'scope' field is present in the payload (including null → clear)
       if (dto.scope !== undefined) {

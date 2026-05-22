@@ -465,14 +465,38 @@ table.pt tr:hover td{background:rgba(26,109,191,.04)}
 .up-role-zone{font-size:10px;font-weight:600;border-radius:4px;padding:2px 8px;background:rgba(22,163,74,.12);color:#16a34a}
 .up-role-comuna{font-size:10px;font-weight:600;border-radius:4px;padding:2px 8px;background:rgba(217,119,6,.12);color:#d97706}
 .up-role-puesto{font-size:10px;font-weight:600;border-radius:4px;padding:2px 8px;background:rgba(107,114,128,.12);color:#6b7280}
-.up-create-section{margin-top:16px;padding-bottom:90px}
-.up-card{background:#ffffff;border:1px solid var(--b1);border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:16px}
+/* Users page layout */
+.up-page-box{max-width:1100px;display:flex;flex-direction:column;gap:0;padding:0}
+.up-page-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px 14px;border-bottom:1px solid var(--b1);position:sticky;top:0;background:var(--card);z-index:2;gap:12px;flex-wrap:wrap}
+.up-page-title-group{display:flex;align-items:center;gap:10px}
+.up-page-icon{font-size:18px;line-height:1}
+.up-page-title{font-size:18px;font-weight:700;color:var(--t1)}
+.up-page-actions{display:flex;align-items:center;gap:8px}
+.up-btn-new{background:var(--gold);border:none;border-radius:var(--r);padding:7px 16px;font-size:12px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;transition:opacity .12s;white-space:nowrap}
+.up-btn-new:hover{opacity:.85}
+.up-btn-close{background:none;border:1px solid var(--b1);border-radius:var(--r);padding:6px 12px;font-size:12px;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .12s;line-height:1}
+.up-btn-close:hover{border-color:var(--red);color:var(--red)}
+.up-page-body{padding:16px 24px 24px;display:flex;flex-direction:column;gap:12px}
+.up-table-card{padding:0;overflow:hidden}
+.up-loading-msg{color:var(--t3);font-size:12px;padding:20px 24px}
+.up-card{background:#ffffff;border:1px solid var(--b1);border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .up-card h4{font-size:14px;font-weight:700;margin-bottom:16px;color:var(--t1)}
-.up-create-form{max-width:480px}
-.up-form-field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+/* Create modal */
+.up-create-overlay{position:absolute;inset:0;border-radius:inherit;background:rgba(26,32,48,.55);display:flex;align-items:center;justify-content:center;z-index:10}
+.up-create-box{width:520px;max-width:95%;max-height:90vh;overflow-y:auto;border-radius:12px;padding:0;background:var(--card);border:1px solid var(--b2);box-shadow:var(--shadow-md)}
+.up-create-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--b1)}
+.up-create-title{font-size:15px;font-weight:700;color:var(--t1)}
+.up-create-close{background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px;line-height:1;padding:2px 6px;border-radius:4px;transition:color .12s}
+.up-create-close:hover{color:var(--red)}
+.up-create-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 20px}
+.up-form-field{display:flex;flex-direction:column;gap:4px}
+.up-form-field-full{grid-column:1/-1}
 .up-form-field label{font-size:11px;font-weight:600;color:var(--t2);letter-spacing:.3px}
+.up-label-optional{color:var(--t3);font-weight:400}
 .up-form-field input,.up-form-field select{background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:7px 10px;color:var(--t1);font-size:12px;font-family:inherit;outline:none;width:100%}
 .up-form-field input:focus,.up-form-field select:focus{border-color:var(--gold)}
+.up-create-err{margin:0 20px 8px;min-height:16px}
+.up-create-footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px 16px;border-top:1px solid var(--b1)}
 .up-page-btn{background:var(--bg3);border:1px solid var(--b1);border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--t1);transition:all .12s}
 .up-page-btn:hover:not([disabled]){border-color:var(--gold);color:var(--gold)}
 .up-page-btn[disabled]{opacity:.45;cursor:default}
