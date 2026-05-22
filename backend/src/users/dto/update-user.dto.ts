@@ -1,6 +1,18 @@
-import { IsBoolean, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { Role } from '@prisma/client';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { Role, ScopeType } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export class ScopeDto {
+  @ApiPropertyOptional({ enum: ScopeType })
+  @IsEnum(ScopeType)
+  type!: ScopeType;
+
+  @ApiPropertyOptional()
+  @IsInt()
+  @Min(1)
+  id!: number;
+}
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ description: 'Display name shown in the UI' })
@@ -38,4 +50,10 @@ export class UpdateUserDto {
   @IsOptional()
   @MinLength(8)
   newPassword?: string;
+
+  @ApiPropertyOptional({ description: 'Scope to assign; null to clear all scopes', type: ScopeDto, nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ScopeDto)
+  scope?: ScopeDto | null;
 }

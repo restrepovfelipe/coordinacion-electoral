@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { Prisma, Role, User, UserScope } from '@prisma/client';
+import { Prisma, Role, ScopeType, User, UserScope } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FirebaseAdminService } from '../common/firebase/firebase-admin.service.js';
 import { UserWithScopes } from '../common/types/request-with-user.js';
@@ -11,6 +11,15 @@ import { AddScopeDto } from './dto/add-scope.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 
 type UserWithScopesResult = User & { scopes: UserScope[] };
+
+const ROLE_SCOPE_TYPE: Record<Role, ScopeType | null> = {
+  [Role.SUPER_ADMIN]: null,
+  [Role.REGIONAL_COORDINATOR]: null,
+  [Role.MUNICIPAL_COORDINATOR]: ScopeType.MUNICIPIO,
+  [Role.ZONE_COORDINATOR]: ScopeType.ZONA,
+  [Role.COMUNA_COORDINATOR]: ScopeType.COMUNA,
+  [Role.PUESTO_COORDINATOR]: ScopeType.PUESTO,
+};
 type UserWithoutCipUid = Omit<UserWithScopesResult, 'cipUid'>;
 
 @Injectable()
@@ -173,6 +182,17 @@ export class UsersService {
       throw new ForbiddenException('Coordinador Regional no puede asignar rol Super Administrador');
     }
 
+    // Validate scope type matches effective role
+    const effectiveRole = dto.role ?? existing.role;
+    const expectedScopeType = ROLE_SCOPE_TYPE[effectiveRole];
+    if (dto.scope !== undefined && dto.scope !== null) {
+      if (dto.scope.type !== expectedScopeType) {
+        throw new BadRequestException(
+          `El tipo de scope '${dto.scope.type}' no corresponde al rol '${effectiveRole}' (se espera '${expectedScopeType ?? 'ninguno'}')`,
+        );
+      }
+    }
+
     if (dto.newPassword) {
       await this.firebaseAdmin.auth.updateUser(existing.cipUid, { password: dto.newPassword });
     }
@@ -191,6 +211,18 @@ export class UsersService {
         include: { scopes: true },
       });
 
+      // Replace scopes if 'scope' field is present in the payload (including null → clear)
+      if (dto.scope !== undefined) {
+        await tx.userScope.deleteMany({ where: { userId: id } });
+        if (dto.scope !== null) {
+          await tx.userScope.create({
+            data: { userId: id, scopeType: dto.scope.type, scopeId: dto.scope.id },
+          });
+        }
+        // Re-fetch to get updated scopes
+        result.scopes = await tx.userScope.findMany({ where: { userId: id } });
+      }
+
       const { cipUid: _before, ...beforeJson } = existing;
       const { cipUid: _after, ...afterJson } = result;
 
@@ -200,8 +232,14 @@ export class UsersService {
           action: 'user.update',
           targetType: 'User',
           targetId: id,
-          beforeJson: beforeJson as Prisma.InputJsonValue,
-          afterJson: afterJson as Prisma.InputJsonValue,
+          beforeJson: {
+            ...beforeJson,
+            scopes: existing.scopes.map(s => ({ type: s.scopeType, id: s.scopeId })),
+          } as Prisma.InputJsonValue,
+          afterJson: {
+            ...afterJson,
+            scope: dto.scope ?? null,
+          } as Prisma.InputJsonValue,
         },
       });
 
