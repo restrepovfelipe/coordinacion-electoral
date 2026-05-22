@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { AuditModule } from './audit/audit.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ResourcesModule } from './resources/resources.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { MustChangePasswordInterceptor } from './common/interceptors/must-change-password.interceptor';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
@@ -29,6 +30,7 @@ import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
     AuditModule,
     RealtimeModule,
     ResourcesModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

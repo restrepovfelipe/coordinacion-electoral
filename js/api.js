@@ -127,6 +127,48 @@ class ApiClient {
     if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
     return null;
   }
+
+  // ─── Testigos counts cache (dashboard real-time counters) ──────────────────
+  async getTestigoCounts(options = {}) {
+    const key = 'cache:testigo-counts';
+    const headers = await this._headers();
+
+    if (options.bypassCache) {
+      const res = await fetch(`${API_BASE}/dashboard/testigos-counts`, {
+        headers,
+        cache: 'no-cache',
+      });
+      if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+      const data = await res.json();
+      const etag = res.headers.get('ETag');
+      if (etag) {
+        try { localStorage.setItem(key, JSON.stringify({ etag, data })); } catch {}
+      }
+      return data;
+    }
+
+    let cached = null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) cached = JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(key);
+    }
+
+    if (cached?.etag) headers['If-None-Match'] = cached.etag;
+
+    const res = await fetch(`${API_BASE}/dashboard/testigos-counts`, { headers });
+
+    if (res.status === 304) return cached?.data ?? [];
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+
+    const data = await res.json();
+    const etag = res.headers.get('ETag');
+    if (etag) {
+      try { localStorage.setItem(key, JSON.stringify({ etag, data })); } catch {}
+    }
+    return data;
+  }
 }
 
 class ApiError extends Error {

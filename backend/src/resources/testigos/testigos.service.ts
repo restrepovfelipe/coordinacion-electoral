@@ -95,6 +95,12 @@ export class TestigosService {
       }
     });
 
+    await this.realtime.notify({
+      type: 'testigo:count_changed',
+      municipioId: puesto.municipioId,
+      payload: { municipioId: puesto.municipioId },
+    });
+
     return { assigned: testigos.length };
   }
 
@@ -103,6 +109,9 @@ export class TestigosService {
     dto: CreateTestigoDto,
     user: UserWithScopes,
   ) {
+    const puesto = await this.prisma.puesto.findUnique({ where: { id: puestoId }, select: { municipioId: true } });
+    if (!puesto) throw new NotFoundException('Puesto not found');
+
     const result = await this.prisma.$transaction(async (tx) => {
       const testigo = await tx.testigo.create({
         data: {
@@ -123,6 +132,11 @@ export class TestigosService {
       return testigo;
     });
     await this.realtime.notify({ type: 'testigo.create', puestoId, payload: { id: result.id } });
+    await this.realtime.notify({
+      type: 'testigo:count_changed',
+      municipioId: puesto.municipioId,
+      payload: { municipioId: puesto.municipioId },
+    });
     return result;
   }
 
@@ -133,6 +147,8 @@ export class TestigosService {
     if (existing.puestoId === null) throw new ForbiddenException();
     const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, existing.puestoId);
     if (!canAccess) throw new ForbiddenException();
+
+    const puesto = await this.prisma.puesto.findUnique({ where: { id: existing.puestoId }, select: { municipioId: true } });
 
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.testigo.update({ where: { id }, data: dto });
@@ -149,6 +165,13 @@ export class TestigosService {
       return updated;
     });
     await this.realtime.notify({ type: 'testigo.update', puestoId: existing.puestoId, payload: { id } });
+    if (puesto) {
+      await this.realtime.notify({
+        type: 'testigo:count_changed',
+        municipioId: puesto.municipioId,
+        payload: { municipioId: puesto.municipioId },
+      });
+    }
     return result;
   }
 
@@ -159,6 +182,8 @@ export class TestigosService {
     if (existing.puestoId === null) throw new ForbiddenException();
     const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, existing.puestoId);
     if (!canAccess) throw new ForbiddenException();
+
+    const puesto = await this.prisma.puesto.findUnique({ where: { id: existing.puestoId }, select: { municipioId: true } });
 
     await this.prisma.$transaction(async (tx) => {
       await tx.auditLog.create({
@@ -173,5 +198,12 @@ export class TestigosService {
       await tx.testigo.delete({ where: { id } });
     });
     await this.realtime.notify({ type: 'testigo.delete', puestoId: existing.puestoId, payload: { id } });
+    if (puesto) {
+      await this.realtime.notify({
+        type: 'testigo:count_changed',
+        municipioId: puesto.municipioId,
+        payload: { municipioId: puesto.municipioId },
+      });
+    }
   }
 }

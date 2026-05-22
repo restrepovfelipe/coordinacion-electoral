@@ -167,6 +167,7 @@ function initInactivityDetection() {
 // ─── Logout ───────────────────────────────────────────────────────────────────
 function doLogout() {
   api.post('/auth/logout', {}).catch(() => {});
+  localStorage.removeItem('cache:testigo-counts');
   auth.signOut().then(() => {
     CURRENT_USER = null;
     window.CURRENT_USER = null;

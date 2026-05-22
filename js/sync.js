@@ -54,9 +54,28 @@ function rerenderIfNotEditing() {
 }
 
 // ─── REALTIME EVENT HANDLER ───
+let _countsRefreshTimer = null;
+
 function handleRealtimeEvent(event) {
-  // Re-render the current municipality view if it is open.
   // event shape: { type, puestoId?, municipioId?, scopeType?, scopeId?, payload }
+  if (event.type === 'testigo:count_changed') {
+    // Debounce 300ms: multiple rapid events (e.g. bulk-assign) collapse into one refetch.
+    clearTimeout(_countsRefreshTimer);
+    _countsRefreshTimer = setTimeout(async () => {
+      try {
+        if (window.api) {
+          const counts = await window.api.getTestigoCounts({ bypassCache: true });
+          if (typeof updateDashboardTestigoCounts === 'function') {
+            updateDashboardTestigoCounts(counts);
+          }
+        }
+      } catch (err) {
+        console.warn('[sync] Failed to refresh testigo counts:', err);
+      }
+    }, 300);
+    return;
+  }
+  // Re-render the current municipality view if it is open.
   rerenderIfNotEditing();
 }
 

@@ -18,6 +18,59 @@ function _onWriteError(label, err) {
 // Cache: municipio name → { puestoName → backendId }
 const _puestoIdCache = {};
 
+// ═══ TESTIGO COUNTS (real-time dashboard counters) ═══
+// Populated from GET /api/dashboard/testigos-counts; updated via SSE.
+const _testigoCountsByMuni = {}; // { [municipioName]: number }
+let _muniIdToName = null; // { [municipioId]: municipioName } — built lazily
+
+async function _buildMuniIdMap() {
+  if (_muniIdToName) return _muniIdToName;
+  try {
+    const munis = await api.get('/municipios');
+    _muniIdToName = {};
+    for (const m of munis) {
+      _muniIdToName[m.id] = (m.name || '').toUpperCase();
+    }
+  } catch {
+    _muniIdToName = {};
+  }
+  return _muniIdToName;
+}
+
+async function loadTestigoCounts() {
+  if (!window.api || !window.CURRENT_USER) return;
+  try {
+    const map = await _buildMuniIdMap();
+    const counts = await api.getTestigoCounts();
+    for (const { municipioId, count } of counts) {
+      const name = map[municipioId];
+      if (name) _testigoCountsByMuni[name] = count;
+    }
+    _applyTestigoCountsToDom();
+  } catch (err) {
+    console.warn('[app] loadTestigoCounts failed:', err);
+  }
+}
+
+function updateDashboardTestigoCounts(counts) {
+  if (!_muniIdToName) return;
+  for (const { municipioId, count } of counts) {
+    const name = _muniIdToName[municipioId];
+    if (name) _testigoCountsByMuni[name] = count;
+  }
+  _applyTestigoCountsToDom();
+}
+
+function _applyTestigoCountsToDom() {
+  // Update counters in-place if overview cards are currently visible.
+  document.querySelectorAll('[data-testigo-count]').forEach(el => {
+    const name = el.dataset.testigoCount;
+    if (name && _testigoCountsByMuni[name] !== undefined) {
+      el.textContent = _testigoCountsByMuni[name];
+    }
+  });
+}
+
 // Load puesto backend IDs for a municipality from the API
 async function loadPuestoIds(muniName) {
   if (!window.api || !window.CURRENT_USER) return;
@@ -197,6 +250,7 @@ function goHome() {
       <div id="ov-wrap" style="margin-top:20px;padding:0 10px"></div>
     </div>`;
   renderOV();
+  loadTestigoCounts();
 }
 
 // ═══ MUNI VIEW ═══
@@ -984,13 +1038,15 @@ function renderOV() {
         testReg += st.testReg; testFalt += st.testFalt;
       });
       const pct = totM ? Math.round(testReg / totM * 100) : 0;
+      const apiCount = _testigoCountsByMuni[n];
+      const displayCount = apiCount !== undefined ? apiCount : testReg;
       html += `<div class="ov-muni-card" onclick="selMuni('${n}')">
         <div class="ov-muni-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
         ${s.coord ? `<div class="ov-muni-coord">👤 ${esc(s.coord)}</div>` : `<div class="ov-muni-coord" style="font-style:italic;color:var(--t3)">Sin coordinador</div>`}
         <div class="ov-muni-stats">
           <span class="ov-stat"><b>${(totV/1000).toFixed(0)}K</b><span>Votantes</span></span>
-          <span class="ov-stat"><b>${testReg}</b><span>Testigos</span></span>
+          <span class="ov-stat"><b data-testigo-count="${n}">${displayCount}</b><span>Testigos</span></span>
           <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>Mesas sin testigo</span></span>
           <span class="ov-stat"><b>${pct}%</b><span>Cobertura</span></span>
         </div>
@@ -1072,6 +1128,7 @@ async function startApp() {
   _initialized = true;
   buildSB();
   renderOV();
+  loadTestigoCounts();
   buildExportMenu();
   buildExcelMenu();
   startListener();
