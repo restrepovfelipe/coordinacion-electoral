@@ -1565,14 +1565,26 @@ function renderMapPanel(n, ck, id) {
       attribution: '© OpenStreetMap', maxZoom: 18
     }).addTo(map);
     validPuestos.forEach(p => {
-      const ts = (s.testigos?.[ck]?.[p.puesto] || []).length;
-      const color = _testPctColor(ts > 0 ? 100 : 0);
+      const ts = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length;
+      const pct = p.mesas ? Math.round(ts / p.mesas * 100) : 0;
+      const color = _testPctColor(pct);
       const marker = L.circleMarker([p.lat, p.lon], {
         radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
       }).addTo(map);
-      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes · ${ts} testigo${ts !== 1 ? 's' : ''}</span>`);
+      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes · ${ts} testigo${ts !== 1 ? 's' : ''} · <b>Cobertura: ${pct}%</b></span>`);
     });
     map.fitBounds(validPuestos.map(p => [p.lat, p.lon]), { padding: [20, 20] });
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = () => {
+      const div = L.DomUtil.create('div', '');
+      div.style.cssText = 'background:rgba(15,23,42,.88);color:#e2e8f0;padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.9';
+      div.innerHTML = '<b>Cobertura testigos</b><br>' +
+        '<span style="color:#22c55e">●</span> 71–100%<br>' +
+        '<span style="color:#f5c842">●</span> 41–70%<br>' +
+        '<span style="color:#ef4444">●</span> 0–40%';
+      return div;
+    };
+    legend.addTo(map);
     _maps[mapId] = map;
   }, 50);
 }
