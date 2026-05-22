@@ -24,6 +24,16 @@ const _testigoCountsByMuni = {}; // { [municipioName]: number }
 // Populated from GET /api/dashboard/stats (Phase 14); updated via SSE.
 const _dashboardStatsByMuni = {}; // { [municipioName]: MunicipioStat }
 let _muniIdToName = null; // { [municipioId]: municipioName } — built lazily
+// Global ratio from PrioridadConfig (shared across all municipalities).
+// Seeded from the first /dashboard/stats response; matches the backend formula.
+let _ratioMesasAlta = 0.5;
+
+/** Coverage % using the same formula as the backend (testigos vs. required = CEIL(mesas × ratio)). */
+function _coveragePct(testReg, totMesas) {
+  if (!totMesas) return 0;
+  const required = Math.ceil(totMesas * _ratioMesasAlta);
+  return required > 0 ? Math.min(100, Math.round(testReg / required * 100)) : 100;
+}
 
 async function _buildMuniIdMap() {
   if (_muniIdToName) return _muniIdToName;
@@ -81,6 +91,10 @@ async function loadDashboardStats() {
     for (const s of stats) {
       const name = map[s.municipioId];
       if (name) _dashboardStatsByMuni[name] = s;
+    }
+    // Seed global ratio so drill-down views use the same formula as the backend.
+    if (stats.length > 0 && stats[0].ratioMesasAlta) {
+      _ratioMesasAlta = stats[0].ratioMesasAlta;
     }
     _applyDashboardStatsToDom();
   } catch (err) {
@@ -300,7 +314,7 @@ function renderMuni(n) {
     const st = _ccStats(n, c);
     totTestReg += st.testReg; totTestFalt += st.testFalt;
   });
-  const pctCov = totM ? Math.round(totTestReg / totM * 100) : 0;
+  const pctCov = _coveragePct(totTestReg, totM);
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
@@ -357,7 +371,7 @@ function _ccStats(n, ck) {
   });
   const testFalt = Math.max(0, totMesas - testReg);
   const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
-  const pct = totMesas ? Math.round(testReg / totMesas * 100) : 0;
+  const pct = _coveragePct(testReg, totMesas);
   const resps = (s.movilidad?.[ck]?.responsables) || [];
   const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
@@ -437,7 +451,7 @@ function buildZonaCard(n, zona) {
     totTestReg += st.testReg; totTestFalt += st.testFalt;
     totMotos += st.totMotos; totCarros += st.totCarros;
   });
-  const pct = totMesas ? Math.round(totTestReg / totMesas * 100) : 0;
+  const pct = _coveragePct(totTestReg, totMesas);
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
   const isOpen = OPEN_Z.has(n + zona.nombre);
   const el = document.createElement('div'); el.className = 'zona-card'; el.id = zid;
@@ -1048,7 +1062,7 @@ function renderOV() {
       const st = _ccStats(n, c);
       rTestReg += st.testReg; rTestFalt += st.testFalt;
     }));
-    const rPct = rTotM ? Math.round(rTestReg / rTotM * 100) : 0;
+    const rPct = _coveragePct(rTestReg, rTotM);
     html += `
     <div style="margin-top:22px;margin-bottom:4px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
@@ -1077,7 +1091,7 @@ function renderOV() {
         const st = _ccStats(n, c);
         testReg += st.testReg; testFalt += st.testFalt;
       });
-      const pct = totM ? Math.round(testReg / totM * 100) : 0;
+      const pct = _coveragePct(testReg, totM);
       const apiCount = _testigoCountsByMuni[n];
       const displayCount = apiCount !== undefined ? apiCount : testReg;
       const apiStat = _dashboardStatsByMuni[n];
@@ -1666,7 +1680,7 @@ function renderMapPanel(n, ck, id) {
     }).addTo(map);
     validPuestos.forEach(p => {
       const ts = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length;
-      const pct = p.mesas ? Math.round(ts / p.mesas * 100) : 0;
+      const pct = _coveragePct(ts, p.mesas);
       const color = _testPctColor(pct);
       const marker = L.circleMarker([p.lat, p.lon], {
         radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85

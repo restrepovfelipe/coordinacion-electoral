@@ -2,8 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { UserWithScopes } from '../common/types/request-with-user.js';
+import { CoverageService, EstadoPuesto } from '../common/coverage.service.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+export type { EstadoPuesto } from '../common/coverage.service.js';
 
 export interface TestigoCount {
   municipioId: number;
@@ -16,18 +19,13 @@ export interface MunicipioStat {
   testigosCount: number;
   mesasCount: number;
   coberturaPct: number;
+  /** Ratio used for required-testigos calculation; clients should use this for local formula alignment. */
+  ratioMesasAlta: number;
   prioridadAltaCount: number;
   prioridadMediaCount: number;
   prioridadBajaCount: number;
   criticosUncovered: number;
 }
-
-export type EstadoPuesto =
-  | 'CRITICO'
-  | 'ATENCION'
-  | 'VIGILAR'
-  | 'CUBIERTO'
-  | 'BAJO_RIESGO';
 
 export interface PuestoPrioridadItem {
   puestoId: number;
@@ -90,51 +88,13 @@ interface RawStatRow {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function computeCobertura(
-  testigos: number,
-  mesas: number,
-  nivel: string,
-  ratioAlta: number,
-  ratioMedia: number,
-  ratioBaja: number,
-): { required: number; pct: number } {
-  const ratio =
-    nivel === 'ALTA'
-      ? ratioAlta
-      : nivel === 'MEDIA'
-        ? ratioMedia
-        : ratioBaja;
-  const required = Math.ceil(mesas * ratio);
-  const pct = required > 0 ? Math.min(100, Math.round((testigos / required) * 100)) : 100;
-  return { required, pct };
-}
-
-function computeEstado(
-  nivel: string,
-  votosTotal: number,
-  testigosAsignados: number,
-  testigosRequeridos: number,
-): EstadoPuesto {
-  if (testigosAsignados >= testigosRequeridos) return 'CUBIERTO';
-  if (votosTotal < 5) return 'BAJO_RIESGO';
-  if (nivel === 'ALTA') return 'CRITICO';
-  if (nivel === 'MEDIA') return 'ATENCION';
-  return 'VIGILAR';
-}
-
-function scopeWhereClause(user: UserWithScopes): Prisma.Sql {
-  if (
-    user.role === Role.SUPER_ADMIN ||
-    user.role === Role.REGIONAL_COORDINATOR
-  ) {
-    return Prisma.empty;
-  }
-  return Prisma.sql``;
-}
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly coverage: CoverageService,
+  ) {}
 
   // ── Legacy: GET /api/dashboard/testigos-counts (Phase 13 compat) ────────────
 
@@ -346,10 +306,10 @@ export class DashboardService {
       const ratioMedia = Number(r.ratioMesasMedia) || 0.4;
       const ratioBaja = Number(r.ratioMesasBaja) || 0.33;
 
-      const required = Math.ceil(mesasCount * ratioAlta);
-      const coberturaPct = required > 0
-        ? Math.min(100, Math.round((testigosCount / required) * 100))
-        : (testigosCount > 0 ? 100 : 0);
+      // Municipal aggregate uses ALTA ratio (most demanding) as the coverage standard.
+      const { pct: coberturaPct } = this.coverage.computeCoverage(
+        testigosCount, mesasCount, 'ALTA', ratioAlta, ratioMedia, ratioBaja,
+      );
 
       return {
         municipioId: Number(r.municipioId),
@@ -357,6 +317,7 @@ export class DashboardService {
         testigosCount,
         mesasCount,
         coberturaPct,
+        ratioMesasAlta: ratioAlta,
         prioridadAltaCount: altaCount,
         prioridadMediaCount: mediaCount,
         prioridadBajaCount: bajaCount,
@@ -575,12 +536,12 @@ export class DashboardService {
       const ratioBaja = Number(r.ratioMesasBaja);
       const votosTotal = Number(r.votosTotal);
 
-      const { required, pct } = computeCobertura(
+      const { required, pct } = this.coverage.computeCoverage(
         testigosAsignados, mesas, nivel,
         ratioAlta, ratioMedia, ratioBaja,
       );
 
-      const estado = computeEstado(nivel, votosTotal, testigosAsignados, required);
+      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, required);
 
       const cubierto = testigosAsignados >= required;
       if (opts.cubierto !== undefined && opts.cubierto !== cubierto) {
@@ -717,11 +678,11 @@ export class DashboardService {
       const mesas = Number(r.mesas);
       const testigosAsignados = Number(r.testigosAsignados);
       const votosTotal = Number(r.votosTotal);
-      const { required } = computeCobertura(
+      const { required } = this.coverage.computeCoverage(
         testigosAsignados, mesas, nivel,
         Number(r.ratioMesasAlta), Number(r.ratioMesasMedia), Number(r.ratioMesasBaja),
       );
-      const estado = computeEstado(nivel, votosTotal, testigosAsignados, required);
+      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, required);
 
       return {
         puestoId: Number(r.puestoId),
