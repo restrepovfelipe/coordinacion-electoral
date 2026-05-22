@@ -1,5 +1,5 @@
 // js/users-page.js
-// Dedicated Users management page — SUPER_ADMIN only
+// Dedicated Users management page — SUPER_ADMIN and REGIONAL_COORDINATOR
 
 // ── State ──────────────────────────────────────────────────────────────────
 let _usersPage = null;
@@ -39,7 +39,11 @@ function closeUsersPage() {
 
 // ── Build HTML ─────────────────────────────────────────────────────────────
 function _buildUsersPageHTML() {
-  const roleOptions = _UP_ROLES.map(r => `<option value="${r}">${r}</option>`).join('');
+  const isRegional = window.CURRENT_USER?.role === 'REGIONAL_COORDINATOR';
+  const assignableRoles = isRegional
+    ? _UP_ROLES.filter(r => r !== 'SUPER_ADMIN')
+    : _UP_ROLES;
+  const roleOptions = assignableRoles.map(r => `<option value="${r}">${r}</option>`).join('');
   return `
     <div class="dir-box t-page-box" style="position:relative;max-width:1100px">
       <div class="dir-hd">
@@ -65,9 +69,21 @@ function _buildUsersPageHTML() {
           <input id="up-new-displayname" placeholder="Nombre completo" type="text">
           <input id="up-new-phone" placeholder="Teléfono (opcional)" type="text">
           <input id="up-new-password" placeholder="Contraseña inicial (mín. 8 chars)" type="password">
-          <select id="up-new-role">
+          <select id="up-new-role" data-action="up-role-changed">
             ${roleOptions}
           </select>
+        </div>
+        <div id="up-cascade-wrap" style="margin-top:10px;display:none">
+          <div class="up-create-grid" id="up-cascade-row1" style="display:none">
+            <select id="up-cascade-municipio" data-action="up-municipio-changed">
+              <option value="">— Municipio —</option>
+            </select>
+          </div>
+          <div class="up-create-grid" id="up-cascade-row2" style="display:none">
+            <select id="up-cascade-child">
+              <option value="">— Seleccionar —</option>
+            </select>
+          </div>
         </div>
         <div id="up-create-err" class="t-err"></div>
         <button class="t-btn-primary" data-action="up-create-user">Crear usuario</button>
@@ -115,7 +131,8 @@ function _renderUsersTable() {
       ? `<button class="t-btn-cancel" data-action="deactivate-user" data-id="${u.id}" style="font-size:11px;padding:3px 10px;color:var(--orange)">Desactivar</button>`
       : `<button class="t-btn-cancel" data-action="activate-user" data-id="${u.id}" style="font-size:11px;padding:3px 10px;color:var(--green)">Activar</button>`;
 
-    const deleteBtn = !u.active
+    const canDelete = !u.active && window.CURRENT_USER?.role === 'SUPER_ADMIN';
+    const deleteBtn = canDelete
       ? `<button class="t-btn-cancel" data-action="delete-user" data-id="${u.id}" data-username="${esc(u.username)}" style="font-size:11px;padding:3px 10px;color:var(--red)">Eliminar</button>`
       : '';
 
@@ -378,6 +395,74 @@ function _confirmDelete(userId, username) {
   });
 }
 
+// ── Cascade scope helpers ──────────────────────────────────────────────────
+let _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
+
+async function _onRoleChanged(role) {
+  const wrap = document.getElementById('up-cascade-wrap');
+  const row1 = document.getElementById('up-cascade-row1');
+  const row2 = document.getElementById('up-cascade-row2');
+  const muniSel = document.getElementById('up-cascade-municipio');
+  const childSel = document.getElementById('up-cascade-child');
+  _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
+
+  if (!role || !wrap) return;
+
+  try {
+    const res = await window.api.get(`/admin/cascade-options?role=${encodeURIComponent(role)}`);
+    _cascadeState.scopeType = res.scopeType;
+    _cascadeState.needsMunicipio = res.needsMunicipio;
+
+    if (!res.scopeType) {
+      wrap.style.display = 'none';
+      row1.style.display = 'none';
+      row2.style.display = 'none';
+      return;
+    }
+
+    wrap.style.display = 'block';
+
+    if (res.needsMunicipio) {
+      muniSel.innerHTML = '<option value="">— Municipio —</option>' +
+        res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+      row1.style.display = 'grid';
+      row2.style.display = 'none';
+      childSel.innerHTML = '<option value="">— Seleccionar —</option>';
+    } else {
+      muniSel.innerHTML = '';
+      row1.style.display = 'none';
+      childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
+        res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+      row2.style.display = 'grid';
+    }
+  } catch (_) {
+    wrap.style.display = 'none';
+  }
+}
+
+async function _onMunicipioChanged(municipioId) {
+  _cascadeState.municipioId = municipioId ? Number(municipioId) : null;
+  const row2 = document.getElementById('up-cascade-row2');
+  const childSel = document.getElementById('up-cascade-child');
+  const role = document.getElementById('up-new-role')?.value;
+
+  if (!municipioId || !_cascadeState.scopeType) {
+    if (row2) row2.style.display = 'none';
+    return;
+  }
+
+  try {
+    const res = await window.api.get(
+      `/admin/cascade-options?role=${encodeURIComponent(role)}&municipioId=${municipioId}`
+    );
+    childSel.innerHTML = '<option value="">— Seleccionar —</option>' +
+      res.items.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+    if (row2) row2.style.display = 'grid';
+  } catch (_) {
+    if (row2) row2.style.display = 'none';
+  }
+}
+
 // ── Create user ────────────────────────────────────────────────────────────
 async function _handleCreateUser() {
   const username = document.getElementById('up-new-username')?.value?.trim();
@@ -387,21 +472,32 @@ async function _handleCreateUser() {
   const role = document.getElementById('up-new-role')?.value;
   const errEl = document.getElementById('up-create-err');
 
-  if (!username) {
-    if (errEl) errEl.textContent = 'El nombre de usuario es requerido.';
-    return;
-  }
-  if (!displayName) {
-    if (errEl) errEl.textContent = 'El nombre completo es requerido.';
-    return;
-  }
-  if (!password || password.length < 8) {
-    if (errEl) errEl.textContent = 'La contraseña debe tener al menos 8 caracteres.';
-    return;
-  }
-  if (!role) {
-    if (errEl) errEl.textContent = 'El rol es requerido.';
-    return;
+  if (!username) { if (errEl) errEl.textContent = 'El nombre de usuario es requerido.'; return; }
+  if (!displayName) { if (errEl) errEl.textContent = 'El nombre completo es requerido.'; return; }
+  if (!password || password.length < 8) { if (errEl) errEl.textContent = 'La contraseña debe tener al menos 8 caracteres.'; return; }
+  if (!role) { if (errEl) errEl.textContent = 'El rol es requerido.'; return; }
+
+  // Validate scope selection if needed
+  let scopeId = null;
+  if (_cascadeState.scopeType) {
+    const childSel = document.getElementById('up-cascade-child');
+    const muniSel = document.getElementById('up-cascade-municipio');
+    if (_cascadeState.needsMunicipio) {
+      if (!_cascadeState.municipioId) {
+        if (_cascadeState.scopeType === 'MUNICIPIO') {
+          scopeId = Number(muniSel?.value);
+          if (!scopeId) { if (errEl) errEl.textContent = 'Selecciona un municipio.'; return; }
+        } else {
+          if (errEl) errEl.textContent = 'Selecciona un municipio primero.'; return;
+        }
+      } else {
+        scopeId = childSel ? Number(childSel.value) : _cascadeState.municipioId;
+        if (!scopeId) { if (errEl) errEl.textContent = `Selecciona ${_cascadeState.scopeType.toLowerCase()}.`; return; }
+      }
+    } else {
+      scopeId = childSel ? Number(childSel.value) : null;
+      if (!scopeId) { if (errEl) errEl.textContent = 'Selecciona el ámbito geográfico.'; return; }
+    }
   }
 
   const createBtn = _usersPage.querySelector('[data-action="up-create-user"]');
@@ -409,22 +505,22 @@ async function _handleCreateUser() {
   if (errEl) errEl.textContent = '';
 
   try {
-    const newUser = await window.api.post('/users', {
-      username,
-      displayName,
-      phone: phone || undefined,
-      role,
-    });
-    // Set admin-chosen password immediately after creation
+    const newUser = await window.api.post('/users', { username, displayName, phone: phone || undefined, role });
     await window.api.patch(`/users/${newUser.id}`, { newPassword: password });
-
-    // Clear form
+    if (_cascadeState.scopeType && scopeId) {
+      await window.api.post(`/users/${newUser.id}/scopes`, {
+        scopeType: _cascadeState.scopeType,
+        scopeId,
+      });
+    }
     ['up-new-username', 'up-new-displayname', 'up-new-phone', 'up-new-password'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
     if (errEl) errEl.textContent = '';
-
+    _cascadeState = { scopeType: null, needsMunicipio: false, municipioId: null };
+    const wrap = document.getElementById('up-cascade-wrap');
+    if (wrap) wrap.style.display = 'none';
     await _loadUsersPage(1);
   } catch (err) {
     if (errEl) errEl.textContent = errorToSpanish(err);
@@ -496,6 +592,16 @@ function _attachUsersListeners() {
       await _handleCreateUser();
     }
   });
+
+  // Role change → cascade
+  _usersPage.addEventListener('change', async e => {
+    const target = e.target;
+    if (target.dataset.action === 'up-role-changed') {
+      await _onRoleChanged(target.value);
+    } else if (target.dataset.action === 'up-municipio-changed') {
+      await _onMunicipioChanged(target.value);
+    }
+  });
 }
 
 // ── Expose globally ────────────────────────────────────────────────────────
@@ -522,7 +628,7 @@ if (document.getElementById('page-content')) {
 
   window.startApp = function(me) {
     clearTimeout(_uAuthTimeout);
-    if (me.role !== 'SUPER_ADMIN') {
+    if (me.role !== 'SUPER_ADMIN' && me.role !== 'REGIONAL_COORDINATOR') {
       window.location.replace('/');
       return;
     }
@@ -539,5 +645,6 @@ if (document.getElementById('page-content')) {
     window.closeUsersPage = () => window.location.replace('/');
     _attachUsersListeners();
     _loadUsersPage(1);
+    if (typeof initProfileWidget === 'function') initProfileWidget(me);
   };
 }

@@ -470,4 +470,26 @@ table.pt tr:hover td{background:rgba(26,109,191,.04)}
 .up-scope-add{display:flex;gap:6px;margin-top:6px}
 .up-scope-add select,.up-scope-add input{background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:5px 8px;color:var(--t1);font-size:11px;font-family:inherit;outline:none}
 .up-scope-add select:focus,.up-scope-add input:focus{border-color:var(--gold)}
+/* ── Profile widget ─────────────────────────────────────────────────────── */
+#profile-widget{position:fixed;bottom:12px;left:12px;z-index:900}
+.profile-widget-card{background:var(--bg2);border:1px solid var(--b1);border-radius:10px;padding:8px 12px;cursor:pointer;box-shadow:var(--shadow);min-width:120px;transition:box-shadow .2s}
+.profile-widget-card:hover{box-shadow:var(--shadow-md)}
+.profile-widget-name{font-size:12px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.profile-widget-role{font-size:10px;color:var(--t3);margin-top:2px}
+.profile-modal-overlay{position:fixed;inset:0;background:rgba(30,50,80,.45);z-index:1000;display:flex;align-items:center;justify-content:center}
+.profile-modal{background:var(--card);border-radius:12px;width:340px;box-shadow:var(--shadow-md);overflow:hidden}
+.profile-modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--b1);font-weight:600;font-size:14px}
+.profile-modal-close{background:none;border:none;cursor:pointer;font-size:14px;color:var(--t3);padding:2px 6px;border-radius:4px}
+.profile-modal-close:hover{background:var(--bg3);color:var(--t1)}
+.profile-modal-body{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.profile-label{font-size:11px;font-weight:600;color:var(--t2)}
+.profile-input{background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:7px 10px;font-size:13px;color:var(--t1);font-family:inherit;outline:none;width:100%}
+.profile-input:focus{border-color:var(--gold)}
+.profile-modal-error{font-size:12px;color:var(--red);padding:6px 10px;background:rgba(200,48,62,.08);border-radius:6px}
+.profile-modal-footer{padding:12px 18px;border-top:1px solid var(--b1);display:flex;justify-content:flex-end}
+.profile-btn-save{background:var(--gold);color:#fff;border:none;border-radius:var(--r);padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer}
+.profile-btn-save:hover{opacity:.88}
+.profile-btn-save:disabled{opacity:.5;cursor:default}
+.profile-toast{position:fixed;bottom:80px;left:12px;background:var(--green);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;z-index:1100;pointer-events:none}
+.profile-toast.show{opacity:1}
 </style>

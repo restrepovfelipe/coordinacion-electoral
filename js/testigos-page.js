@@ -580,5 +580,6 @@ if (document.getElementById('page-content')) {
     _attachListeners();
     _loadMunicipios();
     _loadTestigos(1);
+    if (typeof initProfileWidget === 'function') initProfileWidget(me);
   };
 }

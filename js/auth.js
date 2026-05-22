@@ -58,7 +58,7 @@ function doLogin() {
       }
 
       _clearLoginError();
-      if (me.role === 'SUPER_ADMIN') {
+      if (me.role === 'SUPER_ADMIN' || me.role === 'REGIONAL_COORDINATOR') {
         document.getElementById('btn-users-admin')?.classList.remove('hidden');
       }
       startApp(me);
@@ -186,7 +186,7 @@ auth.onAuthStateChanged(async (user) => {
         showMustChangePasswordModal();
         return;
       }
-      if (me.role === 'SUPER_ADMIN') {
+      if (me.role === 'SUPER_ADMIN' || me.role === 'REGIONAL_COORDINATOR') {
         document.getElementById('btn-users-admin')?.classList.remove('hidden');
       }
       startApp(me);
