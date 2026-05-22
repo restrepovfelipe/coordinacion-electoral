@@ -6,3 +6,27 @@ backend/.gcp-key*.json
 backend/.env.local
 backend/node_modules/
 backend/dist/
+
+# Local binaries and helpers
+backend/scripts/local/cloud-sql-proxy*
+backend/scripts/local/*.exe
+
+# Database dumps and backups
+backups/
+
+# Sensitive data — PII, operational files
+data/*.xlsx
+data/*.pdf
+data/puestos_mapping*.csv
+data/reimport_work/
+data/reporte_final_testigos.md
+data/testigos_analysis_report.md
+data/testigos_clean.csv
+
+# Build artifacts and dependencies
+node_modules/
+
+# Test outputs
+test-results/
+backend/test-results/
+playwright-report/
