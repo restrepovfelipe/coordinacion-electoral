@@ -55,6 +55,7 @@ function rerenderIfNotEditing() {
 
 // ─── REALTIME EVENT HANDLER ───
 let _countsRefreshTimer = null;
+let _statsRefreshTimer = null;
 
 function handleRealtimeEvent(event) {
   // event shape: { type, puestoId?, municipioId?, scopeType?, scopeId?, payload }
@@ -73,8 +74,42 @@ function handleRealtimeEvent(event) {
         console.warn('[sync] Failed to refresh testigo counts:', err);
       }
     }, 300);
+
+    // Also refresh dashboard stats (coverage % update — T88 fix)
+    clearTimeout(_statsRefreshTimer);
+    _statsRefreshTimer = setTimeout(async () => {
+      try {
+        if (window.api) {
+          const stats = await window.api.getDashboardStats({ bypassCache: true });
+          if (typeof updateDashboardStats === 'function') {
+            updateDashboardStats(stats);
+          }
+        }
+      } catch (err) {
+        console.warn('[sync] Failed to refresh dashboard stats:', err);
+      }
+    }, 300);
     return;
   }
+
+  if (event.type === 'prioridad:config_changed') {
+    // Config change → recomputed priorities → refresh stats
+    clearTimeout(_statsRefreshTimer);
+    _statsRefreshTimer = setTimeout(async () => {
+      try {
+        if (window.api) {
+          const stats = await window.api.getDashboardStats({ bypassCache: true });
+          if (typeof updateDashboardStats === 'function') {
+            updateDashboardStats(stats);
+          }
+        }
+      } catch (err) {
+        console.warn('[sync] Failed to refresh stats after config change:', err);
+      }
+    }, 300);
+    return;
+  }
+
   // Re-render the current municipality view if it is open.
   rerenderIfNotEditing();
 }

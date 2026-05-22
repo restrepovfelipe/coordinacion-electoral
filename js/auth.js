@@ -61,6 +61,9 @@ function doLogin() {
       if (me.role === 'SUPER_ADMIN' || me.role === 'REGIONAL_COORDINATOR') {
         document.getElementById('btn-users-admin')?.classList.remove('hidden');
       }
+      if (me.role === 'SUPER_ADMIN') {
+        document.getElementById('btn-prioridad-config')?.classList.remove('hidden');
+      }
       startApp(me);
     })
     .catch((err) => {
@@ -168,6 +171,7 @@ function initInactivityDetection() {
 function doLogout() {
   api.post('/auth/logout', {}).catch(() => {});
   localStorage.removeItem('cache:testigo-counts');
+  localStorage.removeItem('cache:dashboard-stats');
   auth.signOut().then(() => {
     CURRENT_USER = null;
     window.CURRENT_USER = null;
@@ -189,6 +193,9 @@ auth.onAuthStateChanged(async (user) => {
       }
       if (me.role === 'SUPER_ADMIN' || me.role === 'REGIONAL_COORDINATOR') {
         document.getElementById('btn-users-admin')?.classList.remove('hidden');
+      }
+      if (me.role === 'SUPER_ADMIN') {
+        document.getElementById('btn-prioridad-config')?.classList.remove('hidden');
       }
       startApp(me);
     } catch (err) {

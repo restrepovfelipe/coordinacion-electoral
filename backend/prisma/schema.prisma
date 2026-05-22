@@ -52,7 +52,8 @@ model User {
   movilidadCreated    Movilidad[]
   refrigeriosCreated  Refrigerio[]
   comparendosCreated  Comparendo[]
-  auditEntries        AuditLog[]
+  auditEntries            AuditLog[]
+  prioridadConfigUpdates  PrioridadConfig[]
 
   @@index([active])
   @@index([role])
@@ -108,22 +109,51 @@ model Zona {
 }
 
 model Puesto {
-  id          Int        @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   municipioId Int
-  municipio   Municipio  @relation(fields: [municipioId], references: [id])
+  municipio   Municipio        @relation(fields: [municipioId], references: [id])
   comunaId    Int?
-  comuna      Comuna?    @relation(fields: [comunaId], references: [id])
-  divipola    String     @unique
+  comuna      Comuna?          @relation(fields: [comunaId], references: [id])
+  divipola    String           @unique
   name        String
   address     String
   lat         Float
   lng         Float
-  mesas       Int        @default(0)
-  votantes    Int        @default(0)
+  mesas       Int              @default(0)
+  votantes    Int              @default(0)
   testigos    Testigo[]
+  prioridad   PuestoPrioridad?
 
   @@index([municipioId])
   @@index([comunaId])
+}
+
+model PuestoPrioridad {
+  id              Int      @id @default(autoincrement())
+  puestoId        Int      @unique
+  puesto          Puesto   @relation(fields: [puestoId], references: [id], onDelete: Cascade)
+  votosCreemos    Int      @default(0)
+  votosSN         Int      @default(0)
+  votosTotal      Int      @default(0)
+  mesasHistoricas Int      @default(0)
+  nivelPrioridad  String   @default("BAJA")
+  notas           String?
+  updatedAt       DateTime @updatedAt
+
+  @@index([nivelPrioridad])
+  @@index([votosTotal(sort: Desc)])
+}
+
+model PrioridadConfig {
+  id              Int      @id @default(autoincrement())
+  umbralAlto      Int      @default(500)
+  umbralMedio     Int      @default(100)
+  ratioMesasAlta  Float    @default(0.5)
+  ratioMesasMedia Float    @default(0.4)
+  ratioMesasBaja  Float    @default(0.33)
+  updatedAt       DateTime @updatedAt
+  updatedById     Int?
+  updatedBy       User?    @relation(fields: [updatedById], references: [id])
 }
 
 model Testigo {

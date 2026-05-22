@@ -49,6 +49,13 @@ EOF
 printf '"app_user" ""\n' > /tmp/pgbouncer-userlist.txt
 
 # ─── Start PgBouncer ──────────────────────────────────────────────────────────
+# ─── Apply pending Prisma migrations (uses DIRECT_DATABASE_URL, bypasses PgBouncer) ──
+# Runs before PgBouncer starts so DDL advisory locks are never blocked by pooler.
+# Idempotent: Prisma tracks applied migrations in _prisma_migrations table.
+echo "[entrypoint] Running prisma migrate deploy..."
+node /app/node_modules/.bin/prisma migrate deploy
+echo "[entrypoint] Migrations complete."
+
 # -u nobody: drop from root to nobody after binding the port (required by PgBouncer).
 # Logs go to stdout (no logfile= set) so Cloud Run captures them.
 pgbouncer -u nobody /tmp/pgbouncer.ini &

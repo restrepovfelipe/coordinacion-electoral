@@ -21,6 +21,8 @@ const _puestoIdCache = {};
 // ═══ TESTIGO COUNTS (real-time dashboard counters) ═══
 // Populated from GET /api/dashboard/testigos-counts; updated via SSE.
 const _testigoCountsByMuni = {}; // { [municipioName]: number }
+// Populated from GET /api/dashboard/stats (Phase 14); updated via SSE.
+const _dashboardStatsByMuni = {}; // { [municipioName]: MunicipioStat }
 let _muniIdToName = null; // { [municipioId]: municipioName } — built lazily
 
 async function _buildMuniIdMap() {
@@ -67,6 +69,40 @@ function _applyTestigoCountsToDom() {
     const name = el.dataset.testigoCount;
     if (name && _testigoCountsByMuni[name] !== undefined) {
       el.textContent = _testigoCountsByMuni[name];
+    }
+  });
+}
+
+async function loadDashboardStats() {
+  if (!window.api || !window.CURRENT_USER) return;
+  try {
+    const map = await _buildMuniIdMap();
+    const stats = await api.getDashboardStats();
+    for (const s of stats) {
+      const name = map[s.municipioId];
+      if (name) _dashboardStatsByMuni[name] = s;
+    }
+    _applyDashboardStatsToDom();
+  } catch (err) {
+    console.warn('[app] loadDashboardStats failed:', err);
+  }
+}
+
+function updateDashboardStats(stats) {
+  if (!_muniIdToName) return;
+  for (const s of stats) {
+    const name = _muniIdToName[s.municipioId];
+    if (name) _dashboardStatsByMuni[name] = s;
+  }
+  _applyDashboardStatsToDom();
+}
+
+function _applyDashboardStatsToDom() {
+  document.querySelectorAll('[data-cobertura-muni]').forEach(el => {
+    const name = el.dataset.coberturaMuni;
+    const s = _dashboardStatsByMuni[name];
+    if (s !== undefined) {
+      el.textContent = s.coberturaPct + '%';
     }
   });
 }
@@ -251,6 +287,7 @@ function goHome() {
     </div>`;
   renderOV();
   loadTestigoCounts();
+  loadDashboardStats();
 }
 
 // ═══ MUNI VIEW ═══
@@ -289,10 +326,12 @@ function renderMuni(n) {
       <div class="otab on" onclick="switchOTab(this,'ot-comunas')">Por Zonas/Comunas</div>
       <div class="otab" onclick="switchOTab(this,'ot-todos')">Todos los puestos</div>
       <div class="otab" onclick="switchOTab(this,'ot-mapa')">🗺 Mapa</div>
+      <div class="otab" onclick="switchOTab(this,'ot-prioridad')">⭐ Priorización</div>
     </div>
     <div id="ot-comunas" class="opane on"><div class="body" id="cc-body"></div></div>
     <div id="ot-todos" class="opane"><div class="body" id="at-body"></div></div>
-    <div id="ot-mapa" class="opane"><div id="ot-mapa-inner" style="height:520px"></div></div>`;
+    <div id="ot-mapa" class="opane"><div id="ot-mapa-inner" style="height:520px"></div></div>
+    <div id="ot-prioridad" class="opane"><div id="ot-prioridad-inner"></div></div>`;
   renderCCs(n);
 }
 function switchOTab(el, id) {
@@ -301,6 +340,7 @@ function switchOTab(el, id) {
   el.classList.add('on'); document.getElementById(id).classList.add('on');
   if (id === 'ot-todos') renderAllPuestos(CUR);
   if (id === 'ot-mapa') renderMuniMap(CUR);
+  if (id === 'ot-prioridad' && typeof renderPrioridadTabForMuni === 'function') renderPrioridadTabForMuni(CUR);
 }
 
 // ═══ STATS HELPER PER COMMUNE ═══
@@ -1040,6 +1080,8 @@ function renderOV() {
       const pct = totM ? Math.round(testReg / totM * 100) : 0;
       const apiCount = _testigoCountsByMuni[n];
       const displayCount = apiCount !== undefined ? apiCount : testReg;
+      const apiStat = _dashboardStatsByMuni[n];
+      const displayPct = apiStat !== undefined ? apiStat.coberturaPct : pct;
       html += `<div class="ov-muni-card" onclick="selMuni('${n}')">
         <div class="ov-muni-nm">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</div>
         <div class="ov-muni-sub">${ckeys.length} zonas · ${totP} puestos · ${totM.toLocaleString('es-CO')} mesas</div>
@@ -1048,7 +1090,7 @@ function renderOV() {
           <span class="ov-stat"><b>${(totV/1000).toFixed(0)}K</b><span>Votantes</span></span>
           <span class="ov-stat"><b data-testigo-count="${n}">${displayCount}</b><span>Testigos</span></span>
           <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>Mesas sin testigo</span></span>
-          <span class="ov-stat"><b>${pct}%</b><span>Cobertura</span></span>
+          <span class="ov-stat"><b data-cobertura-muni="${n}">${displayPct}%</b><span>Cobertura</span></span>
         </div>
       </div>`;
     });
@@ -1129,6 +1171,7 @@ async function startApp() {
   buildSB();
   renderOV();
   loadTestigoCounts();
+  loadDashboardStats();
   buildExportMenu();
   buildExcelMenu();
   startListener();

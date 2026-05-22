@@ -169,6 +169,79 @@ class ApiClient {
     }
     return data;
   }
+
+  // ─── Dashboard stats (Phase 14 — replaces testigos-counts for coverage display) ─
+  async getDashboardStats(options = {}) {
+    const key = 'cache:dashboard-stats';
+    const headers = await this._headers();
+
+    if (options.bypassCache) {
+      const res = await fetch(`${API_BASE}/dashboard/stats`, { headers, cache: 'no-cache' });
+      if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+      const data = await res.json();
+      const etag = res.headers.get('ETag');
+      if (etag) { try { localStorage.setItem(key, JSON.stringify({ etag, data })); } catch {} }
+      return data;
+    }
+
+    let cached = null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) cached = JSON.parse(raw);
+    } catch { localStorage.removeItem(key); }
+
+    if (cached?.etag) headers['If-None-Match'] = cached.etag;
+    const res = await fetch(`${API_BASE}/dashboard/stats`, { headers });
+
+    if (res.status === 304) return cached?.data ?? [];
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+
+    const data = await res.json();
+    const etag = res.headers.get('ETag');
+    if (etag) { try { localStorage.setItem(key, JSON.stringify({ etag, data })); } catch {} }
+    return data;
+  }
+
+  // ─── Prioridad puestos list ──────────────────────────────────────────────────
+  async getPrioridadPuestos(params = {}) {
+    const headers = await this._headers();
+    const qs = new URLSearchParams();
+    if (params.nivel)    qs.set('nivel', params.nivel);
+    if (params.cubierto !== undefined) qs.set('cubierto', String(params.cubierto));
+    if (params.orderBy)  qs.set('orderBy', params.orderBy);
+    if (params.dir)      qs.set('dir', params.dir);
+    if (params.page)     qs.set('page', String(params.page));
+    if (params.perPage)  qs.set('perPage', String(params.perPage));
+    const url = `${API_BASE}/dashboard/prioridad/puestos${qs.toString() ? '?' + qs.toString() : ''}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+    return res.json();
+  }
+
+  // ─── Prioridad mapa geo data ──────────────────────────────────────────────────
+  async getPrioridadMapa() {
+    const headers = await this._headers();
+    const res = await fetch(`${API_BASE}/dashboard/prioridad/mapa`, { headers });
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+    return res.json();
+  }
+
+  // ─── Admin: prioridad config ──────────────────────────────────────────────────
+  async getPrioridadConfig() {
+    const headers = await this._headers();
+    const res = await fetch(`${API_BASE}/admin/prioridad/config`, { headers });
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+    return res.json();
+  }
+
+  async updatePrioridadConfig(dto) {
+    const headers = { ...(await this._headers()), 'Content-Type': 'application/json' };
+    const res = await fetch(`${API_BASE}/admin/prioridad/config`, {
+      method: 'PATCH', headers, body: JSON.stringify(dto),
+    });
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+    return res.json();
+  }
 }
 
 class ApiError extends Error {
