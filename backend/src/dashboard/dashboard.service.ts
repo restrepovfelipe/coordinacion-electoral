@@ -449,7 +449,7 @@ export class DashboardService {
     const perPage = Math.min(200, Math.max(1, opts.perPage ?? 50));
     const offset = (page - 1) * perPage;
     const orderField =
-      opts.orderBy === 'nombre' ? Prisma.sql`p.name` : Prisma.sql`pp."votosTotal"`;
+      opts.orderBy === 'nombre' ? Prisma.sql`"puestoNombre"` : Prisma.sql`"votosTotal"`;
     const orderDir =
       opts.dir === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
 
