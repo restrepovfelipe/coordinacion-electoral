@@ -16,8 +16,11 @@
     <div class="logo-main">🧾 <em>Gestión de Testigos</em></div>
     <div class="logo-sub">Coordinación Electoral · Defensores de la Patria 2026</div>
   </div>
-  <div class="user-badge" id="user-badge" onclick="doLogout()">
-    <span>👤</span><span id="user-label"></span><span style="font-size:9px;color:var(--red)">Salir</span>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="export-btn" onclick="clearReferenceCache();this.textContent='✓ Caché limpiada';setTimeout(()=>this.textContent='🗑 Limpiar caché',2000)" title="Borra el caché local de municipios, puestos y zonas" style="white-space:nowrap">🗑 Limpiar caché</button>
+    <div class="user-badge" id="user-badge" onclick="doLogout()">
+      <span>👤</span><span id="user-label"></span><span style="font-size:9px;color:var(--red)">Salir</span>
+    </div>
   </div>
 </div>
 <div id="page-content" style="flex:1;overflow:auto;display:flex;flex-direction:column">

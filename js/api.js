@@ -3,6 +3,26 @@
 
 const API_BASE = 'https://backend-210392280319.us-central1.run.app/api';
 
+// ─── Reference-data cache (localStorage, stale-while-revalidate) ──────────────
+const _CACHE_PREFIX = 'ref_cache:';
+// Paths eligible for caching (prefix match, query params allowed)
+const _REF_PATHS = ['/subregiones', '/municipios', '/comunas', '/zonas', '/puestos'];
+
+function _isRefPath(path) {
+  return _REF_PATHS.some(p => path === p || path.startsWith(p + '?'));
+}
+
+function _cacheKey(path) {
+  const uid = (typeof auth !== 'undefined' && auth.currentUser?.uid) || 'anon';
+  return `${_CACHE_PREFIX}${uid}:${path}`;
+}
+
+function clearReferenceCache() {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith(_CACHE_PREFIX))
+    .forEach(k => localStorage.removeItem(k));
+}
+
 class ApiClient {
   constructor(getToken) {
     this._getToken = getToken; // async () => string
@@ -17,11 +37,63 @@ class ApiClient {
   }
 
   async get(path) {
+    if (_isRefPath(path)) return this._cachedGet(path);
+
     const res = await fetch(`${API_BASE}${path}`, {
       headers: await this._headers(),
     });
     if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
     return res.json();
+  }
+
+  // Stale-while-revalidate: return cached data immediately, refresh in background.
+  async _cachedGet(path) {
+    const key = _cacheKey(path);
+    let cached = null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) cached = JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(key);
+    }
+
+    if (cached) {
+      // Return stale data immediately; revalidate quietly in the background.
+      this._revalidate(path, key, cached.etag).catch(() => {});
+      return cached.data;
+    }
+
+    // No cached data — block on the first fetch.
+    return this._fetchAndCache(path, key, null);
+  }
+
+  async _revalidate(path, key, etag) {
+    await this._fetchAndCache(path, key, etag);
+  }
+
+  async _fetchAndCache(path, key, etag) {
+    const headers = await this._headers();
+    if (etag) headers['If-None-Match'] = etag;
+
+    const res = await fetch(`${API_BASE}${path}`, { headers });
+
+    if (res.status === 304) {
+      // Server confirmed data unchanged — nothing to update.
+      return JSON.parse(localStorage.getItem(key) || 'null')?.data ?? null;
+    }
+
+    if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
+
+    const data = await res.json();
+    const newEtag = res.headers.get('ETag');
+    if (newEtag) {
+      try {
+        localStorage.setItem(key, JSON.stringify({ etag: newEtag, data }));
+      } catch {
+        // localStorage full — skip caching, data is still returned
+      }
+    }
+    return data;
   }
 
   async post(path, body) {
@@ -120,3 +192,4 @@ window.ApiClient = ApiClient;
 window.ApiError = ApiError;
 window.errorToSpanish = errorToSpanish;
 window.API_BASE = API_BASE;
+window.clearReferenceCache = clearReferenceCache;

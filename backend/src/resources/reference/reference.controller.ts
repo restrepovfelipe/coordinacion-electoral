@@ -1,14 +1,16 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, UseInterceptors } from '@nestjs/common';
 import type { Subregion, Municipio, Comuna, Zona, Puesto } from '@prisma/client';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../../common/types/request-with-user.js';
+import { ETagInterceptor } from '../../common/interceptors/etag.interceptor.js';
 import { ReferenceService } from './reference.service.js';
 
 @ApiTags('reference')
 @ApiBearerAuth()
 @UseGuards(AuthGuard)
+@UseInterceptors(ETagInterceptor)
 @Controller('')
 export class ReferenceController {
   constructor(private readonly referenceService: ReferenceService) {}
