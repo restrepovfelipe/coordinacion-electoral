@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { Prisma, Role, User, UserScope } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -6,6 +6,7 @@ import { FirebaseAdminService } from '../common/firebase/firebase-admin.service.
 import { UserWithScopes } from '../common/types/request-with-user.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { UpdateSelfDto } from './dto/update-self.dto.js';
 import { AddScopeDto } from './dto/add-scope.dto.js';
 import { ListUsersQueryDto } from './dto/list-users-query.dto.js';
 
@@ -65,7 +66,43 @@ export class UsersService {
     return this.omitCipUid(user);
   }
 
+  async updateSelf(actor: UserWithScopes, dto: UpdateSelfDto): Promise<UserWithoutCipUid> {
+    if (dto.newPassword) {
+      await this.firebaseAdmin.auth.updateUser(actor.cipUid, { password: dto.newPassword });
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.user.update({
+        where: { id: actor.id },
+        data: {
+          ...(dto.displayName !== undefined && { displayName: dto.displayName }),
+          ...(dto.phone !== undefined && { phone: dto.phone }),
+        },
+        include: { scopes: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: 'user.updateSelf',
+          targetType: 'User',
+          targetId: actor.id,
+          afterJson: { displayName: result.displayName, phone: result.phone } as Prisma.InputJsonValue,
+        },
+      });
+
+      return result;
+    });
+
+    return this.omitCipUid(updated);
+  }
+
   async create(dto: CreateUserDto, actor: UserWithScopes): Promise<UserWithoutCipUid> {
+    // REGIONAL cannot create SUPER_ADMIN users
+    if (actor.role === Role.REGIONAL_COORDINATOR && dto.role === Role.SUPER_ADMIN) {
+      throw new ForbiddenException('Coordinador Regional no puede crear Super Administradores');
+    }
+
     const password = randomBytes(12).toString('base64url');
 
     const firebaseUser = await this.firebaseAdmin.auth.createUser({
@@ -126,6 +163,15 @@ export class UsersService {
       include: { scopes: true },
     });
     if (!existing) throw new NotFoundException('User not found');
+
+    // REGIONAL cannot edit SUPER_ADMINs
+    if (actor.role === Role.REGIONAL_COORDINATOR && existing.role === Role.SUPER_ADMIN) {
+      throw new ForbiddenException('Coordinador Regional no puede editar Super Administradores');
+    }
+    // REGIONAL cannot promote anyone to SUPER_ADMIN
+    if (actor.role === Role.REGIONAL_COORDINATOR && dto.role === Role.SUPER_ADMIN) {
+      throw new ForbiddenException('Coordinador Regional no puede asignar rol Super Administrador');
+    }
 
     if (dto.newPassword) {
       await this.firebaseAdmin.auth.updateUser(existing.cipUid, { password: dto.newPassword });

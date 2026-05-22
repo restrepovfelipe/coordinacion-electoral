@@ -40,7 +40,15 @@ export class TestigosController {
   }
 
   @Post(':puestoId/testigos')
-  @UseGuards(ScopeGuard)
+  @UseGuards(RolesGuard, ScopeGuard)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.REGIONAL_COORDINATOR,
+    Role.MUNICIPAL_COORDINATOR,
+    Role.ZONE_COORDINATOR,
+    Role.COMUNA_COORDINATOR,
+    // PUESTO_COORDINATOR excluded: canDo(PUESTO, testigos, CREATE) = false
+  )
   @RequireScope(ScopeType.PUESTO, 'puestoId')
   create(
     @Param('puestoId', ParseIntPipe) puestoId: number,
