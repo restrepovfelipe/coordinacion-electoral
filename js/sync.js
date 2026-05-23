@@ -14,7 +14,11 @@ function writeDebounced(n, ms) {
   // Kept for API compatibility.
 }
 
-// ─── WRITE MUNICIPALITY (no-op: kept for API compatibility) ───
+/**
+ * @deprecated Kept ONLY for the 3 movilidad callers (addResp/delResp/saveMovAll).
+ * All other data has real API persistence. Remove this function entirely in Phase 16
+ * once movilidad gets its own backend table and endpoint.
+ */
 async function writeMuni(n) {
   // No remote write — state is persisted to localStorage only.
 }

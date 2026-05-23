@@ -807,7 +807,6 @@ function addTestigo(n, ck, pKey, id) {
   if (!s.testigos) s.testigos = {}; if (!s.testigos[ck]) s.testigos[ck] = {};
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
   s.testigos[ck][pName].push({ nombre: '', telefono: '' }); saveLocalSt();
-  writeMuni(n);
   // Real API call — fire and forget with error logging
   if (window.api && window.CURRENT_USER) {
     const testigos = s.testigos[ck][pName];
@@ -859,7 +858,6 @@ function delTestigo(n, ck, pKey, idx, id) {
     api.delete(`/testigos/${deletedTestigo._backendId}`)
       .catch(err => _onWriteError('testigo delete failed', err));
   }
-  writeMuni(n);
   const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
   if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
 }
@@ -1456,7 +1454,6 @@ function updateAbogado(n, ck, field, val) {
   saveLocalSt();
 }
 function saveAbogado(n, ck, id) {
-  writeMuni(n);
   const ok = document.getElementById(id + '-abog-ok');
   if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
   // Best-effort API sync
@@ -1520,7 +1517,6 @@ function updateRefrig(n, ck, field, val) {
   saveLocalSt();
 }
 function saveRefrig(n, ck, id) {
-  writeMuni(n);
   const ok = document.getElementById(id + '-refrig-ok');
   if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
   // Best-effort API sync
@@ -1636,7 +1632,6 @@ function delComparendo(n, ck, idx, id) {
   renderComparendosPanel(n, ck, id);
 }
 function saveComparendos(n, ck, id) {
-  writeMuni(n);
   const ok = document.getElementById(id + '-comp-ok');
   if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
   // Best-effort API sync: patch existing comparendos
