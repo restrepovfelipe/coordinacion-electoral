@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import PDFDocument from 'pdfkit';
+import { Readable } from 'stream';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 
@@ -91,5 +93,75 @@ export class AsignacionService {
     });
 
     return { puestoId, mesasAsignadas };
+  }
+
+  /**
+   * Generate a PDF summary of the mesa assignment for a puesto.
+   * Returns a Node.js Readable stream (pdfkit output).
+   */
+  async generarPdfPuesto(puestoId: number): Promise<Readable> {
+    const puesto = await this.prisma.puesto.findUnique({
+      where: { id: puestoId },
+      select: { name: true, address: true, mesas: true, municipioId: true },
+    });
+    if (!puesto) throw new NotFoundException('Puesto not found');
+
+    const testigos = await this.prisma.testigo.findMany({
+      where: { puestoId },
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true, cedula: true, phone: true, mesaInicial: true, mesaFinal: true },
+    });
+
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+
+    doc.fontSize(16).text(`Asignación de Mesas — ${puesto.name}`, { align: 'center' });
+    doc.fontSize(10).text(puesto.address, { align: 'center' });
+    doc.moveDown(0.5);
+    doc.fontSize(10).text(`Total mesas del puesto: ${puesto.mesas}`, { align: 'center' });
+    doc.moveDown(1);
+
+    const mesasAsignadas = testigos.reduce((s, t) => {
+      if (t.mesaInicial == null) return s;
+      return s + ((t.mesaFinal ?? t.mesaInicial) - t.mesaInicial + 1);
+    }, 0);
+
+    doc.fontSize(10).text(`Mesas asignadas: ${mesasAsignadas} / ${puesto.mesas}`, { align: 'center' });
+    doc.moveDown(1.5);
+
+    // Table header
+    const cols = { testigo: 40, nombre: 160, cedula: 100, telefono: 100, mesas: 100 };
+    const startX = doc.page.margins.left;
+    let y = doc.y;
+
+    doc.font('Helvetica-Bold').fontSize(9);
+    doc.text('#', startX, y, { width: cols.testigo });
+    doc.text('Testigo', startX + cols.testigo, y, { width: cols.nombre });
+    doc.text('Cédula', startX + cols.testigo + cols.nombre, y, { width: cols.cedula });
+    doc.text('Teléfono', startX + cols.testigo + cols.nombre + cols.cedula, y, { width: cols.telefono });
+    doc.text('Mesas', startX + cols.testigo + cols.nombre + cols.cedula + cols.telefono, y, { width: cols.mesas });
+    y += 14;
+    doc.moveTo(startX, y).lineTo(startX + 500, y).stroke();
+    y += 4;
+
+    doc.font('Helvetica').fontSize(9);
+    testigos.forEach((t, i) => {
+      const mesaRange = t.mesaInicial != null
+        ? `${t.mesaInicial}–${t.mesaFinal}`
+        : 'Sin asignar';
+      doc.text(String(i + 1), startX, y, { width: cols.testigo });
+      doc.text(t.name, startX + cols.testigo, y, { width: cols.nombre });
+      doc.text(t.cedula ?? '—', startX + cols.testigo + cols.nombre, y, { width: cols.cedula });
+      doc.text(t.phone ?? '—', startX + cols.testigo + cols.nombre + cols.cedula, y, { width: cols.telefono });
+      doc.text(mesaRange, startX + cols.testigo + cols.nombre + cols.cedula + cols.telefono, y, { width: cols.mesas });
+      y += 14;
+
+      if (y > doc.page.height - doc.page.margins.bottom - 40) {
+        doc.addPage();
+        y = doc.page.margins.top;
+      }
+    });
+
+    doc.end();
+    return doc as unknown as Readable;
   }
 }
