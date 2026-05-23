@@ -213,6 +213,54 @@ describe.skipIf(!hasCredentials)('Scenario A — SUPER_ADMIN', () => {
     })
     expect(res.status).toBe(200)
   })
+
+  it('A-5: GET /asignacion/puesto/:id/pdf returns application/pdf with non-empty body', async () => {
+    const token = await safeLogin(testUser.username, testUser.password)
+    // Get a real puestoId from the prioridad list
+    const prioRes = await safeFetch(`${API_BASE}/dashboard/prioridad/puestos?page=1&perPage=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(prioRes.status).toBe(200)
+    const prioBody = (await prioRes.json()) as Record<string, unknown>
+    // Backend may use 'items' or 'data' — check both
+    const prioItems = (prioBody['items'] ?? prioBody['data']) as Array<Record<string, unknown>> | undefined
+    const puestoId = prioItems?.[0]?.['puestoId'] as number | undefined
+    if (!puestoId) {
+      console.warn('[A-5] No puestos in prioridad list — skipping PDF check')
+      return
+    }
+    const pdfRes = await safeFetch(`${API_BASE}/asignacion/puesto/${puestoId}/pdf`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(pdfRes.status).toBe(200)
+    const ct = pdfRes.headers.get('content-type') ?? ''
+    expect(ct).toContain('application/pdf')
+    const buf = await pdfRes.arrayBuffer()
+    expect(buf.byteLength).toBeGreaterThan(0)
+  })
+
+  it('A-6: GET /events SSE endpoint returns text/event-stream', async () => {
+    const token = await safeLogin(testUser.username, testUser.password)
+    const controller = new AbortController()
+    const tid = setTimeout(() => controller.abort(), 5000)
+    let res: Response | null = null
+    try {
+      res = await safeFetch(`${API_BASE}/events?token=${encodeURIComponent(token)}`, {
+        signal: controller.signal,
+      })
+    } catch (e) {
+      clearTimeout(tid)
+      if ((e as Error).name === 'AbortError') {
+        throw new Error('SSE /events endpoint timed out (5s) before returning response headers')
+      }
+      throw e
+    }
+    clearTimeout(tid)
+    expect(res.status).toBe(200)
+    const ct = res.headers.get('content-type') ?? ''
+    expect(ct, `Expected text/event-stream, got "${ct}"`).toContain('text/event-stream')
+    // Do not read body — SSE stream is indefinite; header check confirms endpoint is live
+  })
 })
 
 // ── Scenario B — REGIONAL_COORDINATOR ────────────────────────────────────────
