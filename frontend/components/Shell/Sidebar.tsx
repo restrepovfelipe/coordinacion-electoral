@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -90,6 +91,7 @@ export function Sidebar() {
   const { data: counts } = useSidebarCounts()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   const role = (user as { role?: string } | null)?.role ?? ''
   const roleLabel = ROLE_LABELS[role] ?? role
@@ -107,12 +109,13 @@ export function Sidebar() {
     router.replace('/login')
   }
 
-  function handleClearCache() {
-    if (window.confirm('¿Limpiar caché local y recargar?')) {
-      localStorage.clear()
-      queryClient.clear()
-      window.location.reload()
-    }
+  async function handleClearCache() {
+    localStorage.clear()
+    sessionStorage.clear()
+    queryClient.clear()
+    // Sign out via auth session endpoint
+    try { await fetch('/api/auth/session', { method: 'DELETE' }) } catch {}
+    window.location.replace('/login')
   }
 
   return (
@@ -128,10 +131,9 @@ export function Sidebar() {
         <NavItem href="/" icon={<Home size={15} strokeWidth={1.5} />} label="Dashboard" exact />
         <NavItem href="/mapa" icon={<Map size={15} strokeWidth={1.5} />} label="Mapa" />
         <NavItem
-          href="/prio"
+          href="/priorizacion"
           icon={<Star size={15} strokeWidth={1.5} />}
           label="Priorización"
-          count={counts?.testigos}
         />
       </nav>
 
@@ -173,16 +175,20 @@ export function Sidebar() {
           label="Exportar"
           disabled={!exportEnabled}
         />
-        <button
-          className="nav-item w-full text-left"
-          onClick={handleClearCache}
-          type="button"
-        >
-          <span className="nav-icon">
-            <Database size={15} strokeWidth={1.5} />
-          </span>
-          <span>Limpiar caché</span>
-        </button>
+        {!showClearConfirm ? (
+          <button className="nav-item w-full text-left" onClick={() => setShowClearConfirm(true)} type="button">
+            <span className="nav-icon"><Database size={15} strokeWidth={1.5} /></span>
+            <span>Limpiar caché</span>
+          </button>
+        ) : (
+          <div className="px-2 py-2 text-[12px] bg-surface-2 rounded border border-border">
+            <p className="text-text-3 mb-2">¿Borrar caché y cerrar sesión?</p>
+            <div className="flex gap-1">
+              <button type="button" className="btn btn-sm" onClick={handleClearCache}>Confirmar</button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setShowClearConfirm(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Spacer */}

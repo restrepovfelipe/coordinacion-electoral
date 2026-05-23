@@ -242,6 +242,14 @@ export default function MunicipioPage({ params }: { params: Promise<{ slug: stri
           </table>
         </div>
       )}
+
+      <div className="border-t border-border pt-4">
+        <h2 className="text-[14px] font-semibold mb-2">Movilidad</h2>
+        <div className="p-3 bg-surface-2 border border-border rounded text-[13px] text-text-3">
+          Movilidad: persistencia diferida a post-electoral.
+          Usa la app actual si necesitas editar datos de movilidad antes del día D.
+        </div>
+      </div>
     </div>
   )
 }

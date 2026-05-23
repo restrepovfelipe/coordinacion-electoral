@@ -1,6 +1,6 @@
 'use client'
 
-import { use } from 'react'
+import { use, useState, type FormEvent } from 'react'
 import { notFound } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth/use-auth'
@@ -9,6 +9,174 @@ import { usePrioPuestos } from '@/lib/api/dashboard'
 import { getTestigosByPuesto, getAsignacionPdf, recalcularAsignacion, type Testigo } from '@/lib/api/testigos'
 import { CoordinatorWidget } from '@/components/CoordinatorWidget'
 import { KpiStrip } from '@/components/Kpi'
+import { createRefrigerio, patchRefrigerio, deleteRefrigerio, type Refrigerio } from '@/lib/api/refrigerios'
+
+function RefrigerioSection({ puestoId, canEdit }: { puestoId: number; canEdit: boolean }) {
+  const [items, setItems] = useState<Refrigerio[]>([])
+  const [count, setCount] = useState('')
+  const [status, setStatus] = useState('')
+  const [notes, setNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editCount, setEditCount] = useState('')
+  const [editStatus, setEditStatus] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const body: { scopeType: string; scopeId: number; count?: number; status?: string; notes?: string } = {
+        scopeType: 'PUESTO',
+        scopeId: puestoId,
+      }
+      if (count.trim() !== '') body.count = parseInt(count, 10)
+      if (status.trim() !== '') body.status = status.trim()
+      if (notes.trim() !== '') body.notes = notes.trim()
+      const created = await createRefrigerio(body)
+      setItems((prev) => [...prev, created])
+      setCount('')
+      setStatus('')
+      setNotes('')
+    } catch {
+      // silent
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleEdit(id: number) {
+    const body: { count?: number; status?: string; notes?: string } = {}
+    if (editCount.trim() !== '') body.count = parseInt(editCount, 10)
+    if (editStatus.trim() !== '') body.status = editStatus.trim()
+    if (editNotes.trim() !== '') body.notes = editNotes.trim()
+    try {
+      const updated = await patchRefrigerio(id, body)
+      setItems((prev) => prev.map((r) => (r.id === id ? updated : r)))
+      setEditingId(null)
+    } catch {
+      // silent
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Eliminar?')) return
+    try {
+      await deleteRefrigerio(id)
+      setItems((prev) => prev.filter((r) => r.id !== id))
+    } catch {
+      // silent
+    }
+  }
+
+  return (
+    <div className="border-t border-border pt-4">
+      <h2 className="text-[14px] font-semibold mb-3">Refrigerios</h2>
+      <div className="text-[12px] text-text-3 mb-3">
+        Los refrigerios se guardan por sesión (Fase 17: persistencia completa).
+      </div>
+      {canEdit && (
+        <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-4 items-end">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Cantidad</label>
+            <input
+              type="number"
+              className="input text-[13px] w-24"
+              value={count}
+              onChange={(e) => setCount(e.target.value)}
+              min={0}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Estado</label>
+            <input
+              type="text"
+              className="input text-[13px] w-32"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              placeholder="ej. entregado"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Notas</label>
+            <textarea
+              className="input text-[13px] w-48 h-8 resize-none"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="btn btn-sm" disabled={submitting}>
+            {submitting ? 'Guardando...' : 'Registrar'}
+          </button>
+        </form>
+      )}
+      {items.length > 0 && (
+        <ul className="space-y-2">
+          {items.map((r) => (
+            <li key={r.id} className="p-2 bg-surface-2 rounded text-[13px] flex flex-wrap gap-3 items-start">
+              {editingId === r.id ? (
+                <div className="flex flex-wrap gap-2 items-end w-full">
+                  <input
+                    type="number"
+                    className="input text-[13px] w-24"
+                    value={editCount}
+                    onChange={(e) => setEditCount(e.target.value)}
+                    placeholder="Cantidad"
+                  />
+                  <input
+                    type="text"
+                    className="input text-[13px] w-32"
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    placeholder="Estado"
+                  />
+                  <textarea
+                    className="input text-[13px] w-48 h-8 resize-none"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Notas"
+                  />
+                  <button type="button" className="btn btn-sm" onClick={() => handleEdit(r.id)}>Guardar</button>
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditingId(null)}>Cancelar</button>
+                </div>
+              ) : (
+                <>
+                  <span className="text-text-3">#{r.id}</span>
+                  {r.count != null && <span>Cantidad: <strong>{r.count}</strong></span>}
+                  {r.status && <span>Estado: <strong>{r.status}</strong></span>}
+                  {r.notes && <span className="text-text-3">{r.notes}</span>}
+                  {canEdit && (
+                    <div className="ml-auto flex gap-2">
+                      <button
+                        type="button"
+                        className="text-[12px] text-accent hover:underline"
+                        onClick={() => {
+                          setEditingId(r.id)
+                          setEditCount(r.count != null ? String(r.count) : '')
+                          setEditStatus(r.status ?? '')
+                          setEditNotes(r.notes ?? '')
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[12px] text-danger-text hover:underline"
+                        onClick={() => handleDelete(r.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export default function PuestoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = use(params)
@@ -194,6 +362,7 @@ export default function PuestoPage({ params }: { params: Promise<{ id: string }>
           <span className="ml-2">· {prioPuesto.coberturaPct}% cobertura</span>
         </div>
       )}
+      <RefrigerioSection puestoId={puestoId} canEdit={canRecalculate} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState } from 'react'
+import { use, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { notFound } from 'next/navigation'
 import { useAuth } from '@/lib/auth/use-auth'
@@ -21,6 +21,134 @@ import { Map } from '@/components/Map/Map'
 import { covColor } from '@/lib/map/markers'
 import { Tag, type Tone } from '@/components/Tag'
 import type { MarkerData } from '@/components/Map/MapInner'
+import { createComparendo, deleteComparendo, type Comparendo } from '@/lib/api/comparendos'
+
+function ComparendoForm({
+  comunaId,
+  onCreated,
+}: {
+  comunaId: number
+  onCreated: (c: Comparendo) => void
+}) {
+  const [date, setDate] = useState('')
+  const [description, setDescription] = useState('')
+  const [status, setStatus] = useState('')
+  const [notes, setNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!description.trim() || !date.trim()) return
+    setSubmitting(true)
+    try {
+      const body: { scopeType: string; scopeId: number; date: string; description: string; status?: string; notes?: string } = {
+        scopeType: 'COMUNA',
+        scopeId: comunaId,
+        date,
+        description: description.trim(),
+      }
+      if (status.trim()) body.status = status.trim()
+      if (notes.trim()) body.notes = notes.trim()
+      const created = await createComparendo(body)
+      onCreated(created)
+      setDate('')
+      setDescription('')
+      setStatus('')
+      setNotes('')
+    } catch {
+      // silent
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-4 items-end">
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] text-text-3">Fecha *</label>
+        <input
+          type="date"
+          className="input text-[13px] w-36"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] text-text-3">Descripción *</label>
+        <input
+          type="text"
+          className="input text-[13px] w-56"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] text-text-3">Estado</label>
+        <input
+          type="text"
+          className="input text-[13px] w-28"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          placeholder="ej. activo"
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] text-text-3">Notas</label>
+        <textarea
+          className="input text-[13px] w-48 h-8 resize-none"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </div>
+      <button type="submit" className="btn btn-sm" disabled={submitting}>
+        {submitting ? 'Guardando...' : 'Registrar'}
+      </button>
+    </form>
+  )
+}
+
+function ComparendoList({
+  comparendos,
+  onDelete,
+}: {
+  comparendos: Comparendo[]
+  onDelete: (id: number) => void
+}) {
+  if (comparendos.length === 0) return null
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Eliminar?')) return
+    try {
+      await deleteComparendo(id)
+      onDelete(id)
+    } catch {
+      // silent
+    }
+  }
+
+  return (
+    <ul className="space-y-2">
+      {comparendos.map((c) => (
+        <li key={c.id} className="p-2 bg-surface-2 rounded text-[13px] flex flex-wrap gap-3 items-center">
+          <span className="text-text-3">#{c.id}</span>
+          <span className="text-text-3">{c.date.slice(0, 10)}</span>
+          <span className="font-medium">{c.description}</span>
+          {c.status && <span className="text-text-3">Estado: {c.status}</span>}
+          {c.notes && <span className="text-text-3 italic">{c.notes}</span>}
+          <button
+            type="button"
+            className="ml-auto text-[12px] text-danger-text hover:underline"
+            onClick={() => handleDelete(c.id)}
+          >
+            Eliminar
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 function toPuestoRowData(p: PrioPuesto): PuestoRowData {
   return {
@@ -48,6 +176,9 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
   const isAdmin = role === 'SUPER_ADMIN' || role === 'REGIONAL_COORDINATOR'
 
   const [tab, setTab] = useState<'resumen' | 'mapa' | 'priorizacion'>('resumen')
+  const [comparendos, setComparendos] = useState<Comparendo[]>([])
+
+  const canManageComparendos = ['SUPER_ADMIN', 'REGIONAL_COORDINATOR', 'MUNICIPAL_COORDINATOR', 'ZONE_COORDINATOR', 'COMUNA_COORDINATOR'].includes(role ?? '')
 
   const { data: comunas } = useComunas()
   const { data: municipios } = useMunicipios()
@@ -246,6 +377,17 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
           </table>
         </div>
       )}
+
+      <div className="border-t border-border pt-4">
+        <h2 className="text-[14px] font-semibold mb-3">Comparendos</h2>
+        <div className="text-[12px] text-text-3 mb-3">
+          Los comparendos registrados en esta sesión aparecen aquí (Fase 17: persistencia completa).
+        </div>
+        {canManageComparendos && (
+          <ComparendoForm comunaId={comuna.id} onCreated={(c) => setComparendos((prev) => [...prev, c])} />
+        )}
+        <ComparendoList comparendos={comparendos} onDelete={(id) => setComparendos((prev) => prev.filter((c) => c.id !== id))} />
+      </div>
     </div>
   )
 }

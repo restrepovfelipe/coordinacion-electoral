@@ -92,6 +92,21 @@ vi.mock('@/lib/api/ref-data', () => ({
   slugify: (s: string) => s.toLowerCase(),
 }))
 
+vi.mock('@/lib/firebase', () => ({
+  auth: {},
+}))
+
+vi.mock('firebase/auth', () => ({
+  getIdToken: vi.fn().mockResolvedValue('mock-token'),
+  onAuthStateChanged: vi.fn(),
+}))
+
+vi.mock('@/lib/api/refrigerios', () => ({
+  createRefrigerio: vi.fn(),
+  patchRefrigerio: vi.fn(),
+  deleteRefrigerio: vi.fn(),
+}))
+
 vi.mock('@/components/CoordinatorWidget', () => ({
   CoordinatorWidget: () => null,
 }))
