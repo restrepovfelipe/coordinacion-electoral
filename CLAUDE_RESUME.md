@@ -2,7 +2,7 @@
 
 > **Purpose.** Hand-off document for a fresh Claude Code session.
 > Read this first, then check `git log --oneline -15` and `DISCOVERY.md §5` for full amendment history.
-> **Last updated: 2026-05-22 (Phase 15 / Amendment A16 complete).**
+> **Last updated: 2026-05-23 (Phase 15 COMPLETE — T94 coordinator persistence deployed).**
 
 ---
 
@@ -16,7 +16,7 @@ Scope types: `SUBREGION, MUNICIPIO, ZONA, COMUNA, PUESTO`.
 
 ---
 
-## 2. Current state (after Phase 15 + Amendment A16)
+## 2. Current state (after Phase 15 COMPLETE)
 
 **All backend endpoints are live at https://coordinacion-electoral-backend-xxxxxxxxxx-uc.a.run.app/api**  
 **Frontend: https://coordinacion-electoral.vercel.app**
@@ -29,9 +29,11 @@ Scope types: `SUBREGION, MUNICIPIO, ZONA, COMUNA, PUESTO`.
 | 11–12 | Users CRUD + E2E tests, modal UI |
 | 13   | Real-time testigo counts via SSE + aggregated endpoint |
 | 14   | (T91 audit, writeMuni cleanups) |
-| 15   | Amendment A16 — Mesa Assignment System (full) |
+| 15   | **COMPLETE** — Amendment A16 (Mesa Assignment System) + T94 (Coordinator Ad-Hoc Persistence) |
 
-### Amendment A16 status: COMPLETE (deployed 2026-05-22)
+### Phase 15 status: COMPLETE (deployed 2026-05-23)
+
+**Amendment A16** (deployed 2026-05-22):
 
 All A16 commits are on `main`:
 - `4b3ed6c` — schema + CoverageService A16 formula (mesaInicial/mesaFinal on Testigo)
@@ -41,9 +43,9 @@ All A16 commits are on `main`:
 - `cae32a5` — frontend: assignment table, PDF/Recalcular buttons, SSE handler
 - `cc99357` — backfill script backend/scripts/local/backfill-mesa-assignments.ts
 
-**PENDING after deploy:**
-1. Run the backfill: `pnpm tsx scripts/local/backfill-mesa-assignments.ts`
-2. Reconciliation curl evidence (see STEP 7 below)
+**T94 — Coordinator Ad-Hoc Persistence** (deployed 2026-05-23):
+- `4a152b3` — backend: schema (coordinadorAdHocNombre/Telefono on Municipio/Zona/Comuna/Puesto + tag on Puesto), migration, GET display + PATCH adhoc endpoints, 409 guard, audit log, SSE, 18 unit tests
+- `7c1651d` — frontend: savePCard/saveM → PATCH adhoc, selMuni → refreshCoordDisplay + _loadZonaIds, SSE handler coordinador:adhoc_changed, E2E tests
 
 ---
 
@@ -129,14 +131,12 @@ curl -s -H "Authorization: Bearer <token>" \
 
 ## 8. Pending work
 
-### Immediate (post-deploy)
-- [ ] Run backfill: `pnpm tsx scripts/local/backfill-mesa-assignments.ts`
-- [ ] Reconciliation curl evidence
+### Phase 16 — start in a NEW chat
+Next phase is the **Next.js rewrite** (or Movilidad persistence — confirm with owner).
 
-### T94 — Coordinador persistence
-- `coordinadorAdHocNombre` + `coordinadorAdHocTelefono` on Municipio model
-- Fold `savePCard` (app.js:~649) + `saveM(type=p)` (app.js:~999) into same backend endpoint
-- New endpoints: `PATCH /api/municipios/:id/coordinador` + `PATCH /api/puestos/:id/coordinador`
+### Deferred backlog (carry into Phase 16)
+- [ ] Run A16 backfill if not yet done: `pnpm tsx scripts/local/backfill-mesa-assignments.ts`
+- [ ] Reconciliation curl evidence (STEP 7)
 
 ### T95 — Auth flash fix
 - Inline synchronous script before modules to avoid auth flash
