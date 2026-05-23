@@ -64,6 +64,7 @@ server.listen(PORT, async () => {
   const pages = [
     { path: '/login', name: 'login' },
     { path: '/me', name: 'me' },
+    { path: '/', name: 'dashboard' },
   ]
   const viewports = [
     { width: 1440, height: 900, suffix: '1440' },
