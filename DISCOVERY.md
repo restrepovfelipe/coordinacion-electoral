@@ -576,3 +576,37 @@ Auto-runs on every testigo create/update/delete/bulkAssign.
 migration deploy to populate existing testigos.
 
 See `docs/COVERAGE_FORMULA.md` for the full formula specification.
+
+---
+
+### Amendment A17 — Manual deploys only (2026-05-22)
+
+**Context:** Cloud Build has no automatic trigger configured from the GitHub `main`
+branch. A second contributor (`restrepovfelipe`) commits to the repo. Without a manual
+gate, unreviewed cross-contributor changes could ship silently.
+
+**Decision:** Deploys to Cloud Run are always manual. Before running
+`gcloud builds submit`, the deployer must verify:
+
+1. **Commit audit** — `git log --pretty=format:"%h %an %s" <last-deploy-sha>..origin/main -- backend/`  
+   Classify every commit: A-related (expected), other-author (flag for owner), or mixed.
+   Any unreviewed commit from another contributor → STOP.
+
+2. **Migration safety** — `pnpm exec prisma migrate status` (with `DIRECT_DATABASE_URL` set).  
+   Must read "Database schema is up to date" OR show only migrations the deployer authored.
+   Any pending destructive migration by another author → STOP.
+
+3. **Field alias preservation** — for any backend response field renamed in this deploy,
+   the old key must remain as a deprecated alias until the frontend is updated.
+   Confirm no frontend break before proceeding.
+
+4. **Build verification** — build the Docker image locally or via Cloud Build dry-run
+   before routing traffic. Confirm clean build log.
+
+**Last deployed revision:** `backend-00022-grd` (commit `da6f2a9`,
+deployed 2026-05-22T21:11 UTC). A16 commits (`f46b101`…`cc99357`) are on `origin/main`
+but not yet deployed as of 2026-05-22T22:00 UTC.
+
+**Rationale:** no automatic triggers exist; Cloud Build must be submitted manually via
+`gcloud builds submit --project=coordinacion-electoral`. The project owner retains the
+deploy gate.
