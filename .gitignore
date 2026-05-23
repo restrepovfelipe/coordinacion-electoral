@@ -2,6 +2,11 @@
 CLAUDE_2.md              # local Claude Code planning doc — not part of the repo
 .claude
 
+# Next.js frontend (Phase 16)
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+
 backend/.gcp-key*.json
 backend/.env.local
 backend/node_modules/

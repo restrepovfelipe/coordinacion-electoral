@@ -1,0 +1,354 @@
+/* app/globals.css — Coordinación Electoral · Dirección A · Console */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ── */
+@layer base {
+  :root {
+    --bg: #ffffff;
+    --surface: #fafafa;
+    --surface-2: #f5f5f5;
+    --hover: #f1f1f1;
+    --border: #ececec;
+    --border-strong: #d8d8d8;
+    --text: #0a0a0a;
+    --text-2: #5a5a5a;
+    --text-3: #9c9c9c;
+    --text-faint: #c4c4c4;
+    --accent: #0f4c81;
+    --accent-hover: #0d3f6a;
+    --accent-soft: #eaf1f8;
+    --ok: #3d8a5e;
+    --ok-soft: #e5f1ea;
+    --ok-text: #2d6645;
+    --warn: #b4811a;
+    --warn-soft: #f5ecd5;
+    --warn-text: #7e5b14;
+    --danger: #b04545;
+    --danger-soft: #f4e3e3;
+    --danger-text: #823535;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ── Components ── */
+@layer components {
+  /* Botones */
+  .btn {
+    @apply inline-flex items-center gap-1.5 h-7 px-[11px] rounded
+           border border-border bg-bg text-text text-[12.5px] font-medium
+           cursor-pointer whitespace-nowrap transition-colors;
+  }
+  .btn:hover {
+    @apply bg-hover;
+  }
+  .btn-sm {
+    @apply h-6 px-2 text-[12px];
+  }
+  .btn-icon {
+    @apply px-0 w-7 justify-center;
+  }
+  .btn-icon.btn-sm {
+    @apply w-6;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-text-2;
+  }
+  .btn-ghost:hover {
+    @apply bg-hover text-text;
+  }
+  .btn-primary {
+    @apply bg-accent text-accent-fg border-accent;
+  }
+  .btn-primary:hover {
+    @apply bg-accent-hover border-accent-hover;
+  }
+  .btn svg {
+    @apply w-[13px] h-[13px];
+  }
+
+  /* Tag / Pill */
+  .tag {
+    @apply inline-flex items-center gap-[5px] h-5 px-[7px] rounded-full
+           text-[11px] font-medium bg-surface-2 text-text-2 border border-transparent;
+    letter-spacing: 0.005em;
+  }
+  .tag .dot {
+    @apply w-[6px] h-[6px] rounded-full bg-current;
+  }
+  .tag-ok {
+    @apply bg-ok-soft text-ok-text;
+  }
+  .tag-warn {
+    @apply bg-warn-soft text-warn-text;
+  }
+  .tag-danger {
+    @apply bg-danger-soft text-danger-text;
+  }
+  .tag-accent {
+    @apply bg-accent-soft text-accent;
+  }
+
+  /* KPI strip */
+  .kpi-strip {
+    @apply flex border border-border rounded-lg bg-surface overflow-hidden;
+  }
+  .kpi {
+    @apply flex-1 px-4 py-3 border-r border-border flex flex-col gap-1 min-w-0;
+  }
+  .kpi:last-child {
+    @apply border-r-0;
+  }
+  .kpi-label {
+    @apply text-[10.5px] uppercase tracking-wider text-text-3 font-medium;
+  }
+  .kpi-value {
+    @apply font-mono text-[22px] font-medium text-text leading-tight;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .kpi-value.danger {
+    @apply text-danger-text;
+  }
+
+  /* Municipio card */
+  .muni-grid {
+    @apply grid gap-2.5;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+  .muni-card {
+    @apply relative bg-surface border border-border rounded-lg p-3.5
+           flex flex-col gap-2.5 cursor-pointer transition-all;
+  }
+  .muni-card:hover {
+    @apply border-border-strong shadow-xs;
+  }
+
+  /* Tabla */
+  .table {
+    @apply w-full border-collapse border border-border rounded-lg
+           overflow-hidden bg-surface text-[13px];
+    border-spacing: 0;
+  }
+  .table thead th {
+    @apply text-left text-[10.5px] uppercase tracking-wider text-text-3
+           font-medium px-3.5 py-2 bg-surface border-b border-border;
+  }
+  .table tbody td {
+    @apply px-3.5 py-2.5 border-t border-border align-middle;
+  }
+  .table tbody tr:first-child td {
+    @apply border-t-0;
+  }
+  .table tbody tr:hover {
+    @apply bg-hover;
+  }
+  .table .row-actions {
+    @apply flex gap-1 opacity-0 transition-opacity;
+  }
+  .table tbody tr:hover .row-actions {
+    @apply opacity-100;
+  }
+
+  /* Input */
+  .input {
+    @apply h-[30px] px-2.5 rounded border border-border bg-bg text-text
+           text-[13px] w-full outline-none transition-shadow;
+  }
+  .input:focus {
+    @apply border-accent;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .input-sm {
+    @apply h-[26px] text-[12.5px] px-2;
+  }
+
+  /* Tabs */
+  .tabs {
+    @apply flex border-b border-border mb-[18px];
+  }
+  .tab {
+    @apply px-3.5 py-2 text-[13px] text-text-2 cursor-pointer
+           border-b-[1.5px] border-transparent -mb-px inline-flex
+           items-center gap-1.5 font-medium;
+  }
+  .tab:hover {
+    @apply text-text;
+  }
+  .tab.active {
+    @apply text-text border-accent;
+  }
+  .tab .count {
+    @apply font-mono text-[10.5px] text-text-3 bg-surface-2 px-1.5 rounded-sm;
+  }
+
+  /* Chips */
+  .chip-row {
+    @apply flex gap-1.5 flex-wrap;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+           text-[12px] text-text-2 bg-surface border border-border
+           cursor-pointer select-none transition-colors;
+  }
+  .chip:hover {
+    @apply bg-hover;
+  }
+  .chip.active {
+    @apply bg-text text-bg border-text;
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    @apply fixed inset-0 grid place-items-center z-50;
+    background: rgba(15, 15, 15, 0.32);
+    backdrop-filter: blur(2px);
+  }
+  .modal {
+    @apply bg-bg border border-border rounded-lg w-[480px] max-w-[92%]
+           overflow-hidden shadow-md;
+  }
+  .modal-head {
+    @apply px-5 pt-4 pb-3 flex items-center justify-between border-b border-border;
+  }
+  .modal-head h3 {
+    @apply text-[15px] font-semibold;
+    letter-spacing: -0.005em;
+  }
+  .modal-body {
+    @apply px-5 py-[18px];
+  }
+  .modal-foot {
+    @apply px-5 py-3 flex gap-2 justify-end bg-surface border-t border-border;
+  }
+
+  /* Avatar */
+  .avatar {
+    @apply rounded-full bg-surface-2 border border-border
+           grid place-items-center text-[11px] font-medium text-text-2 shrink-0;
+    width: 26px;
+    height: 26px;
+  }
+  .avatar-accent {
+    @apply bg-accent-soft text-accent border-transparent;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    @apply w-[232px] shrink-0 border-r border-border bg-surface
+           flex flex-col px-2.5 pt-3.5 pb-2.5;
+  }
+  .nav-item {
+    @apply flex items-center gap-2.5 px-2 py-1.5 rounded text-[13px]
+           text-text-2 cursor-pointer relative;
+  }
+  .nav-item:hover {
+    @apply bg-hover text-text;
+  }
+  .nav-item.active {
+    @apply bg-surface-2 text-text font-medium;
+  }
+  .nav-item .nav-icon {
+    @apply w-[15px] h-[15px] shrink-0 text-text-3;
+  }
+  .nav-item.active .nav-icon {
+    @apply text-accent;
+  }
+  .nav-section-title {
+    @apply text-[10px] uppercase tracking-wider text-text-3 px-2 py-1 font-medium;
+  }
+
+  /* Topbar */
+  .topbar {
+    @apply h-12 shrink-0 flex items-center px-5 gap-3 border-b border-border bg-bg;
+  }
+
+  /* Search input */
+  .search-input {
+    @apply flex items-center gap-1.5 h-7 px-2.5 rounded border border-border
+           bg-bg text-text text-[12.5px] min-w-[180px];
+  }
+  .search-input:focus-within {
+    @apply border-accent;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .search-input svg {
+    @apply w-[13px] h-[13px] text-text-3 shrink-0;
+  }
+  .search-input input {
+    @apply border-0 outline-none bg-transparent flex-1 min-w-0 text-inherit;
+  }
+  .search-input .kbd {
+    @apply font-mono text-[10px] text-text-3 bg-surface-2 rounded-sm px-1;
+  }
+
+  /* Form label */
+  .form-label {
+    @apply block text-[12px] font-medium text-text-2 mb-1;
+  }
+  .form-group {
+    @apply flex flex-col gap-3;
+  }
+}
+
+/* ── Utilities ── */
+@layer utilities {
+  .num {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .h1-display {
+    font-size: clamp(22px, 2.6vw, 28px);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+  }
+  .kicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    font-weight: 500;
+  }
+  .muted {
+    color: var(--text-3);
+  }
+  .font-card {
+    font-size: 15px;
+    letter-spacing: -0.005em;
+    font-weight: 600;
+  }
+}
+
+/* Scrollbar sutil */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
