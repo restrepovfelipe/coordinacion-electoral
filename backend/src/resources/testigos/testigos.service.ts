@@ -7,6 +7,7 @@ import { CreateTestigoDto } from './dto/create-testigo.dto.js';
 import { UpdateTestigoDto } from './dto/update-testigo.dto.js';
 import { RealtimeService } from '../../realtime/realtime.service.js';
 import { ListTestigosQueryDto } from './dto/list-testigos-query.dto.js';
+import { AsignacionService } from '../../asignacion/asignacion.service.js';
 
 @Injectable()
 export class TestigosService {
@@ -14,6 +15,7 @@ export class TestigosService {
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
     private readonly realtime: RealtimeService,
+    private readonly asignacion: AsignacionService,
   ) {}
 
   async findByPuesto(puestoId: number) {
@@ -93,6 +95,7 @@ export class TestigosService {
           },
         });
       }
+      await this.asignacion.reassignPuesto(puestoId, tx);
     });
 
     await this.realtime.notify({
@@ -129,6 +132,7 @@ export class TestigosService {
           afterJson: testigo,
         },
       });
+      await this.asignacion.reassignPuesto(puestoId, tx);
       return testigo;
     });
     await this.realtime.notify({ type: 'testigo.create', puestoId, payload: { id: result.id } });
@@ -145,10 +149,11 @@ export class TestigosService {
     if (!existing) throw new NotFoundException('Testigo not found');
 
     if (existing.puestoId === null) throw new ForbiddenException();
-    const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, existing.puestoId);
+    const puestoId = existing.puestoId;
+    const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, puestoId);
     if (!canAccess) throw new ForbiddenException();
 
-    const puesto = await this.prisma.puesto.findUnique({ where: { id: existing.puestoId }, select: { municipioId: true } });
+    const puesto = await this.prisma.puesto.findUnique({ where: { id: puestoId }, select: { municipioId: true } });
 
     const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.testigo.update({ where: { id }, data: dto });
@@ -162,9 +167,10 @@ export class TestigosService {
           afterJson: updated,
         },
       });
+      await this.asignacion.reassignPuesto(puestoId, tx);
       return updated;
     });
-    await this.realtime.notify({ type: 'testigo.update', puestoId: existing.puestoId, payload: { id } });
+    await this.realtime.notify({ type: 'testigo.update', puestoId, payload: { id } });
     if (puesto) {
       await this.realtime.notify({
         type: 'testigo:count_changed',
@@ -180,10 +186,11 @@ export class TestigosService {
     if (!existing) throw new NotFoundException('Testigo not found');
 
     if (existing.puestoId === null) throw new ForbiddenException();
-    const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, existing.puestoId);
+    const puestoId = existing.puestoId;
+    const canAccess = await this.permissions.canAccess(user, ScopeType.PUESTO, puestoId);
     if (!canAccess) throw new ForbiddenException();
 
-    const puesto = await this.prisma.puesto.findUnique({ where: { id: existing.puestoId }, select: { municipioId: true } });
+    const puesto = await this.prisma.puesto.findUnique({ where: { id: puestoId }, select: { municipioId: true } });
 
     await this.prisma.$transaction(async (tx) => {
       await tx.auditLog.create({
@@ -196,8 +203,9 @@ export class TestigosService {
         },
       });
       await tx.testigo.delete({ where: { id } });
+      await this.asignacion.reassignPuesto(puestoId, tx);
     });
-    await this.realtime.notify({ type: 'testigo.delete', puestoId: existing.puestoId, payload: { id } });
+    await this.realtime.notify({ type: 'testigo.delete', puestoId, payload: { id } });
     if (puesto) {
       await this.realtime.notify({
         type: 'testigo:count_changed',
