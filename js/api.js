@@ -119,6 +119,14 @@ class ApiClient {
     return res.status === 204 ? null : res.json();
   }
 
+  async getBlob(path) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: await this._headers(),
+    });
+    if (!res.ok) throw new ApiError(res.status, {});
+    return res.blob();
+  }
+
   async delete(path) {
     const res = await fetch(`${API_BASE}${path}`, {
       method: 'DELETE',

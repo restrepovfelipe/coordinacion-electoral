@@ -96,6 +96,25 @@ function handleRealtimeEvent(event) {
     return;
   }
 
+  if (event.type === 'asignacion:puesto_changed') {
+    // Refresh testigo counts (cobertura update) and re-render if a commune panel is open.
+    clearTimeout(_countsRefreshTimer);
+    _countsRefreshTimer = setTimeout(async () => {
+      try {
+        if (window.api) {
+          const counts = await window.api.getTestigoCounts({ bypassCache: true });
+          if (typeof updateDashboardTestigoCounts === 'function') {
+            updateDashboardTestigoCounts(counts);
+          }
+        }
+      } catch (err) {
+        console.warn('[sync] Failed to refresh counts after asignacion change:', err);
+      }
+    }, 300);
+    rerenderIfNotEditing();
+    return;
+  }
+
   if (event.type === 'prioridad:config_changed') {
     // Config change → recomputed priorities → refresh stats
     clearTimeout(_statsRefreshTimer);

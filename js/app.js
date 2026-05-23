@@ -328,7 +328,7 @@ function renderMuni(n) {
       <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${ckeys.length}</div></div>
       <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
       <div class="sc"><div class="sl">Testigos</div><div class="sv" id="mh-test-reg">${totTestReg}</div></div>
-      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Mesas sin testigo</div><div class="sv">${totTestFalt}</div></div>
+      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Mesas sin asignar</div><div class="sv">${totTestFalt}</div></div>
       <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${pctCov}%</div></div>
     </div>
     <div class="otabs">
@@ -469,7 +469,7 @@ function buildZonaCard(n, zona) {
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
       <div class="cc-st"><div class="v" id="${zid}-s-t">${totTestReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totTestFalt}</div><div class="l">Mesas sin testigo</div></div>
+      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totTestFalt}</div><div class="l">Mesas sin asignar</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
@@ -503,7 +503,7 @@ function buildCCCard(n, ck) {
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
       <div class="cc-st"><div class="v" id="${id}-s-t">${testReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${testFalt}</div><div class="l">Mesas sin testigo</div></div>
+      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${testFalt}</div><div class="l">Mesas sin asignar</div></div>
       <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
@@ -729,6 +729,8 @@ async function loadTestigosForComune(n, ck) {
         telefono: t.phone || '',
         cedula: t.cedula || '',
         notas: t.notes || '',
+        mesaInicial: t.mesaInicial ?? null,
+        mesaFinal: t.mesaFinal ?? null,
       }));
     } catch (err) {
       console.error('loadTestigosForComune failed for', p.puesto, err?.status);
@@ -769,6 +771,14 @@ async function renderTestigosPanel(n, ck, id) {
           <div id="${id}-test-${btoa(pKey).replace(/=/g, '')}">${buildTestRows(n, ck, pName, id, pKey)}</div>
           <button class="add-btn" onclick="addTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}','${id}')">+ Agregar testigo</button>
         </div>
+        <div class="test-section" style="margin-top:8px">
+          <h5>📋 Asignación de mesas</h5>
+          ${buildAsignacionTable(n, ck, pName, p.mesas || 0)}
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <button class="add-btn" onclick="recalcularAsignacion('${n}','${ck.replace(/'/g, "\\'")}','${pKey}','${id}')">↺ Recalcular asignaciones</button>
+            <button class="add-btn" onclick="descargarPdfAsignacion('${n}','${encodeURIComponent(pName)}')">⬇ Descargar PDF</button>
+          </div>
+        </div>
       </div>
     </div>`;
   });
@@ -801,6 +811,58 @@ function buildTestRows(n, ck, pName, id, pKey) {
   </div>`).join('');
 }
 
+
+function buildAsignacionTable(n, ck, pName, totalMesas) {
+  const rows = getTestigos(n, ck, pName).filter(r => r.nombre);
+  if (!rows.length) return '<div style="font-size:10px;color:var(--t3);padding:2px 0">Sin testigos asignados</div>';
+  const mesasAsignadas = rows.reduce((s, r) => {
+    if (r.mesaInicial == null) return s;
+    return s + ((r.mesaFinal ?? r.mesaInicial) - r.mesaInicial + 1);
+  }, 0);
+  let html = `<div style="font-size:10px;color:var(--t3);margin-bottom:4px">Mesas asignadas: <b>${mesasAsignadas}</b> / ${totalMesas}</div>`;
+  html += `<table style="width:100%;border-collapse:collapse;font-size:10px">
+    <thead><tr style="background:var(--bg2)">
+      <th style="padding:3px 6px;text-align:left">Testigo</th>
+      <th style="padding:3px 6px;text-align:center">Mesas asignadas</th>
+    </tr></thead><tbody>`;
+  rows.forEach(r => {
+    const rango = r.mesaInicial != null ? `${r.mesaInicial}–${r.mesaFinal}` : '<span style="color:var(--warn)">Sin asignar</span>';
+    html += `<tr><td style="padding:3px 6px">${esc(r.nombre)}</td><td style="padding:3px 6px;text-align:center">${rango}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  return html;
+}
+
+async function recalcularAsignacion(n, ck, pKey, id) {
+  const pName = decodeURIComponent(pKey);
+  const puestoBackendId = getPuestoBackendId(n, pName);
+  if (!puestoBackendId || !window.api) return;
+  try {
+    await api.post(`/asignacion/recalcular/${puestoBackendId}`, {});
+    await loadTestigosForComune(n, ck);
+    await renderTestigosPanel(n, ck, id);
+  } catch (err) {
+    console.error('[recalcularAsignacion] failed', err);
+    alert('Error al recalcular asignaciones: ' + (err?.message || err));
+  }
+}
+
+async function descargarPdfAsignacion(n, pNameEncoded) {
+  const pName = decodeURIComponent(pNameEncoded);
+  const puestoBackendId = getPuestoBackendId(n, pName);
+  if (!puestoBackendId || !window.api) return;
+  try {
+    const blob = await api.getBlob(`/asignacion/puesto/${puestoBackendId}/pdf`);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `asignacion-puesto-${puestoBackendId}.pdf`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (err) {
+    console.error('[descargarPdfAsignacion] failed', err);
+    alert('Error al descargar PDF: ' + (err?.message || err));
+  }
+}
 
 function addTestigo(n, ck, pKey, id) {
   const s = gs(n); const pName = decodeURIComponent(pKey);
@@ -1074,7 +1136,7 @@ function renderOV() {
         <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${rTotZ}</div></div>
         <div class="sc"><div class="sl">Votantes</div><div class="sv">${(rTotV / 1000).toFixed(0)}K</div></div>
         <div class="sc"><div class="sl">Testigos</div><div class="sv">${rTestReg}</div></div>
-        <div class="sc${rTestFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Mesas sin testigo</div><div class="sv">${rTestFalt}</div></div>
+        <div class="sc${rTestFalt > 0 ? ' sc-warn' : ''}"><div class="sl">Mesas sin asignar</div><div class="sv">${rTestFalt}</div></div>
         <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${rPct}%</div></div>
       </div>
     </div>`;
@@ -1102,7 +1164,7 @@ function renderOV() {
         <div class="ov-muni-stats">
           <span class="ov-stat"><b>${(totV/1000).toFixed(0)}K</b><span>Votantes</span></span>
           <span class="ov-stat"><b data-testigo-count="${n}">${displayCount}</b><span>Testigos</span></span>
-          <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>Mesas sin testigo</span></span>
+          <span class="ov-stat${testFalt > 0 ? ' warn' : ''}"><b>${testFalt}</b><span>Mesas sin asignar</span></span>
           <span class="ov-stat"><b data-cobertura-muni="${n}">${displayPct}%</b><span>Cobertura</span></span>
         </div>
       </div>`;
