@@ -909,6 +909,9 @@ function renderMovPanel(n, ck, id) {
         </div></div>`).join('')
     : '<div style="font-size:11px;color:var(--t3);padding:6px 0;text-align:center">Sin responsables aún</div>';
   pane.innerHTML = `<div class="mov-panel">
+    <div style="background:var(--warn,#fff3cd);color:#856404;border:1px solid #ffc107;border-radius:6px;padding:7px 10px;font-size:11px;margin-bottom:10px">
+      ⚠ Movilidad: datos guardados solo en este navegador. Phase 16 los persistirá en BD.
+    </div>
     <div class="mov-totals-row">
       <div class="mov-total mo">
         <span class="lbl">🏍 Registradas:</span>

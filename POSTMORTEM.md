@@ -160,3 +160,22 @@ Las contraseñas `Cord1.2026*`–`Cord4.2026*` estuvieron presentes en `js/auth.
 | Tests adversariales pasados | 10/10 |
 | Vulnerabilidades pnpm audit HIGH/CRITICAL | 0 |
 | Tiempo desde primer commit hasta prod | — |
+
+---
+
+## Phase 16 backlog
+
+Items explicitly deferred from Phase 15 (Issue B Decision D3):
+
+### Movilidad persistence
+
+**Current state:** Movilidad data (responsables, motos/carros counts, motos_nec/carros_nec) is saved exclusively in localStorage under key `amva26v2`. A warning banner is shown in the UI.
+
+**Phase 16 work required:**
+- New DB tables: `Movilidad` (per-commune movilidad config with needs/requirements) and `MovilidadResponsable` (individual responsible person with nombre, telefono, motos, carros counts)
+- Prisma migration + seed
+- `MovilidadService` with CRUD endpoints: `GET /api/municipios/:id/movilidad`, `PATCH /api/movilidad/:communeId`, `POST/DELETE /api/movilidad/:communeId/responsables/:id`
+- In-browser data migration script: read existing localStorage state, POST to backend, mark as migrated
+- Remove movilidad callers of `writeMuni()` (3 sites: addResp@app.js, delResp@app.js, saveMovAll@app.js)
+- Remove `writeMuni()` function entirely once movilidad migrated (Phase 16 cleanup)
+- Remove movilidad warning banner from `renderMovPanel()`
