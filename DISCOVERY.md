@@ -542,3 +542,37 @@ Reconnaissance complete; the one Phase 0 ambiguity is resolved and recorded abov
 Both Phase 0 deliverables — `DISCOVERY.md` and `TASKS.md` — now exist. **No code written,
 no GCP resources provisioned, no frontend file modified.** Awaiting explicit "go" to
 begin Phase 1.
+
+---
+
+### Amendment A16 — Mesa Assignment System (2026-05-22)
+
+**Context:** Phase 15 introduced a richer coverage model. Under A16, each testigo is
+assigned a contiguous range of mesas (max 5 per testigo) rather than the prior
+"1 testigo = 1 mesa" proxy.
+
+**Schema delta:**
+- `Testigo.mesaInicial INT?` — first mesa in assigned range
+- `Testigo.mesaFinal   INT?` — last mesa in assigned range (inclusive)
+- Migration: `20260522100000_add_testigo_mesa_assignment`
+
+**Coverage formula change:**
+- Pre-A16: `coberturaPct = FLOOR(SUM(MIN(testigos_per_puesto, mesas_per_puesto)) / totalMesas * 100)`
+- A16: `coberturaPct = FLOOR(SUM(mesaFinal - mesaInicial + 1 WHERE mesaInicial IS NOT NULL) / totalMesas * 100)`
+
+**Estado formula change:**
+- Pre-A16: uses `CEIL(mesas × ratioMesas…)` as required threshold
+- A16: `CUBIERTO` when `mesasAsignadas >= puesto.mesas`; otherwise by `nivelPrioridad` (no ratios)
+
+**Assignment algorithm:** `AsignacionService.reassignPuesto(puestoId)` — sorts testigos
+by id ASC, assigns sequential ranges of up to 5 mesas, over-capacity testigos → NULL.
+Auto-runs on every testigo create/update/delete/bulkAssign.
+
+**New endpoints:**
+- `POST /api/asignacion/recalcular/:puestoId` — manual recalculation
+- `GET  /api/asignacion/puesto/:puestoId/pdf` — PDF assignment sheet (pdfkit)
+
+**Backfill:** `backend/scripts/local/backfill-mesa-assignments.ts` — run once after
+migration deploy to populate existing testigos.
+
+See `docs/COVERAGE_FORMULA.md` for the full formula specification.

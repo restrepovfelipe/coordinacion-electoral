@@ -1,4 +1,4 @@
-# Coverage Formula Reference
+# Coverage Formula Reference (Amendment A16)
 
 This document defines the two distinct coverage concepts used in the app and where each one applies.
 
@@ -6,73 +6,94 @@ This document defines the two distinct coverage concepts used in the app and whe
 
 ## 1. Physical Coverage — `coberturaPct`
 
-> "What percentage of mesas have at least one testigo assigned?"
+> "What fraction of mesas have been assigned to at least one testigo?"
 
-### Formula (applies to any scope)
+### Formula (A16 — assignment-based)
+
+Each testigo is assigned a contiguous range `[mesaInicial, mesaFinal]` (max 5 mesas, set by `AsignacionService.reassignPuesto()`).
 
 ```
-For each Puesto p in scope:
-  testigosInP   = COUNT(Testigo WHERE puestoId = p.id)
-  mesasCubP     = MIN(testigosInP, p.numeroMesas)   // 1 testigo → 1 mesa, capped
+For each Testigo t in puesto p where t.mesaInicial IS NOT NULL:
+  mesasAsignadasP += (t.mesaFinal - t.mesaInicial + 1)
 
-totalMesas      = SUM(p.numeroMesas)
-mesasCubiertas  = SUM(mesasCubP)
-coberturaPct    = totalMesas > 0 ? FLOOR(mesasCubiertas / totalMesas * 100) : 0
+totalMesas      = SUM(p.mesas) over scope
+mesasAsignadas  = SUM(mesasAsignadasP) over scope
+coberturaPct    = totalMesas > 0 ? FLOOR(mesasAsignadas / totalMesas * 100) : 0
 ```
 
 **Key properties:**
-- Excess testigos beyond a puesto's mesas do NOT increase coverage (cap at `p.mesas`)
+- Requires `AsignacionService.reassignPuesto()` to have run for the puesto
 - Uses `FLOOR`, not `ROUND`
 - Independent of `PrioridadConfig` ratios
-- Applies identically at every scope: puesto → commune → zone → municipio → subregion → department
+- Applies identically at every scope: puesto → commune → zone → municipio → subregion
 
-**Production validation (2026-05-22):**
-MEDELLIN: 5 592 totalMesas, 3 306 mesasSinTestigo → 2 286 mesasCubiertas → `coberturaPct = 40`
+**Production baseline (2026-05-22, pre-backfill):**
+MEDELLIN: 5 592 totalMesas, 3 306 mesasSinTestigo → coberturaPct ≈ 40–41
 
 ### Implementation
 
-**Backend:** `CoverageService.computePhysicalCoverage(mesasCubiertas, totalMesas)`  
-**Backend SQL:** `SUM(LEAST(COUNT(testigos_per_puesto), puesto.mesas))` per aggregate scope  
-**Frontend:** `_coveragePct(mesasCubiertas, totMesas)` in `js/app.js`
+**Backend:** `CoverageService.computePhysicalCoverage(mesasAsignadas, totalMesas)`  
+**Backend SQL:** `SUM(CASE WHEN mesaInicial IS NOT NULL THEN mesaFinal - mesaInicial + 1 ELSE 0 END)` per aggregate scope  
+**Frontend:** Assignment table per puesto shows `mesasAsignadas / totalMesas`; global `_coveragePct()` used as fallback
 
 Used in:
 - `GET /api/dashboard/stats` → `MunicipioStat.coberturaPct`
 - `GET /api/dashboard/prioridad/puestos` → `PuestoPrioridadItem.coberturaPct`
-- All drill-down views (commune, zone, overview cards)
+- `GET /api/dashboard/prioridad/mapa` → `MapaPuesto` (estado computation)
 
 ---
 
 ## 2. Policy Coverage — `estado` per Puesto
 
-> "Has this puesto met its required testigo quota given its priority level?"
+> "Has this puesto been fully covered by the mesa assignment?"
 
-### Formula
+### Formula (A16 — assignment-based, no ratios)
 
 ```
-requiredTestigos = CEIL(puesto.mesas × ratio)
-  where ratio = ratioMesasAlta  (if nivelPrioridad = 'ALTA')
-              | ratioMesasMedia (if nivelPrioridad = 'MEDIA')
-              | ratioMesasBaja  (if nivelPrioridad = 'BAJA')
-
-estado = testigosAsignados >= requiredTestigos  → CUBIERTO
-       | votosTotal < 5                         → BAJO_RIESGO
-       | nivelPrioridad = 'ALTA'                → CRITICO
-       | nivelPrioridad = 'MEDIA'               → ATENCION
-       | otherwise                              → VIGILAR
+estado = !nivelPrioridad OR votosTotal < 5  → BAJO_RIESGO
+       | mesasAsignadas >= puesto.mesas     → CUBIERTO
+       | nivelPrioridad = 'ALTA'             → CRITICO
+       | nivelPrioridad = 'MEDIA'            → ATENCION
+       | otherwise                           → VIGILAR
 ```
 
 **Key properties:**
-- Driven by `PrioridadConfig.ratioMesasAlta/Media/Baja`
-- Applies **only at the individual puesto level** — never aggregated
-- Does NOT affect `coberturaPct` anywhere
+- Does NOT use `PrioridadConfig.ratioMesasAlta/Media/Baja` for estado
+- Ratios are preserved only for `testigosRequeridos` display (informational)
+- `criticosUncovered` = puestos with `nivelPrioridad = 'ALTA'` AND `mesasAsignadas < mesas`
+- Applies **only at the individual puesto level**
 
 ### Implementation
 
-**Backend:** `CoverageService.requiredTestigos()` + `CoverageService.computeEstado()`  
+**Backend:** `CoverageService.computeEstado(nivel, votosTotal, mesasAsignadas, totalMesas)`  
 Used in:
-- `GET /api/dashboard/prioridad/puestos` → `PuestoPrioridadItem.estado`, `testigosRequeridos`
-- `GET /api/dashboard/prioridad/mapa` → `MapaPuesto.estado`, `testigosRequeridos`
-- `MunicipioStat.criticosUncovered` (count of ALTA puestos below their required threshold)
+- `GET /api/dashboard/prioridad/puestos` → `PuestoPrioridadItem.estado`
+- `GET /api/dashboard/prioridad/mapa` → `MapaPuesto.estado`
+- `MunicipioStat.criticosUncovered`
+
+---
+
+## 3. Mesa Assignment — `AsignacionService`
+
+Runs automatically on every testigo create/update/delete/bulkAssign.  
+Can also be triggered manually: `POST /api/asignacion/recalcular/:puestoId`.
+
+### Algorithm
+
+```
+testigos = SELECT id FROM Testigo WHERE puestoId = ? ORDER BY id ASC
+for i, testigo in enumerate(testigos):
+  mesaInicial = i * 5 + 1
+  mesaFinal   = MIN((i+1) * 5, puesto.mesas)
+  if mesaInicial > puesto.mesas:
+    testigo.mesaInicial = NULL
+    testigo.mesaFinal   = NULL
+  else:
+    testigo.mesaInicial = mesaInicial
+    testigo.mesaFinal   = mesaFinal
+```
+
+Constraints: `mesaInicial <= mesaFinal`, `mesaFinal - mesaInicial + 1 <= 5`, `mesaFinal <= puesto.mesas`.
 
 ---
 
@@ -80,7 +101,7 @@ Used in:
 
 | Field | Formula type | Ratios used? | Scope |
 |-------|-------------|-------------|-------|
-| `coberturaPct` | Physical (mesas with ≥1 testigo) | No | Any aggregate |
-| `estado` | Policy (testigos vs required quota) | Yes | Per puesto only |
-| `testigosRequeridos` | Policy | Yes | Per puesto only |
-| `criticosUncovered` | Policy | Yes (ratioAlta) | Per municipio aggregate |
+| `coberturaPct` | Assignment (mesasAsignadas / totalMesas) | No | Any aggregate |
+| `estado` | Policy (mesasAsignadas >= totalMesas, then by nivel) | No | Per puesto only |
+| `testigosRequeridos` | Display only (ratio-based) | Yes | Per puesto only |
+| `criticosUncovered` | Assignment (mesasAsignadas < mesas) | No | Per municipio aggregate |
