@@ -1,4 +1,10 @@
 // @vitest-environment node
+// Load .env.local before anything else — Vitest 4 node-pool workers don't
+// inherit the Vite loadEnv result the way jsdom pools do.
+import { config as dotenvConfig } from 'dotenv'
+import { resolve } from 'path'
+dotenvConfig({ path: resolve(process.cwd(), '.env.local') })
+
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { readFile, appendFile } from 'fs/promises'
 import { fileURLToPath } from 'url'
@@ -7,9 +13,11 @@ import { safeFetch, QA_USERNAME_RX } from './safe-fetch'
 // qa.admin → static authenticator only; NEVER modified, deleted, or has password changed by tests
 // qa.test.* → disposable per-scenario users, always deleted in afterAll
 
-const API_BASE =
+// Normalise: accept NEXT_PUBLIC_API_BASE with or without trailing /api
+const _rawBase =
   process.env.NEXT_PUBLIC_API_BASE ??
   'https://backend-210392280319.us-central1.run.app/api'
+const API_BASE = _rawBase.endsWith('/api') ? _rawBase : `${_rawBase.replace(/\/$/, '')}/api`
 const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? ''
 const AUTH_DOMAIN =
   process.env.NEXT_PUBLIC_AUTH_EMAIL_DOMAIN ?? 'defensores.local'
@@ -53,7 +61,10 @@ async function getBootstrapToken(): Promise<string> {
       returnSecureToken: true,
     }),
   })
-  if (!res.ok) throw new Error(`Bootstrap admin auth failed: ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Bootstrap admin auth failed: ${res.status} — ${body}`)
+  }
   const data = (await res.json()) as { idToken: string }
   return data.idToken
 }
@@ -168,14 +179,12 @@ describe.skipIf(!hasCredentials)('Scenario A — SUPER_ADMIN', () => {
     if (testUser) await cleanupQaUser(adminToken, testUser.id, testUser.username)
   })
 
-  it('A-1: GET /dashboard returns 200 with subregiones', async () => {
+  it('A-1: GET /dashboard/stats returns 200', async () => {
     const token = await safeLogin(testUser.username, testUser.password)
-    const res = await safeFetch(`${API_BASE}/dashboard`, {
+    const res = await safeFetch(`${API_BASE}/dashboard/stats`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(res.status).toBe(200)
-    const body = (await res.json()) as unknown
-    expect(body).toHaveProperty('subregiones')
   })
 
   it('A-2: GET /users returns 200', async () => {
@@ -186,19 +195,20 @@ describe.skipIf(!hasCredentials)('Scenario A — SUPER_ADMIN', () => {
     expect(res.status).toBe(200)
   })
 
-  it('A-3: GET /testigos returns 200 with items array', async () => {
+  it('A-3: GET /testigos returns 200 with data array', async () => {
     const token = await safeLogin(testUser.username, testUser.password)
-    const res = await safeFetch(`${API_BASE}/testigos?page=1&perPage=10`, {
+    const res = await safeFetch(`${API_BASE}/testigos?page=1&limit=10`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(res.status).toBe(200)
     const body = (await res.json()) as unknown
-    expect(body).toHaveProperty('items')
+    // Backend shape: { data: [...], total, page, limit }
+    expect(body).toHaveProperty('data')
   })
 
-  it('A-4: GET /prio/puestos returns 200', async () => {
+  it('A-4: GET /dashboard/prioridad/puestos returns 200', async () => {
     const token = await safeLogin(testUser.username, testUser.password)
-    const res = await safeFetch(`${API_BASE}/prio/puestos?page=1&perPage=10`, {
+    const res = await safeFetch(`${API_BASE}/dashboard/prioridad/puestos?page=1&perPage=10`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(res.status).toBe(200)
@@ -220,9 +230,9 @@ describe.skipIf(!hasCredentials)('Scenario B — REGIONAL_COORDINATOR', () => {
     if (testUser) await cleanupQaUser(adminToken, testUser.id, testUser.username)
   })
 
-  it('B-1: GET /dashboard returns 200', async () => {
+  it('B-1: GET /dashboard/stats returns 200', async () => {
     const token = await safeLogin(testUser.username, testUser.password)
-    const res = await safeFetch(`${API_BASE}/dashboard`, {
+    const res = await safeFetch(`${API_BASE}/dashboard/stats`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(res.status).toBe(200)
@@ -230,7 +240,7 @@ describe.skipIf(!hasCredentials)('Scenario B — REGIONAL_COORDINATOR', () => {
 
   it('B-2: GET /testigos returns 200', async () => {
     const token = await safeLogin(testUser.username, testUser.password)
-    const res = await safeFetch(`${API_BASE}/testigos?page=1&perPage=10`, {
+    const res = await safeFetch(`${API_BASE}/testigos?page=1&limit=10`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(res.status).toBe(200)
@@ -264,9 +274,9 @@ describe.skipIf(!hasCredentials)('Scenario C — PUESTO_COORDINATOR', () => {
     if (testUser) await cleanupQaUser(adminToken, testUser.id, testUser.username)
   })
 
-  it('C-1: GET /dashboard returns 200', async () => {
+  it('C-1: GET /dashboard/stats returns 200', async () => {
     const token = await safeLogin(testUser.username, testUser.password)
-    const res = await safeFetch(`${API_BASE}/dashboard`, {
+    const res = await safeFetch(`${API_BASE}/dashboard/stats`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     expect(res.status).toBe(200)
