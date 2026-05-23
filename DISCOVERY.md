@@ -610,3 +610,37 @@ but not yet deployed as of 2026-05-22T22:00 UTC.
 **Rationale:** no automatic triggers exist; Cloud Build must be submitted manually via
 `gcloud builds submit --project=coordinacion-electoral`. The project owner retains the
 deploy gate.
+
+---
+
+### Amendment A20 — GET endpoints for Abogados, Refrigerios, Comparendos (2026-05-23)
+
+**Context:** Phase 16 frontend (branch `phase-16-rewrite`) shipped write-forward UI for
+these three resources under Amendment A19, which deferred the backend GET endpoints to
+Phase 17. During Phase 16 pre-cutover review, the owner flagged A19 as a D-day blocker:
+coordinators would lose visibility of records they entered whenever the browser reloaded,
+producing UX indistinguishable from data loss. A20 is the approved exception to the
+Phase 16 "NO BACKEND CHANGES" constraint.
+
+**Scope (strict — no other backend files modified):**
+- `AbogadosService.findByMunicipio(municipioId, user)` — query by `municipioId`, scope-guard via `PermissionsService.canAccess(user, MUNICIPIO, municipioId)`
+- `AbogadosController`: add `GET /municipios/:municipioId/abogados` with `@UseGuards(ScopeGuard)` + `@RequireScope(ScopeType.MUNICIPIO, 'municipioId')`
+- `RefrigeriosService.findByPuesto(puestoId, user)` — query by `scopeType=PUESTO, scopeId=puestoId`, scope-guard via `canAccess(user, PUESTO, puestoId)`
+- `RefrigeriosController`: add `GET /refrigerios?puestoId=<id>` (scope check in service)
+- `ComparendosService.findByComuna(comunaId, user)` — query by `scopeType=COMUNA, scopeId=comunaId`, scope-guard via `canAccess(user, COMUNA, comunaId)`; PUESTO_COORDINATOR fallback: `canAccess` already returns true if they have a puesto in that comuna
+- `ComparendosController`: add `GET /comparendos?comunaId=<id>` (scope check in service)
+
+**No schema change.** No migration. Read-only additions to existing controllers/services.
+
+**Test coverage added:**
+- `backend/src/resources/abogados/abogados.spec.ts` — unit tests: happy path, empty result, ForbiddenException
+- `backend/src/resources/refrigerios/refrigerios.spec.ts` — same
+- `backend/src/resources/comparendos/comparendos.spec.ts` — same, including PUESTO_COORDINATOR scope fallback
+
+**Frontend follow-up (branch `phase-16-rewrite`, PART C):**
+- Replace `useState` with `useQuery` in all three features
+- Remove A19 banners
+- Contract tests A-7, A-8, A-9 added
+
+**Deploy:** manual via `gcloud builds submit` per Amendment A17 ritual.
+After deploy, backend revision name recorded in CUTOVER_DECISION.md.
