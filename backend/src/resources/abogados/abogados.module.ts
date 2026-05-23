@@ -3,7 +3,10 @@ import { CommonModule } from '../../common/common.module.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { PermissionsModule } from '../../permissions/permissions.module.js';
 import { RealtimeModule } from '../../realtime/realtime.module.js';
-import { AbogadosController, AbogadosStandaloneController } from './abogados.controller.js';
+import {
+  AbogadosController,
+  AbogadosStandaloneController,
+} from './abogados.controller.js';
 import { AbogadosService } from './abogados.service.js';
 
 @Module({

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -27,6 +28,16 @@ import { UpdateAbogadoDto } from './dto/update-abogado.dto.js';
 @Controller('municipios')
 export class AbogadosController {
   constructor(private readonly abogadosService: AbogadosService) {}
+
+  @Get(':municipioId/abogados')
+  @UseGuards(ScopeGuard)
+  @RequireScope(ScopeType.MUNICIPIO, 'municipioId')
+  findByMunicipio(
+    @Param('municipioId', ParseIntPipe) municipioId: number,
+    @CurrentUser() user: UserWithScopes,
+  ) {
+    return this.abogadosService.findByMunicipio(municipioId, user);
+  }
 
   @Post(':municipioId/abogados')
   @UseGuards(ScopeGuard)

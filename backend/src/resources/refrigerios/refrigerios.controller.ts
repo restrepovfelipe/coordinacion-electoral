@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
@@ -9,6 +10,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
@@ -25,6 +27,14 @@ import { UpdateRefrigerioDto } from './dto/update-refrigerio.dto.js';
 @Controller('refrigerios')
 export class RefrigeriosController {
   constructor(private readonly refrigeriosService: RefrigeriosService) {}
+
+  @Get()
+  findByPuesto(
+    @Query('puestoId', ParseIntPipe) puestoId: number,
+    @CurrentUser() user: UserWithScopes,
+  ) {
+    return this.refrigeriosService.findByPuesto(puestoId, user);
+  }
 
   @Post()
   create(

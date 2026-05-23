@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PermissionsService } from '../../permissions/permissions.service.js';
@@ -39,15 +43,36 @@ export class AbogadosService {
       });
       return abogado;
     });
-    await this.realtime.notify({ type: 'abogado.create', municipioId, payload: { id: result.id } });
+    await this.realtime.notify({
+      type: 'abogado.create',
+      municipioId,
+      payload: { id: result.id },
+    });
     return result;
+  }
+
+  async findByMunicipio(municipioId: number, user: UserWithScopes) {
+    const canAccess = await this.permissions.canAccess(
+      user,
+      ScopeType.MUNICIPIO,
+      municipioId,
+    );
+    if (!canAccess) throw new ForbiddenException();
+    return this.prisma.abogado.findMany({
+      where: { municipioId },
+      orderBy: { createdAt: 'desc' as const },
+    });
   }
 
   async update(id: number, dto: UpdateAbogadoDto, user: UserWithScopes) {
     const existing = await this.prisma.abogado.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Abogado not found');
 
-    const canAccess = await this.permissions.canAccess(user, ScopeType.MUNICIPIO, existing.municipioId);
+    const canAccess = await this.permissions.canAccess(
+      user,
+      ScopeType.MUNICIPIO,
+      existing.municipioId,
+    );
     if (!canAccess) throw new ForbiddenException();
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -64,7 +89,11 @@ export class AbogadosService {
       });
       return updated;
     });
-    await this.realtime.notify({ type: 'abogado.update', municipioId: existing.municipioId, payload: { id } });
+    await this.realtime.notify({
+      type: 'abogado.update',
+      municipioId: existing.municipioId,
+      payload: { id },
+    });
     return result;
   }
 
@@ -72,7 +101,11 @@ export class AbogadosService {
     const existing = await this.prisma.abogado.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Abogado not found');
 
-    const canAccess = await this.permissions.canAccess(user, ScopeType.MUNICIPIO, existing.municipioId);
+    const canAccess = await this.permissions.canAccess(
+      user,
+      ScopeType.MUNICIPIO,
+      existing.municipioId,
+    );
     if (!canAccess) throw new ForbiddenException();
 
     await this.prisma.$transaction(async (tx) => {
@@ -87,6 +120,10 @@ export class AbogadosService {
       });
       await tx.abogado.delete({ where: { id } });
     });
-    await this.realtime.notify({ type: 'abogado.delete', municipioId: existing.municipioId, payload: { id } });
+    await this.realtime.notify({
+      type: 'abogado.delete',
+      municipioId: existing.municipioId,
+      payload: { id },
+    });
   }
 }

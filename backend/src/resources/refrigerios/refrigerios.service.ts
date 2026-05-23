@@ -47,8 +47,26 @@ export class RefrigeriosService {
       });
       return refrigerio;
     });
-    await this.realtime.notify({ type: 'refrigerio.create', scopeType: dto.scopeType, scopeId: dto.scopeId, payload: { id: result.id } });
+    await this.realtime.notify({
+      type: 'refrigerio.create',
+      scopeType: dto.scopeType,
+      scopeId: dto.scopeId,
+      payload: { id: result.id },
+    });
     return result;
+  }
+
+  async findByPuesto(puestoId: number, user: UserWithScopes) {
+    const canAccess = await this.permissions.canAccess(
+      user,
+      ScopeType.PUESTO,
+      puestoId,
+    );
+    if (!canAccess) throw new ForbiddenException();
+    return this.prisma.refrigerio.findMany({
+      where: { scopeType: ScopeType.PUESTO, scopeId: puestoId },
+      orderBy: { createdAt: 'desc' as const },
+    });
   }
 
   async update(
@@ -60,11 +78,18 @@ export class RefrigeriosService {
     const existing = await this.prisma.refrigerio.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Refrigerio not found');
 
-    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    const hasAccess = await this.permissions.canAccess(
+      user,
+      existing.scopeType,
+      existing.scopeId,
+    );
     if (!hasAccess) throw new ForbiddenException();
 
     if (ifMatch && existing.updatedAt.toISOString() !== ifMatch) {
-      throw new HttpException('Precondition Failed', HttpStatus.PRECONDITION_FAILED);
+      throw new HttpException(
+        'Precondition Failed',
+        HttpStatus.PRECONDITION_FAILED,
+      );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -81,7 +106,12 @@ export class RefrigeriosService {
       });
       return updated;
     });
-    await this.realtime.notify({ type: 'refrigerio.update', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
+    await this.realtime.notify({
+      type: 'refrigerio.update',
+      scopeType: existing.scopeType,
+      scopeId: existing.scopeId,
+      payload: { id },
+    });
     return result;
   }
 
@@ -89,7 +119,11 @@ export class RefrigeriosService {
     const existing = await this.prisma.refrigerio.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Refrigerio not found');
 
-    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    const hasAccess = await this.permissions.canAccess(
+      user,
+      existing.scopeType,
+      existing.scopeId,
+    );
     if (!hasAccess) throw new ForbiddenException();
 
     await this.prisma.$transaction(async (tx) => {
@@ -104,6 +138,11 @@ export class RefrigeriosService {
       });
       await tx.refrigerio.delete({ where: { id } });
     });
-    await this.realtime.notify({ type: 'refrigerio.delete', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
+    await this.realtime.notify({
+      type: 'refrigerio.delete',
+      scopeType: existing.scopeType,
+      scopeId: existing.scopeId,
+      payload: { id },
+    });
   }
 }

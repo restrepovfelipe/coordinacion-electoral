@@ -52,8 +52,26 @@ export class ComparendosService {
       });
       return comparendo;
     });
-    await this.realtime.notify({ type: 'comparendo.create', scopeType: dto.scopeType, scopeId: dto.scopeId, payload: { id: result.id } });
+    await this.realtime.notify({
+      type: 'comparendo.create',
+      scopeType: dto.scopeType,
+      scopeId: dto.scopeId,
+      payload: { id: result.id },
+    });
     return result;
+  }
+
+  async findByComuna(comunaId: number, user: UserWithScopes) {
+    const canAccess = await this.permissions.canAccess(
+      user,
+      ScopeType.COMUNA,
+      comunaId,
+    );
+    if (!canAccess) throw new ForbiddenException();
+    return this.prisma.comparendo.findMany({
+      where: { scopeType: ScopeType.COMUNA, scopeId: comunaId },
+      orderBy: { date: 'asc' as const },
+    });
   }
 
   async update(
@@ -65,11 +83,18 @@ export class ComparendosService {
     const existing = await this.prisma.comparendo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Comparendo not found');
 
-    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    const hasAccess = await this.permissions.canAccess(
+      user,
+      existing.scopeType,
+      existing.scopeId,
+    );
     if (!hasAccess) throw new ForbiddenException();
 
     if (ifMatch && existing.updatedAt.toISOString() !== ifMatch) {
-      throw new HttpException('Precondition Failed', HttpStatus.PRECONDITION_FAILED);
+      throw new HttpException(
+        'Precondition Failed',
+        HttpStatus.PRECONDITION_FAILED,
+      );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -94,7 +119,12 @@ export class ComparendosService {
       });
       return updated;
     });
-    await this.realtime.notify({ type: 'comparendo.update', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
+    await this.realtime.notify({
+      type: 'comparendo.update',
+      scopeType: existing.scopeType,
+      scopeId: existing.scopeId,
+      payload: { id },
+    });
     return result;
   }
 
@@ -102,7 +132,11 @@ export class ComparendosService {
     const existing = await this.prisma.comparendo.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Comparendo not found');
 
-    const hasAccess = await this.permissions.canAccess(user, existing.scopeType as ScopeType, existing.scopeId);
+    const hasAccess = await this.permissions.canAccess(
+      user,
+      existing.scopeType,
+      existing.scopeId,
+    );
     if (!hasAccess) throw new ForbiddenException();
 
     await this.prisma.$transaction(async (tx) => {
@@ -117,6 +151,11 @@ export class ComparendosService {
       });
       await tx.comparendo.delete({ where: { id } });
     });
-    await this.realtime.notify({ type: 'comparendo.delete', scopeType: existing.scopeType, scopeId: existing.scopeId, payload: { id } });
+    await this.realtime.notify({
+      type: 'comparendo.delete',
+      scopeType: existing.scopeType,
+      scopeId: existing.scopeId,
+      payload: { id },
+    });
   }
 }

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
@@ -9,6 +10,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
@@ -25,6 +27,14 @@ import { UpdateComparendoDto } from './dto/update-comparendo.dto.js';
 @Controller('comparendos')
 export class ComparendosController {
   constructor(private readonly comparendosService: ComparendosService) {}
+
+  @Get()
+  findByComuna(
+    @Query('comunaId', ParseIntPipe) comunaId: number,
+    @CurrentUser() user: UserWithScopes,
+  ) {
+    return this.comparendosService.findByComuna(comunaId, user);
+  }
 
   @Post()
   create(
