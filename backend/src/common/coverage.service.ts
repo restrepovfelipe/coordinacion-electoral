@@ -10,55 +10,35 @@ export type EstadoPuesto =
 @Injectable()
 export class CoverageService {
   /**
-   * Canonical physical-coverage formula (used for all scopes: puesto → department).
+   * Canonical physical-coverage formula (Amendment A16).
    *
-   * coberturaPct = FLOOR(mesasCubiertas / totalMesas * 100)
+   * coberturaPct = FLOOR(mesasAsignadas / totalMesas * 100)
    *
-   * where mesasCubiertas = SUM over puestos of MIN(testigos_in_puesto, puesto.mesas).
-   * Each testigo covers exactly one mesa; excess testigos beyond mesas count do NOT raise pct.
-   * Callers must pre-aggregate (SUM(MIN(t, m))) before passing mesasCubiertas here.
+   * mesasAsignadas = SUM over testigos of (mesaFinal - mesaInicial + 1) WHERE mesaInicial IS NOT NULL.
+   * Callers pre-aggregate mesasAsignadas before passing it here.
    */
-  computePhysicalCoverage(mesasCubiertas: number, totalMesas: number): number {
+  computePhysicalCoverage(mesasAsignadas: number, totalMesas: number): number {
     if (totalMesas <= 0) return 0;
-    return Math.floor((mesasCubiertas / totalMesas) * 100);
+    return Math.floor((mesasAsignadas / totalMesas) * 100);
   }
 
   /**
-   * How many mesas a single puesto contributes to physical coverage.
-   * Apply this per puesto, then SUM to get mesasCubiertas for any scope.
+   * Estado per puesto (Amendment A16 — assignment-based, no ratio).
+   *
+   * BAJO_RIESGO  → votosTotal < 5 OR no PuestoPrioridad row
+   * CUBIERTO     → mesasAsignadas >= totalMesas
+   * CRITICO      → nivel = ALTA  and mesasAsignadas < totalMesas
+   * ATENCION     → nivel = MEDIA and mesasAsignadas < totalMesas
+   * VIGILAR      → nivel = BAJA  and mesasAsignadas < totalMesas
    */
-  cappedMesasCovered(testigos: number, mesas: number): number {
-    return Math.min(testigos, mesas);
-  }
-
-  /**
-   * Policy-based required testigos for a puesto.
-   * Used ONLY for computeEstado — not for coberturaPct.
-   */
-  requiredTestigos(
-    mesas: number,
-    nivel: string,
-    ratioAlta: number,
-    ratioMedia: number,
-    ratioBaja: number,
-  ): number {
-    const ratio =
-      nivel === 'ALTA'
-        ? ratioAlta
-        : nivel === 'MEDIA'
-          ? ratioMedia
-          : ratioBaja;
-    return Math.ceil(mesas * ratio);
-  }
-
   computeEstado(
-    nivel: string,
+    nivel: string | null,
     votosTotal: number,
-    testigosAsignados: number,
-    testigosRequeridos: number,
+    mesasAsignadas: number,
+    totalMesas: number,
   ): EstadoPuesto {
-    if (testigosAsignados >= testigosRequeridos) return 'CUBIERTO';
-    if (votosTotal < 5) return 'BAJO_RIESGO';
+    if (!nivel || votosTotal < 5) return 'BAJO_RIESGO';
+    if (mesasAsignadas >= totalMesas) return 'CUBIERTO';
     if (nivel === 'ALTA') return 'CRITICO';
     if (nivel === 'MEDIA') return 'ATENCION';
     return 'VIGILAR';

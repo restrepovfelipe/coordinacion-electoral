@@ -560,13 +560,15 @@ export class DashboardService {
       const ratioBaja = Number(r.ratioMesasBaja);
       const votosTotal = Number(r.votosTotal);
 
-      const required = this.coverage.requiredTestigos(mesas, nivel, ratioAlta, ratioMedia, ratioBaja);
-      const mesasCub = this.coverage.cappedMesasCovered(testigosAsignados, mesas);
-      const pct = this.coverage.computePhysicalCoverage(mesasCub, mesas);
+      // testigosRequeridos kept for display (ratio-based); not used for estado (A16).
+      const testigosRequeridos = Math.ceil(
+        mesas * (nivel === 'ALTA' ? ratioAlta : nivel === 'MEDIA' ? ratioMedia : ratioBaja),
+      );
+      // Until backfill runs mesasAsignadas ≈ COUNT(testigos) as proxy.
+      const pct = this.coverage.computePhysicalCoverage(testigosAsignados, mesas);
+      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, mesas);
 
-      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, required);
-
-      const cubierto = testigosAsignados >= required;
+      const cubierto = testigosAsignados >= mesas;
       if (opts.cubierto !== undefined && opts.cubierto !== cubierto) {
         return null as unknown as PuestoPrioridadItem;
       }
@@ -583,7 +585,7 @@ export class DashboardService {
         votosTotal,
         mesas,
         testigosAsignados,
-        testigosRequeridos: required,
+        testigosRequeridos,
         nivelPrioridad: nivel,
         estado,
         coberturaPct: pct,
@@ -701,11 +703,10 @@ export class DashboardService {
       const mesas = Number(r.mesas);
       const testigosAsignados = Number(r.testigosAsignados);
       const votosTotal = Number(r.votosTotal);
-      const required = this.coverage.requiredTestigos(
-        mesas, nivel,
-        Number(r.ratioMesasAlta), Number(r.ratioMesasMedia), Number(r.ratioMesasBaja),
+      const testigosRequeridos = Math.ceil(
+        mesas * (nivel === 'ALTA' ? Number(r.ratioMesasAlta) : nivel === 'MEDIA' ? Number(r.ratioMesasMedia) : Number(r.ratioMesasBaja)),
       );
-      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, required);
+      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, mesas);
 
       return {
         puestoId: Number(r.puestoId),
@@ -716,7 +717,7 @@ export class DashboardService {
         votosTotal,
         mesas,
         testigosAsignados,
-        testigosRequeridos: required,
+        testigosRequeridos,
         municipioId: Number(r.municipioId),
       };
     });

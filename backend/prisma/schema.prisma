@@ -165,6 +165,8 @@ model Testigo {
   phone       String?
   status      String   @default("pendiente")
   notes       String?
+  mesaInicial Int?
+  mesaFinal   Int?
   createdById Int?
   createdBy   User?    @relation(fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
