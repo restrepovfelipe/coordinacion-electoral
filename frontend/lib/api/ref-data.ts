@@ -54,6 +54,8 @@ export const PuestoRefSchema = z.object({
   municipioId: z.number(),
   mesas: z.number(),
   votosTotal: z.number().nullable(),
+  lat: z.number().nullable().optional(),
+  lon: z.number().nullable().optional(),
 })
 export type PuestoRef = z.infer<typeof PuestoRefSchema>
 
@@ -79,6 +81,9 @@ export const getPuestos = (comunaId?: number, signal?: AbortSignal) => {
   const q = comunaId ? `?comunaId=${comunaId}` : ''
   return api.get(`/puestos${q}`, z.array(PuestoRefSchema), signal)
 }
+
+export const getPuestosAll = (signal?: AbortSignal) =>
+  api.get('/puestos', z.array(PuestoRefSchema), signal)
 
 // ── React Query hooks ──────────────────────────────────────────────────────────
 
@@ -120,6 +125,14 @@ export function usePuestos(comunaId?: number) {
   return useQuery({
     queryKey: ['ref', 'puestos', comunaId ?? 'all'],
     queryFn: ({ signal }) => getPuestos(comunaId, signal),
+    staleTime: STALE_30M,
+  })
+}
+
+export function usePuestosAll() {
+  return useQuery({
+    queryKey: ['ref', 'puestos', 'all'],
+    queryFn: ({ signal }) => getPuestosAll(signal),
     staleTime: STALE_30M,
   })
 }

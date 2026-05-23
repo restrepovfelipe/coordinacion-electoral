@@ -37,6 +37,8 @@ export const PrioPuestoSchema = z.object({
   coberturaPct: z.number(),
   estado: z.enum(['CUBIERTO', 'CRITICO', 'ATENCION', 'VIGILAR', 'BAJO_RIESGO']),
   nivelPrioridad: z.enum(['ALTA', 'MEDIA', 'BAJA']).nullable(),
+  lat: z.number().nullable().optional(),
+  lon: z.number().nullable().optional(),
 })
 
 export type PrioPuesto = z.infer<typeof PrioPuestoSchema>
