@@ -77,52 +77,61 @@ model Subregion {
 }
 
 model Municipio {
-  id          Int        @id @default(autoincrement())
-  subregionId Int
-  subregion   Subregion  @relation(fields: [subregionId], references: [id])
-  name        String
-  divipola    String     @unique
-  comunas     Comuna[]
-  puestos     Puesto[]
-  abogados    Abogado[]
+  id                       Int        @id @default(autoincrement())
+  subregionId              Int
+  subregion                Subregion  @relation(fields: [subregionId], references: [id])
+  name                     String
+  divipola                 String     @unique
+  coordinadorAdHocNombre   String?
+  coordinadorAdHocTelefono String?
+  comunas                  Comuna[]
+  puestos                  Puesto[]
+  abogados                 Abogado[]
 
   @@index([subregionId])
 }
 
 model Comuna {
-  id          Int        @id @default(autoincrement())
-  municipioId Int
-  municipio   Municipio  @relation(fields: [municipioId], references: [id])
-  name        String
-  zonaId      Int?
-  zona        Zona?      @relation(fields: [zonaId], references: [id])
-  puestos     Puesto[]
+  id                       Int        @id @default(autoincrement())
+  municipioId              Int
+  municipio                Municipio  @relation(fields: [municipioId], references: [id])
+  name                     String
+  zonaId                   Int?
+  zona                     Zona?      @relation(fields: [zonaId], references: [id])
+  coordinadorAdHocNombre   String?
+  coordinadorAdHocTelefono String?
+  puestos                  Puesto[]
 
   @@unique([municipioId, name])
   @@index([zonaId])
 }
 
 model Zona {
-  id      Int      @id @default(autoincrement())
-  name    String   @unique
-  comunas Comuna[]
+  id                       Int      @id @default(autoincrement())
+  name                     String   @unique
+  coordinadorAdHocNombre   String?
+  coordinadorAdHocTelefono String?
+  comunas                  Comuna[]
 }
 
 model Puesto {
-  id          Int              @id @default(autoincrement())
-  municipioId Int
-  municipio   Municipio        @relation(fields: [municipioId], references: [id])
-  comunaId    Int?
-  comuna      Comuna?          @relation(fields: [comunaId], references: [id])
-  divipola    String           @unique
-  name        String
-  address     String
-  lat         Float
-  lng         Float
-  mesas       Int              @default(0)
-  votantes    Int              @default(0)
-  testigos    Testigo[]
-  prioridad   PuestoPrioridad?
+  id                       Int              @id @default(autoincrement())
+  municipioId              Int
+  municipio                Municipio        @relation(fields: [municipioId], references: [id])
+  comunaId                 Int?
+  comuna                   Comuna?          @relation(fields: [comunaId], references: [id])
+  divipola                 String           @unique
+  name                     String
+  address                  String
+  lat                      Float
+  lng                      Float
+  mesas                    Int              @default(0)
+  votantes                 Int              @default(0)
+  tag                      String?
+  coordinadorAdHocNombre   String?
+  coordinadorAdHocTelefono String?
+  testigos                 Testigo[]
+  prioridad                PuestoPrioridad?
 
   @@index([municipioId])
   @@index([comunaId])
