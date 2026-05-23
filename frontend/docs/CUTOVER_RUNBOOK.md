@@ -1,6 +1,6 @@
 # Cutover Runbook — Phase 16 Frontend
 
-Date: 2026-05-23  
+Date: 2026-05-23
 Owner: Shurecito
 
 ---
@@ -19,7 +19,25 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build
 
 All four commands must exit 0. If any fail, stop and fix before continuing.
 
-### Step 2 — E2E smoke test (10 min)
+### Step 2 — Contract test smoke (5 min)
+
+With credentials in env:
+
+```bash
+NEXT_PUBLIC_API_BASE=https://backend-210392280319.us-central1.run.app \
+QA_ADMIN_USERNAME=qa.admin \
+QA_ADMIN_PASSWORD=<your-qa-admin-password> \
+pnpm test:contract
+```
+
+Expected: 11/11 tests pass. If any fail:
+- Check the failure message for endpoint changes or schema drift.
+- Critical failures (dashboard/stats, testigos, auth) = cancel cutover.
+- Non-critical failures (abogados, comparendos) = evaluate case by case.
+
+After running, check `QA_CLEANUP.md`. If new entries appear (additional inactive users), hard-delete them at convenience post-cutover.
+
+### Step 3 — E2E smoke test (10 min)
 
 Set environment variables (never commit these):
 
@@ -40,10 +58,10 @@ pnpm e2e
 ```
 
 Expected: scenarios A, B, C all pass. If any test fails:
-- Check QA_CLEANUP.md for leftover test users and delete them manually.
+- Check `QA_CLEANUP.md` for leftover test users and deactivate them manually.
 - Fix the failing scenario before proceeding.
 
-### Step 3 — Lighthouse check (5 min)
+### Step 4 — Lighthouse check (5 min)
 
 With `pnpm start` still running:
 
@@ -58,7 +76,7 @@ Review scores for `/login`. Acceptable minimums:
 
 Scores below threshold are not hard blockers but should be noted.
 
-### Step 4 — Visual snapshot update (2 min)
+### Step 5 — Visual snapshot review (2 min)
 
 ```bash
 pnpm build
@@ -67,13 +85,13 @@ node scripts/snapshot.mjs
 
 Review `docs/visual-snapshots/` and compare against `docs/VISUAL_DIFF.md`. Confirm no regressions.
 
-### Step 5 — Inform users of A19 limitation
+### Step 6 — Inform users of A19 limitation
 
 Before going live, notify all coordinators:
 
 > **Nota importante:** Los datos de Abogados, Refrigerios y Comparendos ingresados en esta nueva versión de la app se guardan temporalmente en la sesión del navegador. Si recargas la página o cierras el navegador, esos datos se borran hasta que el backend implemente el endpoint GET correspondiente (Fase 17, post-electoral). Por favor, no uses estas secciones para datos que necesiten persistir entre sesiones.
 
-### Step 6 — Confirm Movilidad vanilla app accessible
+### Step 7 — Confirm Movilidad vanilla app accessible
 
 Verify that the old app is still reachable for coordinators who need to edit Movilidad data. The new Phase 16 app shows a banner pointing there.
 
@@ -84,10 +102,17 @@ Verify that the old app is still reachable for coordinators who need to edit Mov
 ### Option A — Blue/Green swap (recommended)
 
 1. Deploy Phase 16 frontend build to staging URL.
-2. Run E2E against staging (`E2E_BASE_URL=<staging-url> pnpm e2e`).
-3. Swap staging → production DNS/proxy.
-4. Monitor error logs for 15 minutes.
-5. If errors spike: revert proxy to old frontend immediately.
+2. Run contract tests against staging:
+   ```bash
+   NEXT_PUBLIC_API_BASE=<staging-api-url> \
+   QA_ADMIN_USERNAME=qa.admin \
+   QA_ADMIN_PASSWORD=<password> \
+   pnpm test:contract
+   ```
+3. Run E2E against staging (`E2E_BASE_URL=<staging-url> pnpm e2e`).
+4. Swap staging → production DNS/proxy.
+5. Monitor error logs for 15 minutes.
+6. If errors spike: revert proxy to old frontend immediately.
 
 ### Option B — Replace in-place
 
@@ -114,16 +139,21 @@ If cutover fails:
 
 - Watch browser console on `/` (dashboard) for React hydration errors.
 - Watch network tab for failed API requests (non-2xx from `/api/...`).
-- Confirm SSE `/api/events` connection established (green dot in sidebar or no 401 in network).
+- Confirm SSE `/api/events` connection established (no 401 in network tab).
 - Confirm at least one coordinator can log in and see their dashboard.
+- Run contract tests one more time to confirm live backend is healthy:
+  ```bash
+  NEXT_PUBLIC_API_BASE=https://backend-210392280319.us-central1.run.app \
+  QA_ADMIN_USERNAME=qa.admin \
+  QA_ADMIN_PASSWORD=<password> \
+  pnpm test:contract
+  ```
 
 ---
 
 ## Phase 17 Backlog Reminder
 
 See `docs/PHASE_17_BACKLOG.md` for post-electoral items:
-- GET /abogados (A19)
-- GET /refrigerios (A19)
-- GET /comparendos (A19)
-- Exportar endpoint
-- Feature flag `NEXT_PUBLIC_FEATURE_EXPORT=false` → enable when ready
+- A18: Hard-delete qa.test users (IDs 16–21, inactive, non-blocking)
+- A19: GET /abogados, GET /refrigerios, GET /comparendos
+- A20: Exportar endpoint — set `NEXT_PUBLIC_FEATURE_EXPORT=true` when ready
