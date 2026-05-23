@@ -133,6 +133,13 @@ function handleRealtimeEvent(event) {
     return;
   }
 
+  if (event.type === 'coordinador:adhoc_changed') {
+    if (typeof refreshCoordDisplay === 'function' && typeof CUR !== 'undefined' && CUR) {
+      refreshCoordDisplay(CUR);
+    }
+    return;
+  }
+
   // Re-render the current municipality view if it is open.
   rerenderIfNotEditing();
 }

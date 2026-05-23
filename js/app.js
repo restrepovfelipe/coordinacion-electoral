@@ -15,8 +15,21 @@ function _onWriteError(label, err) {
 }
 
 // ═══ PUESTO ID CACHE ═══
-// Cache: municipio name → { puestoName → backendId }
+// Cache: municipio name → { puestoName → backendId, _muniId, _ccIds: { ccName → id } }
 const _puestoIdCache = {};
+// Cache: zona name → backendId (loaded once via /api/zonas)
+const _zonaIdCache = {};
+// Expose cache references on window for test instrumentation (mutation only)
+window._puestoIdCacheRef = _puestoIdCache;
+window._zonaIdCacheRef   = _zonaIdCache;
+async function _loadZonaIds() {
+  if (Object.keys(_zonaIdCache).length > 0) return;
+  if (!window.api || !window.CURRENT_USER) return;
+  try {
+    const zonas = await api.get('/zonas');
+    for (const z of zonas) { _zonaIdCache[z.name] = z.id; _zonaIdCache[(z.name || '').toUpperCase()] = z.id; }
+  } catch (err) { console.warn('[_loadZonaIds] failed', err?.status); }
+}
 
 // ═══ TESTIGO COUNTS (real-time dashboard counters) ═══
 // Populated from GET /api/dashboard/testigos-counts; updated via SSE.
@@ -126,12 +139,20 @@ async function loadPuestoIds(muniName) {
     const muni = munis.find(m => m.name === muniName || m.name === muniName.toUpperCase());
     if (!muni) return;
 
-    // Get puestos for this municipio
-    const puestos = await api.get(`/puestos?municipioId=${muni.id}`);
+    // Get puestos and comunas for this municipio
+    const [puestos, comunas] = await Promise.all([
+      api.get(`/puestos?municipioId=${muni.id}`),
+      api.get(`/comunas?municipioId=${muni.id}`),
+    ]);
     _puestoIdCache[muniName] = {};
     _puestoIdCache[muniName]._muniId = muni.id;
     for (const p of puestos) {
       _puestoIdCache[muniName][p.name.toUpperCase()] = p.id;
+    }
+    _puestoIdCache[muniName]._ccIds = {};
+    for (const c of (comunas || [])) {
+      _puestoIdCache[muniName]._ccIds[c.name] = c.id;
+      _puestoIdCache[muniName]._ccIds[(c.name || '').toUpperCase()] = c.id;
     }
   } catch (err) {
     console.warn('Could not load puesto IDs for', muniName, err && err.status);
@@ -143,6 +164,43 @@ function getPuestoBackendId(muniName, puestoRawName) {
   if (!cache) return null;
   // Try exact match first, then uppercase match
   return cache[puestoRawName] || cache[puestoRawName?.toUpperCase()] || null;
+}
+
+// Resolve the backend integer ID for a coordinator scope from MCX context fields.
+function _coordScopeId(type, muniName, ck, k, zonaNombre) {
+  if (type === 'muni') return _puestoIdCache[muniName]?._muniId ?? null;
+  if (type === 'cc') { const ids = _puestoIdCache[muniName]?._ccIds; return ids ? (ids[ck] ?? ids[(ck || '').toUpperCase()] ?? null) : null; }
+  if (type === 'p') return getPuestoBackendId(muniName, k);
+  if (type === 'zona') return _zonaIdCache[zonaNombre] ?? _zonaIdCache[(zonaNombre || '').toUpperCase()] ?? null;
+  return null;
+}
+
+// Refresh the municipio coordinator display in the topbar (mh-cv / mh-phone-wa)
+// from the live backend. Falls back silently if the backend is unreachable.
+async function refreshCoordDisplay(n) {
+  if (!window.api || !window.CURRENT_USER) return;
+  const muniId = _puestoIdCache[n]?._muniId;
+  if (!muniId) return;
+  try {
+    const disp = await api.get(`/coordinador/municipio/${muniId}/display`);
+    const el = document.getElementById('mh-cv');
+    const pw = document.getElementById('mh-phone-wa');
+    if (!el) return;
+    const nombre = disp.nombre;
+    const telefono = disp.telefono;
+    el.textContent = nombre || '—';
+    if (pw) {
+      if (telefono) {
+        pw.innerHTML = `<div class="cp">${esc(telefono)}<a class="wa-btn" href="https://wa.me/57${telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a></div>`;
+      } else if (disp.source === 'user') {
+        pw.innerHTML = `<a href="/usuarios.html" style="font-size:10px;color:var(--blue)">👁 Ver en usuarios</a>`;
+      } else {
+        pw.innerHTML = '';
+      }
+    }
+  } catch (err) {
+    console.warn('[refreshCoordDisplay] failed', err?.status);
+  }
 }
 
 // ═══ STATE ═══
@@ -283,7 +341,7 @@ function buildSB() {
     list.appendChild(grp);
   });
 }
-function selMuni(n) { CUR = n; buildSB(); renderMuni(n); loadPuestoIds(n); loadAllTestigosForMuni(n); }
+function selMuni(n) { CUR = n; buildSB(); renderMuni(n); loadPuestoIds(n).then(() => refreshCoordDisplay(n)); _loadZonaIds(); loadAllTestigosForMuni(n); }
 function goHome() {
   CUR = null; buildSB();
   document.getElementById('ct').innerHTML = `
@@ -659,6 +717,13 @@ async function savePCard(n, k, ck, pcid) {
   s.puestos[k] = { ...((s.puestos[k]) || {}), coord, phone, tag };
   saveLocalSt();
   await writeMuni(n);
+  if (window.api && window.CURRENT_USER) {
+    const puestoId = getPuestoBackendId(n, k);
+    if (puestoId) {
+      api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null })
+        .catch(err => { if (err?.status !== 409) _onWriteError('coord puesto adhoc patch failed', err); });
+    }
+  }
   const tg = TAGS[tag] || TAGS.n;
   const tagBtn = document.querySelector(`#${pcid} .tbtn`);
   if (tagBtn) { tagBtn.className = tg.cls + ' tbtn'; tagBtn.textContent = tg.lbl; }
@@ -1077,6 +1142,16 @@ async function saveM() {
     s.zonas[MCX.zonaNombre] = { coord, phone };
     saveLocalSt();
     await writeMuni(MCX.n);
+  }
+  // T94: persist coordinator to backend (best-effort, 409 silenced = user-coord exists)
+  if (window.api && window.CURRENT_USER) {
+    const _scopeTypeMap = { muni: 'municipio', cc: 'comuna', p: 'puesto', zona: 'zona' };
+    const scopeStr = _scopeTypeMap[MCX.type];
+    const scopeId = _coordScopeId(MCX.type, MCX.n, MCX.ck, MCX.k, MCX.zonaNombre);
+    if (scopeStr && scopeId) {
+      api.patch(`/coordinador/${scopeStr}/${scopeId}/adhoc`, { nombre: coord || null, telefono: phone || null })
+        .catch(err => { if (err?.status !== 409) _onWriteError('coord adhoc patch failed', err); });
+    }
   }
   const _waHtml = (phone, extra) => phone
     ? `<span${extra ? ` class="${extra}"` : ''}>· ${esc(phone)}</span><a class="wa-btn" href="https://wa.me/57${phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>`
