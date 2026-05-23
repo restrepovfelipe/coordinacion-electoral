@@ -201,16 +201,23 @@ export class DashboardService {
 
     if (isBroad) {
       rows = await this.prisma.$queryRaw<RawStatRow[]>(Prisma.sql`
-        WITH puesto_cov AS (
+        WITH puesto_asig AS (
+          SELECT
+            "puestoId",
+            COUNT(*)                                                       AS cnt,
+            SUM(CASE WHEN "mesaInicial" IS NOT NULL
+                     THEN "mesaFinal" - "mesaInicial" + 1 ELSE 0 END)     AS "mesasAsignadas"
+          FROM "Testigo"
+          GROUP BY "puestoId"
+        ),
+        puesto_cov AS (
           SELECT
             p."municipioId",
-            SUM(p.mesas)                                         AS "totalMesas",
-            SUM(LEAST(COALESCE(tc.cnt, 0), p.mesas))             AS "mesasCubiertas",
-            SUM(COALESCE(tc.cnt, 0))                             AS "totalTestigos"
+            SUM(p.mesas)                             AS "totalMesas",
+            SUM(COALESCE(pa."mesasAsignadas", 0))     AS "mesasCubiertas",
+            SUM(COALESCE(pa.cnt, 0))                  AS "totalTestigos"
           FROM "Puesto" p
-          LEFT JOIN (
-            SELECT "puestoId", COUNT(*) AS cnt FROM "Testigo" GROUP BY "puestoId"
-          ) tc ON tc."puestoId" = p.id
+          LEFT JOIN puesto_asig pa ON pa."puestoId" = p.id
           GROUP BY p."municipioId"
         )
         SELECT
@@ -224,8 +231,7 @@ export class DashboardService {
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'BAJA')  AS "bajaCount",
           COUNT(DISTINCT pp.id) FILTER (
             WHERE pp."nivelPrioridad" = 'ALTA'
-              AND (SELECT COUNT(*) FROM "Testigo" tt WHERE tt."puestoId" = pp."puestoId") <
-                  CEIL(p2.mesas * cfg."ratioMesasAlta")
+              AND COALESCE(pa2."mesasAsignadas", 0) < p2.mesas
           )                                        AS "criticosUncovered",
           MAX(t."updatedAt")                       AS "maxUpdatedAt",
           MAX(pp."updatedAt")                      AS "maxPrioridadAt",
@@ -239,6 +245,7 @@ export class DashboardService {
         LEFT JOIN "Testigo" t           ON t."puestoId"      = p.id
         LEFT JOIN "PuestoPrioridad" pp  ON pp."puestoId"     = p.id
         LEFT JOIN "Puesto" p2           ON p2.id             = pp."puestoId"
+        LEFT JOIN puesto_asig pa2       ON pa2."puestoId"    = pp."puestoId"
         CROSS JOIN (SELECT * FROM "PrioridadConfig" LIMIT 1) cfg
         GROUP BY m.id, m.name, pc."totalTestigos", pc."totalMesas", pc."mesasCubiertas"
         ORDER BY m.name
@@ -278,17 +285,24 @@ export class DashboardService {
           INNER JOIN "UserScope" us ON us."scopeId" = p.id
           WHERE us."userId" = ${user.id} AND us."scopeType" = 'PUESTO'
         ),
+        puesto_asig AS (
+          SELECT
+            "puestoId",
+            COUNT(*)                                                       AS cnt,
+            SUM(CASE WHEN "mesaInicial" IS NOT NULL
+                     THEN "mesaFinal" - "mesaInicial" + 1 ELSE 0 END)     AS "mesasAsignadas"
+          FROM "Testigo"
+          GROUP BY "puestoId"
+        ),
         puesto_cov AS (
           SELECT
             up."municipioId",
-            SUM(p.mesas)                                         AS "totalMesas",
-            SUM(LEAST(COALESCE(tc.cnt, 0), p.mesas))             AS "mesasCubiertas",
-            SUM(COALESCE(tc.cnt, 0))                             AS "totalTestigos"
+            SUM(p.mesas)                             AS "totalMesas",
+            SUM(COALESCE(pa."mesasAsignadas", 0))     AS "mesasCubiertas",
+            SUM(COALESCE(pa.cnt, 0))                  AS "totalTestigos"
           FROM user_puestos up
           JOIN "Puesto" p ON p.id = up.id
-          LEFT JOIN (
-            SELECT "puestoId", COUNT(*) AS cnt FROM "Testigo" GROUP BY "puestoId"
-          ) tc ON tc."puestoId" = up.id
+          LEFT JOIN puesto_asig pa ON pa."puestoId" = up.id
           GROUP BY up."municipioId"
         )
         SELECT
@@ -302,8 +316,7 @@ export class DashboardService {
           COUNT(DISTINCT pp.id) FILTER (WHERE pp."nivelPrioridad" = 'BAJA')  AS "bajaCount",
           COUNT(DISTINCT pp.id) FILTER (
             WHERE pp."nivelPrioridad" = 'ALTA'
-              AND (SELECT COUNT(*) FROM "Testigo" tt WHERE tt."puestoId" = pp."puestoId") <
-                  CEIL(p2.mesas * cfg."ratioMesasAlta")
+              AND COALESCE(pa2."mesasAsignadas", 0) < p2.mesas
           )                                        AS "criticosUncovered",
           MAX(t."updatedAt")                       AS "maxUpdatedAt",
           MAX(pp."updatedAt")                      AS "maxPrioridadAt",
@@ -318,6 +331,7 @@ export class DashboardService {
         LEFT JOIN "Testigo" t           ON t."puestoId"    = up.id
         LEFT JOIN "PuestoPrioridad" pp  ON pp."puestoId"   = up.id
         LEFT JOIN "Puesto" p2           ON p2.id           = pp."puestoId"
+        LEFT JOIN puesto_asig pa2       ON pa2."puestoId"  = pp."puestoId"
         CROSS JOIN (SELECT * FROM "PrioridadConfig" LIMIT 1) cfg
         GROUP BY m.id, m.name, pc."totalTestigos", pc."totalMesas", pc."mesasCubiertas"
         ORDER BY m.name
@@ -501,6 +515,7 @@ export class DashboardService {
       votosTotal: bigint;
       mesas: bigint;
       testigosAsignados: bigint;
+      mesasAsignadas: bigint;
       nivelPrioridad: string;
       ratioMesasAlta: number;
       ratioMesasMedia: number;
@@ -524,6 +539,8 @@ export class DashboardService {
           COALESCE(pp."votosTotal", 0)    AS "votosTotal",
           p.mesas             AS mesas,
           COUNT(t.id)         AS "testigosAsignados",
+          COALESCE(SUM(CASE WHEN t."mesaInicial" IS NOT NULL
+                            THEN t."mesaFinal" - t."mesaInicial" + 1 ELSE 0 END), 0) AS "mesasAsignadas",
           COALESCE(pp."nivelPrioridad", 'BAJA') AS "nivelPrioridad",
           cfg."ratioMesasAlta"   AS "ratioMesasAlta",
           cfg."ratioMesasMedia"  AS "ratioMesasMedia",
@@ -555,6 +572,7 @@ export class DashboardService {
       const nivel = r.nivelPrioridad;
       const mesas = Number(r.mesas);
       const testigosAsignados = Number(r.testigosAsignados);
+      const mesasAsignadas = Number(r.mesasAsignadas);
       const ratioAlta = Number(r.ratioMesasAlta);
       const ratioMedia = Number(r.ratioMesasMedia);
       const ratioBaja = Number(r.ratioMesasBaja);
@@ -564,11 +582,10 @@ export class DashboardService {
       const testigosRequeridos = Math.ceil(
         mesas * (nivel === 'ALTA' ? ratioAlta : nivel === 'MEDIA' ? ratioMedia : ratioBaja),
       );
-      // Until backfill runs mesasAsignadas ≈ COUNT(testigos) as proxy.
-      const pct = this.coverage.computePhysicalCoverage(testigosAsignados, mesas);
-      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, mesas);
+      const pct = this.coverage.computePhysicalCoverage(mesasAsignadas, mesas);
+      const estado = this.coverage.computeEstado(nivel, votosTotal, mesasAsignadas, mesas);
 
-      const cubierto = testigosAsignados >= mesas;
+      const cubierto = mesasAsignadas >= mesas;
       if (opts.cubierto !== undefined && opts.cubierto !== cubierto) {
         return null as unknown as PuestoPrioridadItem;
       }
@@ -611,6 +628,7 @@ export class DashboardService {
       votosTotal: bigint;
       mesas: bigint;
       testigosAsignados: bigint;
+      mesasAsignadas: bigint;
       municipioId: bigint;
       ratioMesasAlta: number;
       ratioMesasMedia: number;
@@ -629,6 +647,8 @@ export class DashboardService {
           COALESCE(pp."votosTotal", 0)           AS "votosTotal",
           p.mesas,
           COUNT(t.id)        AS "testigosAsignados",
+          COALESCE(SUM(CASE WHEN t."mesaInicial" IS NOT NULL
+                            THEN t."mesaFinal" - t."mesaInicial" + 1 ELSE 0 END), 0) AS "mesasAsignadas",
           p."municipioId",
           cfg."ratioMesasAlta",
           cfg."ratioMesasMedia",
@@ -683,6 +703,8 @@ export class DashboardService {
           COALESCE(pp."votosTotal", 0)           AS "votosTotal",
           p.mesas,
           COUNT(t.id)        AS "testigosAsignados",
+          COALESCE(SUM(CASE WHEN t."mesaInicial" IS NOT NULL
+                            THEN t."mesaFinal" - t."mesaInicial" + 1 ELSE 0 END), 0) AS "mesasAsignadas",
           p."municipioId",
           cfg."ratioMesasAlta",
           cfg."ratioMesasMedia",
@@ -702,11 +724,12 @@ export class DashboardService {
       const nivel = r.nivelPrioridad;
       const mesas = Number(r.mesas);
       const testigosAsignados = Number(r.testigosAsignados);
+      const mesasAsignadas = Number(r.mesasAsignadas);
       const votosTotal = Number(r.votosTotal);
       const testigosRequeridos = Math.ceil(
         mesas * (nivel === 'ALTA' ? Number(r.ratioMesasAlta) : nivel === 'MEDIA' ? Number(r.ratioMesasMedia) : Number(r.ratioMesasBaja)),
       );
-      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, mesas);
+      const estado = this.coverage.computeEstado(nivel, votosTotal, mesasAsignadas, mesas);
 
       return {
         puestoId: Number(r.puestoId),
