@@ -9,7 +9,9 @@
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write \"**/*.{ts,tsx,css,json}\" --ignore-path .gitignore",
     "format:check": "prettier --check \"**/*.{ts,tsx,css,json}\" --ignore-path .gitignore",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.11",
@@ -22,17 +24,24 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.5.0",
     "eslint": "^8.57.1",
     "eslint-config-next": "16.2.6",
+    "jsdom": "^29.1.1",
+    "msw": "^2.14.6",
     "postcss": "^8.5.15",
     "prettier": "^3.8.3",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }
