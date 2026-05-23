@@ -7,7 +7,7 @@ import type { Tone } from './Tag'
 export type PuestoRowData = {
   id: number
   nombre: string
-  comunaNombre: string
+  comunaNombre: string | null
   mesas: number
   mesasAsignadas: number
   coberturaPct: number

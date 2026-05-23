@@ -4,36 +4,34 @@ import { api } from '../api'
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
+// Matches actual /dashboard/stats backend response
 export const MunicipioStatSchema = z.object({
   municipioId: z.number(),
   municipioNombre: z.string(),
-  subregionId: z.number(),
-  subregionNombre: z.string(),
-  puestosCount: z.number(),
+  testigosCount: z.number(),
   mesasCount: z.number(),
-  mesasAsignadas: z.number(),
+  mesasCubiertas: z.number(),
   coberturaPct: z.number(),
-  testigosTotal: z.number(),
-  testigosConfirmados: z.number(),
-  testigosPendientes: z.number(),
-  testigosSinContacto: z.number(),
-  sinTestigo: z.number(),
+  prioridadAltaCount: z.number(),
+  prioridadMediaCount: z.number(),
+  prioridadBajaCount: z.number(),
   criticosUncovered: z.number(),
-  coordinadorNombre: z.string().nullable(),
 })
 
 export type MunicipioStat = z.infer<typeof MunicipioStatSchema>
 
 export const DashboardStatsSchema = z.array(MunicipioStatSchema)
 
+// Matches actual /dashboard/prioridad/puestos backend response
 export const PrioPuestoSchema = z.object({
   puestoId: z.number(),
   puestoNombre: z.string(),
   municipioId: z.number(),
   municipioNombre: z.string(),
-  comunaNombre: z.string(),
+  comunaId: z.number().nullable(),
+  comunaNombre: z.string().nullable(),
+  votosTotal: z.number(),
   mesas: z.number(),
-  votosTotal: z.number().nullable(),
   testigosAsignados: z.number(),
   mesasAsignadas: z.number(),
   coberturaPct: z.number(),
@@ -47,7 +45,6 @@ export const PrioPuestosResponseSchema = z.object({
   items: z.array(PrioPuestoSchema),
   total: z.number(),
   page: z.number(),
-  perPage: z.number(),
 })
 
 // ── API calls ─────────────────────────────────────────────────────────────────
@@ -90,9 +87,9 @@ export function useSidebarCounts() {
     queryKey: ['sidebar-counts'],
     queryFn: async ({ signal }) => {
       const stats = await getDashboardStats(signal)
-      const testigos = stats.reduce((acc, s) => acc + s.testigosTotal, 0)
-      const coordinadores = stats.filter((s) => s.coordinadorNombre !== null).length
-      return { testigos, coordinadores } satisfies SidebarCounts
+      const testigos = stats.reduce((acc, s) => acc + s.testigosCount, 0)
+      // coordinadores count not available from stats endpoint
+      return { testigos, coordinadores: 0 } satisfies SidebarCounts
     },
     staleTime: 60_000,
   })

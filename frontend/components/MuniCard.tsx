@@ -25,15 +25,25 @@ const fmt = (n: number) => n.toLocaleString('es-CO')
 
 const covColor = (c: number) => (c >= 60 ? 'bg-ok' : c >= 30 ? 'bg-warn' : 'bg-danger')
 
-export function MuniCard({ m, onClick }: { m: MunicipioData; onClick?: () => void }) {
+export function MuniCard({
+  m,
+  onClick,
+  collapsed = false,
+}: {
+  m: MunicipioData
+  onClick?: () => void
+  collapsed?: boolean
+}) {
   return (
     <div className="muni-card" onClick={onClick}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="font-card text-[15px]">{m.name}</div>
-          <div className="font-mono text-[11px] text-text-3">
-            {m.zonas}z · {m.puestos}p · {fmt(m.mesas)}m
-          </div>
+          {!collapsed && (
+            <div className="font-mono text-[11px] text-text-3">
+              {m.zonas}z · {m.puestos}p · {fmt(m.mesas)}m
+            </div>
+          )}
         </div>
         <Tag tone={covTone(m.cov)}>{m.cov}%</Tag>
       </div>
@@ -55,18 +65,22 @@ export function MuniCard({ m, onClick }: { m: MunicipioData; onClick?: () => voi
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
-        <Stat v={compact(m.votantes)} l="Votantes" />
-        <Stat v={fmt(m.testigos)} l="Testigos" />
-        <Stat v={fmt(m.sinTestigo)} l="Sin testigo" danger={m.sinTestigo > 0} />
-      </div>
+      {!collapsed && (
+        <>
+          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
+            <Stat v={compact(m.votantes)} l="Votantes" />
+            <Stat v={fmt(m.testigos)} l="Testigos" />
+            <Stat v={fmt(m.sinTestigo)} l="Sin testigo" danger={m.sinTestigo > 0} />
+          </div>
 
-      <div className="h-1 bg-surface-2 rounded-full overflow-hidden">
-        <div
-          className={'h-full rounded-full transition-all ' + covColor(m.cov)}
-          style={{ width: m.cov + '%' }}
-        />
-      </div>
+          <div className="h-1 bg-surface-2 rounded-full overflow-hidden">
+            <div
+              className={'h-full rounded-full transition-all ' + covColor(m.cov)}
+              style={{ width: m.cov + '%' }}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }
