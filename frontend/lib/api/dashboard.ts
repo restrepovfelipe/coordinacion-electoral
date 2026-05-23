@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
@@ -67,4 +68,40 @@ export const getPrioridadPuestos = (
   if (params.perPage) q.set('perPage', String(params.perPage))
   if (params.municipioId) q.set('municipioId', String(params.municipioId))
   return api.get(`/dashboard/prioridad/puestos?${q}`, PrioPuestosResponseSchema, signal)
+}
+
+// ── React Query hooks ─────────────────────────────────────────────────────────
+
+export function useDashboardStats() {
+  return useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: ({ signal }) => getDashboardStats(signal),
+    staleTime: 30_000,
+  })
+}
+
+export type SidebarCounts = {
+  testigos: number
+  coordinadores: number
+}
+
+export function useSidebarCounts() {
+  return useQuery({
+    queryKey: ['sidebar-counts'],
+    queryFn: async ({ signal }) => {
+      const stats = await getDashboardStats(signal)
+      const testigos = stats.reduce((acc, s) => acc + s.testigosTotal, 0)
+      const coordinadores = stats.filter((s) => s.coordinadorNombre !== null).length
+      return { testigos, coordinadores } satisfies SidebarCounts
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function usePrioPuestos(params: { page?: number; perPage?: number; municipioId?: number }) {
+  return useQuery({
+    queryKey: ['prio', 'list', params],
+    queryFn: ({ signal }) => getPrioridadPuestos(params, signal),
+    staleTime: 30_000,
+  })
 }
