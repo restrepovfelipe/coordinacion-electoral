@@ -7,7 +7,8 @@
  * follows the qa.test.<role>.<timestamp> pattern before the request is sent.
  */
 
-export const QA_USERNAME_RX = /^qa\.test\.[a-z]+\.[0-9]+$/
+// Permits qa.admin (static authenticator) and qa.test.<role>.<ts> (disposable users)
+export const QA_USERNAME_RX = /^qa\.(admin|test\.[a-z]+\.[0-9]+)$/
 
 const USERNAME_KEYS = ['username', 'usuario', 'user', 'email'] as const
 

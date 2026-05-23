@@ -11,6 +11,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,css,json}\" --ignore-path .gitignore",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:contract": "vitest run tests/contract/",
     "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui"

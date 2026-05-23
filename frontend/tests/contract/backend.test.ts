@@ -3,6 +3,9 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { readFile, appendFile } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { safeFetch, QA_USERNAME_RX } from './safe-fetch'
+// QA_USERNAME_RX = /^qa\.(admin|test\.[a-z]+\.[0-9]+)$/
+// qa.admin → static authenticator only; NEVER modified, deleted, or has password changed by tests
+// qa.test.* → disposable per-scenario users, always deleted in afterAll
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ??
@@ -21,7 +24,7 @@ const hasCredentials =
 async function safeLogin(username: string, password: string): Promise<string> {
   if (!QA_USERNAME_RX.test(username)) {
     throw new Error(
-      `A15 GUARD: safeLogin called with non-qa.test username "${username}"`,
+      `A15 GUARD: safeLogin called with non-qa username "${username}" — must be qa.admin or qa.test.*`,
     )
   }
   const email = `${username}@${AUTH_DOMAIN}`
