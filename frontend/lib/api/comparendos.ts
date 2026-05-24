@@ -15,6 +15,9 @@ export const ComparendoSchema = z.object({
 })
 export type Comparendo = z.infer<typeof ComparendoSchema>
 
+export const fetchComparendosByComuna = (comunaId: number, signal?: AbortSignal) =>
+  api.get(`/comparendos?comunaId=${comunaId}`, z.array(ComparendoSchema), signal)
+
 export const createComparendo = (body: {
   scopeType: string; scopeId: number; date: string; description: string; status?: string; notes?: string
 }) => api.post('/comparendos', ComparendoSchema, body)
