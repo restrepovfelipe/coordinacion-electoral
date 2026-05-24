@@ -13,7 +13,9 @@ export const AbogadoSchema = z.object({
 })
 export type Abogado = z.infer<typeof AbogadoSchema>
 
-// NOTE: No GET endpoint exists (Amendment A19). Write-forward only.
+export const fetchAbogadosByMunicipio = (municipioId: number, signal?: AbortSignal) =>
+  api.get(`/municipios/${municipioId}/abogados`, z.array(AbogadoSchema), signal)
+
 export const createAbogado = (municipioId: number, body: { name: string; phone?: string; notes?: string }) =>
   api.post(`/municipios/${municipioId}/abogados`, AbogadoSchema, body)
 

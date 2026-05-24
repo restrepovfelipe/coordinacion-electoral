@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth/use-auth'
 import { useMunicipios } from '@/lib/api/ref-data'
-import { createAbogado, patchAbogado, deleteAbogado, type Abogado } from '@/lib/api/abogados'
+import { fetchAbogadosByMunicipio, createAbogado, patchAbogado, deleteAbogado, type Abogado } from '@/lib/api/abogados'
 
 const MANAGE_ROLES = ['SUPER_ADMIN', 'REGIONAL_COORDINATOR', 'MUNICIPAL_COORDINATOR']
 
@@ -16,8 +16,6 @@ export default function AbogadosPage() {
   const { data: municipios } = useMunicipios()
   const qc = useQueryClient()
 
-  // Session-local list (Amendment A19 — no GET endpoint)
-  const [abogados, setAbogados] = useState<Abogado[]>([])
   const [selectedMuniId, setSelectedMuniId] = useState<number | ''>('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -29,10 +27,18 @@ export default function AbogadosPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  const abogadosKey = ['abogados', 'municipio', selectedMuniId]
+
+  const { data: abogados, isLoading: abogadosLoading, isError: abogadosError } = useQuery({
+    queryKey: abogadosKey,
+    queryFn: ({ signal }) => fetchAbogadosByMunicipio(selectedMuniId as number, signal),
+    enabled: typeof selectedMuniId === 'number',
+  })
+
   const createMutation = useMutation({
     mutationFn: () => createAbogado(selectedMuniId as number, { name, phone: phone || undefined, notes: notes || undefined }),
-    onSuccess: (created) => {
-      setAbogados((prev) => [...prev, created])
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: abogadosKey })
       setName(''); setPhone(''); setNotes('')
       setErrorMsg(null)
     },
@@ -41,8 +47,8 @@ export default function AbogadosPage() {
 
   const patchMutation = useMutation({
     mutationFn: () => patchAbogado(editingId!, { name: editName, phone: editPhone || undefined, notes: editNotes || undefined }),
-    onSuccess: (updated) => {
-      setAbogados((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: abogadosKey })
       setEditingId(null)
     },
     onError: (err: Error) => setErrorMsg(err.message),
@@ -50,8 +56,8 @@ export default function AbogadosPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => deleteAbogado(id),
-    onSuccess: (_, id) => {
-      setAbogados((prev) => prev.filter((a) => a.id !== id))
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: abogadosKey })
       setConfirmDeleteId(null)
     },
   })
@@ -73,13 +79,6 @@ export default function AbogadosPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="h1-display">Abogados</h1>
-
-      {/* Amendment A19 banner */}
-      <div className="p-3 bg-surface-2 border border-border rounded text-[13px] text-text-3">
-        Los abogados registrados en esta sesión son visibles aquí. Al recargar la página, la lista se borra
-        hasta que el backend implemente GET /abogados (Fase 17).
-        Para datos existentes, consulta la app actual.
-      </div>
 
       {/* Add form */}
       <form onSubmit={handleSubmit} className="bg-surface-2 border border-border rounded p-4 space-y-3">
@@ -112,8 +111,14 @@ export default function AbogadosPage() {
       </form>
 
       {/* List */}
-      {abogados.length === 0 ? (
-        <p className="text-text-3 text-[13px]">No hay abogados registrados en esta sesión.</p>
+      {!selectedMuniId ? (
+        <p className="text-text-3 text-[13px]">Selecciona un municipio para ver sus abogados.</p>
+      ) : abogadosLoading ? (
+        <p className="text-text-3 text-[13px]">Cargando...</p>
+      ) : abogadosError ? (
+        <p className="text-[13px] text-danger-text">Error al cargar abogados.</p>
+      ) : abogados?.length === 0 ? (
+        <p className="text-text-3 text-[13px]">No hay abogados registrados para este municipio.</p>
       ) : (
         <table className="w-full text-left">
           <thead>
@@ -125,7 +130,7 @@ export default function AbogadosPage() {
             </tr>
           </thead>
           <tbody>
-            {abogados.map((a) => (
+            {abogados?.map((a) => (
               <tr key={a.id} className="border-b border-border/50 hover:bg-surface-2">
                 {editingId === a.id ? (
                   <>
