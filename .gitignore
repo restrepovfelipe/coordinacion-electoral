@@ -16,6 +16,15 @@ backend/dist/
 backend/scripts/local/cloud-sql-proxy*
 backend/scripts/local/*.exe
 
+# Local debug scripts (phase 15 artifacts — never committed)
+backend/scripts/local/gate*.ts
+backend/scripts/local/gate*.pdf
+backend/scripts/local/get-cip-uid.ts
+backend/scripts/local/verify-backfill.ts
+
+# Orphaned root lockfile (workspaces use frontend/ and backend/ lockfiles)
+/pnpm-lock.yaml
+
 # Database dumps and backups
 backups/
 
