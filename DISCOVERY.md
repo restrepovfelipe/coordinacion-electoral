@@ -1,4 +1,4 @@
-# DISCOVERY.md — Comando Electoral AMVA 2026
+﻿# DISCOVERY.md — Comando Electoral AMVA 2026
 
 > Audit / reconnaissance document. **No changes proposed, no code written.**
 > Generated 2026-05-20 against branch `main` @ commit `bdbe388`.
@@ -657,3 +657,55 @@ Phase 16 "NO BACKEND CHANGES" constraint.
 
 **Deploy:** manual via `gcloud builds submit` per Amendment A17 ritual.
 After deploy, backend revision name recorded in CUTOVER_DECISION.md.
+
+
+---
+
+## Amendment A21 - Owner self-reset during Phase 16 cutover incident (2026-05-24)
+
+**Date:** 2026-05-24
+**Performed by:** Claude (on owner explicit instruction)
+**Branch:** hotfix/reset-1040572640-password
+
+### Context
+
+Immediately after the Phase 16 cutover (Next.js live on Vercel), the owner could not
+log in. Two separate issues were resolved sequentially:
+
+1. **Vercel env vars all empty strings** - all NEXT_PUBLIC_* vars were created as
+   empty placeholders during project setup, never filled. Fixed by pasting correct values
+   from frontend/.env.production.fix into Vercel UI and triggering a redeploy.
+
+2. **INVALID_LOGIN_CREDENTIALS** persisted after env fix - the Firebase Auth record for
+   user 1040572640@defensores.local had lastSignInTime: (never), confirming the
+   password had never been tested against CIP email/password method. Owner requested
+   an explicit password reset to a known value.
+
+### Action taken
+
+- Firebase project: comando-electoral-amva
+- Target email: 1040572640@defensores.local
+- Target UID: F8hzD1ge7XTXPHkWQNNvVpdz64K3
+- Script run: backend/scripts/local/reset-password.mjs (gitignored, not committed)
+- Method: firebase-admin SDK with applicationDefault() credentials
+- Change: admin.auth().updateUser(uid, { password: '1040572640' }) - password field only
+- Fields NOT touched: email, displayName, disabled, custom claims, role, scope
+
+### Postgres record (confirmed before reset)
+
+```
+id       : 1
+username : 1040572640
+role     : SUPER_ADMIN
+cipUid   : F8hzD1ge7XTXPHkWQNNvVpdz64K3
+active   : true
+scopeType: null (SUPER_ADMIN has no scope restriction)
+```
+
+### A15 compliance note
+
+A15 prohibits modifying production users passwords in automated tests. This action is
+a manual, one-time incident recovery performed by the owner explicitly requesting it -
+not an automated test action. The owner is the account holder of the reset account.
+
+**Owner action required:** Change password from the app UI immediately after first login.

@@ -44,3 +44,4 @@ node_modules/
 test-results/
 backend/test-results/
 playwright-report/
+.vercel
