@@ -14,6 +14,9 @@ export const RefrigerioSchema = z.object({
 })
 export type Refrigerio = z.infer<typeof RefrigerioSchema>
 
+export const fetchRefrigeriosByPuesto = (puestoId: number, signal?: AbortSignal) =>
+  api.get(`/refrigerios?puestoId=${puestoId}`, z.array(RefrigerioSchema), signal)
+
 export const createRefrigerio = (body: {
   scopeType: string; scopeId: number; count?: number; status?: string; notes?: string
 }) => api.post('/refrigerios', RefrigerioSchema, body)

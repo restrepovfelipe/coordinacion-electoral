@@ -9,23 +9,27 @@ import { usePrioPuestos } from '@/lib/api/dashboard'
 import { getTestigosByPuesto, getAsignacionPdf, recalcularAsignacion, type Testigo } from '@/lib/api/testigos'
 import { CoordinatorWidget } from '@/components/CoordinatorWidget'
 import { KpiStrip } from '@/components/Kpi'
-import { createRefrigerio, patchRefrigerio, deleteRefrigerio, type Refrigerio } from '@/lib/api/refrigerios'
+import { fetchRefrigeriosByPuesto, createRefrigerio, patchRefrigerio, deleteRefrigerio } from '@/lib/api/refrigerios'
 
 function RefrigerioSection({ puestoId, canEdit }: { puestoId: number; canEdit: boolean }) {
-  const [items, setItems] = useState<Refrigerio[]>([])
+  const qc = useQueryClient()
+  const refrigeriosKey = ['refrigerios', 'puesto', puestoId]
+
+  const { data: items = [], isLoading, isError } = useQuery({
+    queryKey: refrigeriosKey,
+    queryFn: ({ signal }) => fetchRefrigeriosByPuesto(puestoId, signal),
+  })
+
   const [count, setCount] = useState('')
   const [status, setStatus] = useState('')
   const [notes, setNotes] = useState('')
-  const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editCount, setEditCount] = useState('')
   const [editStatus, setEditStatus] = useState('')
   const [editNotes, setEditNotes] = useState('')
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
-    try {
+  const createMutation = useMutation({
+    mutationFn: () => {
       const body: { scopeType: string; scopeId: number; count?: number; status?: string; notes?: string } = {
         scopeType: 'PUESTO',
         scopeId: puestoId,
@@ -33,48 +37,41 @@ function RefrigerioSection({ puestoId, canEdit }: { puestoId: number; canEdit: b
       if (count.trim() !== '') body.count = parseInt(count, 10)
       if (status.trim() !== '') body.status = status.trim()
       if (notes.trim() !== '') body.notes = notes.trim()
-      const created = await createRefrigerio(body)
-      setItems((prev) => [...prev, created])
-      setCount('')
-      setStatus('')
-      setNotes('')
-    } catch {
-      // silent
-    } finally {
-      setSubmitting(false)
-    }
-  }
+      return createRefrigerio(body)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: refrigeriosKey })
+      setCount(''); setStatus(''); setNotes('')
+    },
+  })
 
-  async function handleEdit(id: number) {
-    const body: { count?: number; status?: string; notes?: string } = {}
-    if (editCount.trim() !== '') body.count = parseInt(editCount, 10)
-    if (editStatus.trim() !== '') body.status = editStatus.trim()
-    if (editNotes.trim() !== '') body.notes = editNotes.trim()
-    try {
-      const updated = await patchRefrigerio(id, body)
-      setItems((prev) => prev.map((r) => (r.id === id ? updated : r)))
+  const patchMutation = useMutation({
+    mutationFn: (id: number) => {
+      const body: { count?: number; status?: string; notes?: string } = {}
+      if (editCount.trim() !== '') body.count = parseInt(editCount, 10)
+      if (editStatus.trim() !== '') body.status = editStatus.trim()
+      if (editNotes.trim() !== '') body.notes = editNotes.trim()
+      return patchRefrigerio(id, body)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: refrigeriosKey })
       setEditingId(null)
-    } catch {
-      // silent
-    }
-  }
+    },
+  })
 
-  async function handleDelete(id: number) {
-    if (!confirm('¿Eliminar?')) return
-    try {
-      await deleteRefrigerio(id)
-      setItems((prev) => prev.filter((r) => r.id !== id))
-    } catch {
-      // silent
-    }
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteRefrigerio(id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: refrigeriosKey }),
+  })
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    createMutation.mutate()
   }
 
   return (
     <div className="border-t border-border pt-4">
       <h2 className="text-[14px] font-semibold mb-3">Refrigerios</h2>
-      <div className="text-[12px] text-text-3 mb-3">
-        Los refrigerios se guardan por sesión (Fase 17: persistencia completa).
-      </div>
       {canEdit && (
         <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-4 items-end">
           <div className="flex flex-col gap-1">
@@ -105,12 +102,16 @@ function RefrigerioSection({ puestoId, canEdit }: { puestoId: number; canEdit: b
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
-          <button type="submit" className="btn btn-sm" disabled={submitting}>
-            {submitting ? 'Guardando...' : 'Registrar'}
+          <button type="submit" className="btn btn-sm" disabled={createMutation.isPending}>
+            {createMutation.isPending ? 'Guardando...' : 'Registrar'}
           </button>
         </form>
       )}
-      {items.length > 0 && (
+      {isLoading ? (
+        <p className="text-[12px] text-text-3">Cargando refrigerios...</p>
+      ) : isError ? (
+        <p className="text-[12px] text-danger-text">Error al cargar refrigerios.</p>
+      ) : items.length > 0 ? (
         <ul className="space-y-2">
           {items.map((r) => (
             <li key={r.id} className="p-2 bg-surface-2 rounded text-[13px] flex flex-wrap gap-3 items-start">
@@ -136,7 +137,7 @@ function RefrigerioSection({ puestoId, canEdit }: { puestoId: number; canEdit: b
                     onChange={(e) => setEditNotes(e.target.value)}
                     placeholder="Notas"
                   />
-                  <button type="button" className="btn btn-sm" onClick={() => handleEdit(r.id)}>Guardar</button>
+                  <button type="button" className="btn btn-sm" onClick={() => patchMutation.mutate(r.id)} disabled={patchMutation.isPending}>Guardar</button>
                   <button type="button" className="btn btn-sm btn-ghost" onClick={() => setEditingId(null)}>Cancelar</button>
                 </div>
               ) : (
@@ -162,7 +163,7 @@ function RefrigerioSection({ puestoId, canEdit }: { puestoId: number; canEdit: b
                       <button
                         type="button"
                         className="text-[12px] text-danger-text hover:underline"
-                        onClick={() => handleDelete(r.id)}
+                        onClick={() => { if (confirm('¿Eliminar?')) deleteMutation.mutate(r.id) }}
                       >
                         Eliminar
                       </button>
@@ -173,7 +174,7 @@ function RefrigerioSection({ puestoId, canEdit }: { puestoId: number; canEdit: b
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </div>
   )
 }
