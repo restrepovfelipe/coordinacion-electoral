@@ -1,8 +1,35 @@
 'use client'
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, ReactNode } from 'react'
-import { SseProvider } from '@/lib/sse'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import { useState, useCallback, ReactNode } from 'react'
+import { SseProvider, useSseEvent } from '@/lib/sse'
+import { AuthProvider } from '@/lib/auth/auth-context'
+import { invalidateForSseEvent } from '@/lib/sse-invalidation'
+
+function SseInvalidator() {
+  const queryClient = useQueryClient()
+  useSseEvent(
+    'testigo:count_changed',
+    useCallback((e) => invalidateForSseEvent(queryClient, e), [queryClient]),
+  )
+  useSseEvent(
+    'asignacion:puesto_changed',
+    useCallback((e) => invalidateForSseEvent(queryClient, e), [queryClient]),
+  )
+  useSseEvent(
+    'coordinador:adhoc_changed',
+    useCallback((e) => invalidateForSseEvent(queryClient, e), [queryClient]),
+  )
+  useSseEvent(
+    'prioridad:config_changed',
+    useCallback((e) => invalidateForSseEvent(queryClient, e), [queryClient]),
+  )
+  useSseEvent(
+    'prioridad:puesto_changed',
+    useCallback((e) => invalidateForSseEvent(queryClient, e), [queryClient]),
+  )
+  return null
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -22,7 +49,12 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SseProvider>{children}</SseProvider>
+      <AuthProvider>
+        <SseProvider>
+          <SseInvalidator />
+          {children}
+        </SseProvider>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }

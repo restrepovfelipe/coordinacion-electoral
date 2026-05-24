@@ -9,12 +9,15 @@ export const metadata: Metadata = {
 }
 
 import { Providers } from './providers'
+import { ConditionalShell } from '@/components/Shell/ConditionalShell'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <ConditionalShell>{children}</ConditionalShell>
+        </Providers>
       </body>
     </html>
   )
