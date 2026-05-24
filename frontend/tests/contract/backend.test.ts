@@ -261,6 +261,70 @@ describe.skipIf(!hasCredentials)('Scenario A — SUPER_ADMIN', () => {
     expect(ct, `Expected text/event-stream, got "${ct}"`).toContain('text/event-stream')
     // Do not read body — SSE stream is indefinite; header check confirms endpoint is live
   })
+
+  it('A-7: GET /municipios/:id/abogados returns 200 and array', async () => {
+    const token = await safeLogin(testUser.username, testUser.password)
+    // Discover first municipio from reference data
+    const muniRes = await safeFetch(`${API_BASE}/municipios`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(muniRes.status).toBe(200)
+    const munis = (await muniRes.json()) as Array<{ id: number }>
+    const municipioId = munis[0]?.id
+    if (!municipioId) {
+      console.warn('[A-7] No municipios found in reference data — skipping')
+      return
+    }
+    const res = await safeFetch(`${API_BASE}/municipios/${municipioId}/abogados`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as unknown
+    expect(Array.isArray(body)).toBe(true)
+  })
+
+  it('A-8: GET /refrigerios?puestoId=:id returns 200 and array', async () => {
+    const token = await safeLogin(testUser.username, testUser.password)
+    // Discover first puesto from prioridad list
+    const prioRes = await safeFetch(`${API_BASE}/dashboard/prioridad/puestos?page=1&perPage=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(prioRes.status).toBe(200)
+    const prioBody = (await prioRes.json()) as Record<string, unknown>
+    const prioItems = (prioBody['items'] ?? prioBody['data']) as Array<Record<string, unknown>> | undefined
+    const puestoId = prioItems?.[0]?.['puestoId'] as number | undefined
+    if (!puestoId) {
+      console.warn('[A-8] No puestos in prioridad list — skipping')
+      return
+    }
+    const res = await safeFetch(`${API_BASE}/refrigerios?puestoId=${puestoId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as unknown
+    expect(Array.isArray(body)).toBe(true)
+  })
+
+  it('A-9: GET /comparendos?comunaId=:id returns 200 and array', async () => {
+    const token = await safeLogin(testUser.username, testUser.password)
+    // Discover first comuna from reference data
+    const comunaRes = await safeFetch(`${API_BASE}/comunas`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(comunaRes.status).toBe(200)
+    const comunas = (await comunaRes.json()) as Array<{ id: number }>
+    const comunaId = comunas[0]?.id
+    if (!comunaId) {
+      console.warn('[A-9] No comunas found in reference data — skipping')
+      return
+    }
+    const res = await safeFetch(`${API_BASE}/comparendos?comunaId=${comunaId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as unknown
+    expect(Array.isArray(body)).toBe(true)
+  })
 })
 
 // ── Scenario B — REGIONAL_COORDINATOR ────────────────────────────────────────
@@ -352,6 +416,24 @@ describe.skipIf(!hasCredentials)('Scenario C — PUESTO_COORDINATOR', () => {
         role: 'PUESTO_COORDINATOR',
         scopes: [],
       }),
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('A-7b: GET /municipios/99999/abogados returns 403 for PUESTO_COORDINATOR (municipio out of scope)', async () => {
+    const token = await safeLogin(testUser.username, testUser.password)
+    // municipioId=99999 is non-existent; PUESTO_COORDINATOR has no puestos there → canAccess returns false
+    const res = await safeFetch(`${API_BASE}/municipios/99999/abogados`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('A-9b: GET /comparendos?comunaId=99999 returns 403 for PUESTO_COORDINATOR (out-of-scope commune)', async () => {
+    const token = await safeLogin(testUser.username, testUser.password)
+    // comunaId=99999 does not exist and is not reachable from this user's puesto scope
+    const res = await safeFetch(`${API_BASE}/comparendos?comunaId=99999`, {
+      headers: { Authorization: `Bearer ${token}` },
     })
     expect(res.status).toBe(403)
   })
