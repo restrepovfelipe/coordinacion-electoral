@@ -611,6 +611,19 @@ but not yet deployed as of 2026-05-22T22:00 UTC.
 `gcloud builds submit --project=coordinacion-electoral`. The project owner retains the
 deploy gate.
 
+**Operational note — Cloud Build working directory (discovered A20 deploy, 2026-05-23):**
+`backend/cloudbuild.yaml` uses `dir: 'backend'` on the Docker build step, so Cloud Build
+expects the workspace root to be the **repo root**, not the `backend/` subdirectory.
+Always run from the repo root:
+
+```bash
+# CORRECT — run from repo root
+gcloud builds submit --config=backend/cloudbuild.yaml --substitutions=SHORT_SHA=<sha> .
+
+# WRONG — running from inside backend/ causes "no such file: /workspace/backend/Dockerfile"
+cd backend && gcloud builds submit --config=cloudbuild.yaml .
+```
+
 ---
 
 ### Amendment A20 — GET endpoints for Abogados, Refrigerios, Comparendos (2026-05-23)
