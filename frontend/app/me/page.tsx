@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/use-auth'
+import { patchMe } from '@/lib/api/usuarios'
 
 export default function MePage() {
   const { user, signOut } = useAuth()
@@ -26,17 +27,11 @@ export default function MePage() {
     setError(null)
     setSuccess(false)
 
-    const payload: Record<string, string> = {
-      nombre: nombre.trim(),
-      telefono: telefono.trim(),
-    }
-    if (newPassword) payload['password'] = newPassword
-
     try {
-      await fetch('/api/users/me', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      await patchMe({
+        displayName: nombre.trim() || undefined,
+        phone: telefono.trim() || undefined,
+        newPassword: newPassword || undefined,
       })
       setSuccess(true)
       setNewPassword('')
