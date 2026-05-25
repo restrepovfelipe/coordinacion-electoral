@@ -368,7 +368,9 @@ function renderMuni(n) {
     totTestReg += st.testReg; totTestFalt += st.testFalt; totMesasCub += st.mesasCubiertas;
   });
   const _apiStatDetail = _dashboardStatsByMuni[n];
-  const pctCov = _apiStatDetail !== undefined ? _apiStatDetail.coberturaPct : _coveragePct(totMesasCub, totM);
+  const pctCov = _apiStatDetail !== undefined ? _apiStatDetail.coberturaPct : _coveragePct(totCapacidad, totM);
+  const testigosExc = _apiStatDetail !== undefined ? (_apiStatDetail.testigosExcedentes || 0) : Math.max(0, totCapacidad - totM);
+  const isExcedente = pctCov > 100;
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
