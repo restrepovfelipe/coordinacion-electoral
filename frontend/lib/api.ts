@@ -57,7 +57,7 @@ async function request<T>(
   if (res.status === 401) {
     if (typeof window !== 'undefined') {
       const from = encodeURIComponent(window.location.pathname)
-      window.location.replace(`/login?from=${from}`)
+      window.location.replace(`/login?reason=session&from=${from}`)
     }
     throw new ApiError(401, 'Unauthorized')
   }
@@ -86,7 +86,7 @@ async function getBlob(path: string): Promise<Blob> {
   if (res.status === 401) {
     if (typeof window !== 'undefined') {
       const from = encodeURIComponent(window.location.pathname)
-      window.location.replace(`/login?from=${from}`)
+      window.location.replace(`/login?reason=session&from=${from}`)
     }
     throw new ApiError(401, 'Unauthorized')
   }

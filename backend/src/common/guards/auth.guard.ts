@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { FirebaseAdminService } from '../firebase/firebase-admin.service.js';
@@ -10,6 +11,8 @@ import { RequestWithUser } from '../types/request-with-user.js';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly logger = new Logger(AuthGuard.name);
+
   constructor(
     private readonly firebaseAdmin: FirebaseAdminService,
     private readonly prisma: PrismaService,
@@ -35,7 +38,8 @@ export class AuthGuard implements CanActivate {
     let decoded: Awaited<ReturnType<typeof this.firebaseAdmin.auth.verifyIdToken>>;
     try {
       decoded = await this.firebaseAdmin.auth.verifyIdToken(token);
-    } catch {
+    } catch (err) {
+      this.logger.error('verifyIdToken failed', err instanceof Error ? err.message : String(err));
       throw new UnauthorizedException();
     }
 
