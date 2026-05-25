@@ -556,12 +556,14 @@ if (document.getElementById('page-content')) {
     }).catch(() => window.location.replace('/'));
   };
 
-  const _tAuthTimeout = setTimeout(() => {
-    if (!window.CURRENT_USER) window.location.replace('/');
-  }, 4000);
+  // authReady (auth-gate.js) resuelve cuando Firebase termina de rehidratar.
+  // Si no hay user → redirect inmediato sin esperar timeout.
+  window.authReady.then((user) => {
+    if (!user) window.location.replace('/');
+  });
 
   window.startApp = function(me) {
-    clearTimeout(_tAuthTimeout);
+    document.getElementById('auth-gate-overlay')?.remove();
     if (me.role !== 'SUPER_ADMIN' && me.role !== 'REGIONAL_COORDINATOR') {
       window.location.replace('/');
       return;

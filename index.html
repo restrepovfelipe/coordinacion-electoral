@@ -17,9 +17,13 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 </head>
 <body>
-<!-- LOGIN SCREEN -->
+<!-- LOGIN SCREEN — .login-box empieza oculto hasta que authReady resuelve -->
 <div id="login-screen">
-  <div class="login-box">
+  <div id="auth-gate-spinner">
+    <div class="spinner"></div>
+    <p>Verificando sesión…</p>
+  </div>
+  <div class="login-box" style="display:none">
     <div class="login-logo">🇨🇴</div>
     <div class="login-title">Coordinación Electoral</div>
     <div class="login-sub">Defensores de la Patria · Abelardo de la Espriella 2026</div>
@@ -176,6 +180,7 @@
 <div id="profile-widget"></div>
 <script src="js/data.js"></script>
 <script src="js/firebase-init.js"></script>
+<script src="js/auth-gate.js"></script>
 <script src="js/api.js"></script>
 <script src="js/realtime.js"></script>
 <script src="js/sync.js"></script>
