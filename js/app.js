@@ -476,15 +476,19 @@ function _refreshMuniStats(n) {
   const tEl = document.getElementById('mh-test-reg');
   const tfEl = document.getElementById('mh-test-falt');
   if (!tEl || !tfEl) return;
-  let totTestReg = 0, totTestFalt = 0;
+  let totTestReg = 0, totTestFalt = 0, totMesasCub = 0, totM = 0;
   Object.keys(RAW[n] || {}).forEach(ck => {
     const st = _ccStats(n, ck);
     totTestReg += st.testReg;
     totTestFalt += st.testFalt;
+    totMesasCub += st.mesasCubiertas;
+    (RAW[n][ck] || []).forEach(p => { totM += (p.mesas || 0); });
   });
   tEl.textContent = totTestReg;
   tfEl.querySelector('.sv').textContent = totTestFalt;
   tfEl.classList.toggle('sc-warn', totTestFalt > 0);
+  const covEl = document.getElementById('mh-cov-pct');
+  if (covEl) covEl.textContent = _coveragePct(totMesasCub, totM) + '%';
 }
 
 async function loadAllTestigosForMuni(n) {
