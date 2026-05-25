@@ -6,6 +6,13 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Coordinación Electoral',
   description: 'Defensores de la Patria · Presidente 2026',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: { url: '/favicon-192.png', sizes: '192x192' },
+  },
 }
 
 import { Providers } from './providers'
