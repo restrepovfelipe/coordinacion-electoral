@@ -15,6 +15,10 @@ export class UpdateTestigoDto {
 
   @IsString()
   @IsOptional()
+  correo?: string;
+
+  @IsString()
+  @IsOptional()
   status?: string;
 
   @IsString()

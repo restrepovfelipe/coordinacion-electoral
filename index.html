@@ -76,7 +76,8 @@
     <button class="sb-toggle sb-toggle-mob" onclick="toggleSB()" title="Ocultar/mostrar municipios">✕</button>
     <button class="export-btn" onclick="openDirectorio()" style="white-space:nowrap">👥 Coordinadores</button>
     <button id="btn-testigos-page" class="export-btn dir-tab-btn hidden" onclick="window.location.href='/testigos.html'" style="white-space:nowrap">🧾 Testigos</button>
-    <button class="export-btn dir-tab-btn" onclick="openDirAbogados()" style="white-space:nowrap">⚖️ Abogados</button>
+    <button id="btn-jurados-page" class="export-btn dir-tab-btn hidden" onclick="window.location.href='/jurados.html'" style="white-space:nowrap">⚖️ Jurados</button>
+    <button class="export-btn dir-tab-btn" onclick="openDirAbogados()" style="white-space:nowrap">📋 Abogados</button>
     <button id="btn-users-admin" class="export-btn hidden" onclick="window.location.href='/usuarios.html'" style="white-space:nowrap">👥 Usuarios</button>
     <button id="btn-prioridad-config" class="export-btn hidden" onclick="openPrioridadConfigAdmin()" style="white-space:nowrap" title="Configurar umbrales de priorización">⚙ Prioridades</button>
     <button class="export-btn" onclick="clearReferenceCache();this.textContent='✓ Caché limpiada';setTimeout(()=>this.textContent='🗑 Limpiar caché',2000)" title="Borra el caché local de municipios, puestos y zonas" style="white-space:nowrap">🗑 Limpiar caché</button>

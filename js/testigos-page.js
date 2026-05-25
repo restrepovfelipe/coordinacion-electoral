@@ -467,6 +467,8 @@ function _openEditModal(testigoId) {
       <input type="text" id="t-ed-name" value="${esc(t.name || '')}" placeholder="Nombre completo">
       <label style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Teléfono</label>
       <input type="text" id="t-ed-phone" value="${esc(t.phone || '')}" placeholder="300 000 0000">
+      <label style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Correo</label>
+      <input type="email" id="t-ed-correo" value="${esc(t.correo || '')}" placeholder="correo@ejemplo.com">
       <label style="font-size:11px;color:var(--t3);margin-bottom:3px;display:block">Estado</label>
       <select id="t-ed-status">
         <option value="pendiente" ${t.status === 'pendiente' ? 'selected' : ''}>Pendiente</option>
@@ -491,6 +493,7 @@ function _openEditModal(testigoId) {
     const errEl = overlay.querySelector('#t-ed-err');
     const name = overlay.querySelector('#t-ed-name').value.trim();
     const phone = overlay.querySelector('#t-ed-phone').value.trim();
+    const correo = overlay.querySelector('#t-ed-correo').value.trim();
     const notes = overlay.querySelector('#t-ed-notes').value.trim();
     const status = overlay.querySelector('#t-ed-status').value;
 
@@ -504,7 +507,7 @@ function _openEditModal(testigoId) {
     errEl.textContent = '';
 
     try {
-      await window.api.patch(`/testigos/${testigoId}`, { name, phone: phone || null, notes: notes || null, status });
+      await window.api.patch(`/testigos/${testigoId}`, { name, phone: phone || null, correo: correo || null, notes: notes || null, status });
       overlay.remove();
       await _loadTestigos(_tPage);
     } catch (err) {
@@ -524,6 +527,7 @@ function _exportPDF() {
       <td>${esc(t.name || '—')}</td>
       <td>${esc(t.cedula || '—')}</td>
       <td>${esc(t.phone || '—')}</td>
+      <td>${esc(t.correo || '—')}</td>
       <td>${esc(t.status || '—')}</td>
       <td>${t.puesto ? esc(t.puesto.name) : 'Sin asignar'}</td>
     </tr>
@@ -548,7 +552,7 @@ function _exportPDF() {
     <h1>🧾 Listado de Testigos — AMVA 2026</h1>
     <div class="sub">Generado: ${now}${subtitle} | Página ${_tPage} de ${totalPages} (${_tAllData.length} registros mostrados de ${_tTotal})</div>
     <table>
-      <thead><tr><th>ID</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Estado</th><th>Puesto</th></tr></thead>
+      <thead><tr><th>ID</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Correo</th><th>Estado</th><th>Puesto</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </body></html>`);
