@@ -43,11 +43,6 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException();
     }
 
-    const nowSeconds = Date.now() / 1000;
-    if (nowSeconds - decoded.auth_time > 3600) {
-      throw new UnauthorizedException('SESSION_EXPIRED');
-    }
-
     const user = await this.prisma.user.findUnique({
       where: { cipUid: decoded.uid },
       include: { scopes: true },

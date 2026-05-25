@@ -42,21 +42,29 @@ describe('AuthGuard', () => {
     );
   });
 
-  it('throws SESSION_EXPIRED when auth_time is older than 3600 seconds', async () => {
+  it('accepts a valid token whose auth_time is older than 3600 seconds (Firebase auto-refresh)', async () => {
+    // auth_time is intentionally > 3600s ago — the old guard rejected these; the fixed guard must NOT.
+    const fakeUser = { id: 2, cipUid: 'old-auth-uid', active: true, scopes: [] };
     mockVerifyIdToken.mockResolvedValue({
-      uid: 'test-uid',
-      auth_time: Math.floor(Date.now() / 1000) - 3700,
+      uid: 'old-auth-uid',
+      auth_time: Math.floor(Date.now() / 1000) - 7200, // 2 hours ago
     });
+    mockFindUnique.mockResolvedValue(fakeUser);
 
-    await expect(
-      guard.canActivate(makeContext({ authorization: 'Bearer valid-token' })),
-    ).rejects.toThrow(new UnauthorizedException('SESSION_EXPIRED'));
+    const req: Record<string, unknown> = { headers: { authorization: 'Bearer refreshed-token' }, query: {} };
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => req }),
+    } as unknown as ExecutionContext;
+
+    const result = await guard.canActivate(ctx);
+    expect(result).toBe(true);
+    expect(req.user).toBe(fakeUser);
   });
 
   it('throws UnauthorizedException when user is not found in DB', async () => {
     mockVerifyIdToken.mockResolvedValue({
       uid: 'missing-uid',
-      auth_time: Math.floor(Date.now() / 1000),
+      auth_time: Math.floor(Date.now() / 1000) - 7200, // old auth_time — must still work up to DB check
     });
     mockFindUnique.mockResolvedValue(null);
 
@@ -68,7 +76,7 @@ describe('AuthGuard', () => {
   it('throws UnauthorizedException when user.active is false', async () => {
     mockVerifyIdToken.mockResolvedValue({
       uid: 'inactive-uid',
-      auth_time: Math.floor(Date.now() / 1000),
+      auth_time: Math.floor(Date.now() / 1000) - 7200, // old auth_time — guard must reach the active check
     });
     mockFindUnique.mockResolvedValue({ cipUid: 'inactive-uid', active: false, scopes: [] });
 
