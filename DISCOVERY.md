@@ -709,3 +709,20 @@ a manual, one-time incident recovery performed by the owner explicitly requestin
 not an automated test action. The owner is the account holder of the reset account.
 
 **Owner action required:** Change password from the app UI immediately after first login.
+
+## Amendment A25 — Auth hydration flash eliminated (2026-05-25)
+
+Race condition between Firebase Auth IndexedDB rehidration and page render caused the
+login form to flash visibly for ~300-1500ms on every page reload in authenticated sessions.
+Root cause: `#login-screen` was visible in CSS from the first paint; `startApp()` hid it
+only after `onAuthStateChanged` fired asynchronously.
+
+**Fix applied (branch: fix/4-auth-flash, merged to staging/multi-fix-batch):**
+- `js/auth-gate.js`: `window.authReady` promise that resolves once `onAuthStateChanged`
+  fires for the first time, removing the overlay gate before any app logic runs.
+- `index.html`: `.login-box` starts hidden (`display:none`); a spinner shows in its place.
+  `_revealLoginForm()` in `auth.js` swaps spinner → form only when `user=null`.
+- `testigos.html`, `usuarios.html`: `#auth-gate-overlay` (position:fixed, z-index:9999)
+  covers the page until `authReady` resolves; removed by `startApp()`.
+- Old 4s `setTimeout` fallback replaced by `authReady.then(user => { if (!user) redirect })`.
+- `css/styles.css`: `.spinner` + `@keyframes spin` added as reusable loading component.

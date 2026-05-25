@@ -181,6 +181,8 @@ function doLogout() {
 
 // ─── Session restore ──────────────────────────────────────────────────────────
 // Fires on page load if Firebase has a cached credential.
+// authReady (js/auth-gate.js) resolves first and removes the gate overlay;
+// this listener handles the actual app bootstrap or login reveal.
 auth.onAuthStateChanged(async (user) => {
   if (user) {
     try {
@@ -203,11 +205,23 @@ auth.onAuthStateChanged(async (user) => {
         // Network unreachable — do NOT sign out; user may be momentarily offline
         console.error('Session restore failed (network):', err.message);
         if (typeof setSyncBadge === 'function') setSyncBadge('error', '⚠ Sin conexión');
+        _revealLoginForm(); // allow manual re-login while offline
         return;
       }
       // Invalid token, deactivated account, or backend error — clear session
       console.error('Session restore failed:', err.status ?? err.code, err);
-      auth.signOut();
+      auth.signOut(); // triggers onAuthStateChanged again with user=null
     }
+  } else {
+    _revealLoginForm();
   }
 });
+
+// Ocultar el gate overlay y revelar el login-screen (index.html only).
+// Llamado cuando authReady resuelve con user=null o error de red.
+function _revealLoginForm() {
+  var overlay = document.getElementById('auth-gate-overlay');
+  if (overlay) overlay.style.display = 'none';
+  var loginScreen = document.getElementById('login-screen');
+  if (loginScreen) loginScreen.style.display = 'flex';
+}
