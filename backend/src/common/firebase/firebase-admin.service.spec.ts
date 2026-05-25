@@ -21,7 +21,7 @@ describe('FirebaseAdminService', () => {
     jest.clearAllMocks();
   });
 
-  it('initialises with projectId=comando-electoral-amva when no app exists', async () => {
+  it('initialises with projectId=coordinacion-electoral when no app exists', async () => {
     mockGetApps.mockReturnValue([]);
 
     const module = await Test.createTestingModule({
@@ -33,7 +33,7 @@ describe('FirebaseAdminService', () => {
     const callArg = mockInitializeApp.mock.calls[0][0] as Record<string, unknown>;
     // This test MUST fail if someone removes or changes the explicit projectId —
     // that would silently break token verification for all users.
-    expect(callArg.projectId).toBe('comando-electoral-amva');
+    expect(callArg.projectId).toBe('coordinacion-electoral');
   });
 
   it('skips initializeApp when an app is already registered', async () => {
