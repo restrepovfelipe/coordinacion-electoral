@@ -81,7 +81,7 @@ function _buildPanelHTML() {
 // ── Load & Render ──────────────────────────────────────────────────────────
 async function _loadTestigos(page) {
   const wrap = document.getElementById('t-table-wrap');
-  if (wrap) wrap.innerHTML = '<p style="color:var(--t3);font-size:12px;padding:20px 0">Cargando...</p>';
+  if (wrap) wrap.innerHTML = '<div style="display:flex;justify-content:center;padding:40px 0"><div class="spinner"></div></div>';
 
   let url = `/testigos?page=${page}&limit=${_T_LIMIT}`;
   if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
@@ -293,9 +293,28 @@ function _attachListeners() {
 }
 
 // ── Load municipios into filter select ────────────────────────────────────
+const _T_MUNIS_KEY = 'cache:testigos-municipios';
+const _T_MUNIS_TTL = 5 * 60 * 1000; // 5 min
+
+function _getMunisFromCache() {
+  try {
+    const raw = sessionStorage.getItem(_T_MUNIS_KEY);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > _T_MUNIS_TTL) { sessionStorage.removeItem(_T_MUNIS_KEY); return null; }
+    return data;
+  } catch { return null; }
+}
+
+function _setMunisCache(data) {
+  try { sessionStorage.setItem(_T_MUNIS_KEY, JSON.stringify({ ts: Date.now(), data })); } catch {}
+}
+
 async function _loadMunicipios() {
   try {
-    const munis = window._municipiosCache || (window._municipiosCache = await window.api.get('/municipios'));
+    const cached = _getMunisFromCache();
+    const munis = cached || await window.api.get('/municipios');
+    if (!cached) _setMunisCache(munis);
     const sel = document.getElementById('t-municipio-sel');
     munis.forEach(m => {
       _tMunicipiosMap[m.id] = m.name;
