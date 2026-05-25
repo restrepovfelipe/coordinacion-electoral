@@ -7,7 +7,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/lib/auth/use-auth', () => ({
-  useAuth: vi.fn(() => ({ user: { role: 'SUPER_ADMIN' } })),
+  useAuth: vi.fn(() => ({ user: { role: 'SUPER_ADMIN' }, role: 'SUPER_ADMIN', loading: false, signIn: vi.fn(), signOut: vi.fn() })),
 }))
 
 vi.mock('@/lib/api/testigos', () => ({
@@ -41,12 +41,12 @@ import TestigosPage from './page'
 describe('TestigosPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useAuth).mockReturnValue({ user: { role: 'SUPER_ADMIN' } } as unknown as ReturnType<typeof useAuth>)
+    vi.mocked(useAuth).mockReturnValue({ user: { role: 'SUPER_ADMIN' }, role: 'SUPER_ADMIN', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
     vi.mocked(useTestigos).mockReturnValue({ data: undefined, isLoading: true } as unknown as ReturnType<typeof useTestigos>)
   })
 
   it('shows access denied for non-admin role', () => {
-    vi.mocked(useAuth).mockReturnValue({ user: { role: 'PUESTO_COORDINATOR' } } as unknown as ReturnType<typeof useAuth>)
+    vi.mocked(useAuth).mockReturnValue({ user: { role: 'PUESTO_COORDINATOR' }, role: 'PUESTO_COORDINATOR', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
 
     render(<TestigosPage />)
 

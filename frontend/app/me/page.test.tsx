@@ -72,7 +72,7 @@ describe('MePage — field whitelist', () => {
   })
 })
 
-describe('MePage — PATCH /api/users/me', () => {
+describe('MePage — PATCH /users/me', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(global.fetch).mockResolvedValue({ ok: true } as Response)
@@ -93,12 +93,12 @@ describe('MePage — PATCH /api/users/me', () => {
 
     await waitFor(() => {
       const calls = vi.mocked(global.fetch).mock.calls
-      const patchCall = calls.find(([url]) => String(url).includes('/api/users/me'))
+      const patchCall = calls.find(([url]) => String(url).includes('/users/me'))
       expect(patchCall).toBeDefined()
       const body = JSON.parse(patchCall![1]!.body as string)
-      expect(body).toHaveProperty('nombre')
-      expect(body).toHaveProperty('telefono')
-      expect(body).not.toHaveProperty('password')
+      expect(body).toHaveProperty('displayName')
+      expect(body).toHaveProperty('phone')
+      expect(body).not.toHaveProperty('newPassword')
     })
   })
 
@@ -117,10 +117,10 @@ describe('MePage — PATCH /api/users/me', () => {
 
     await waitFor(() => {
       const calls = vi.mocked(global.fetch).mock.calls
-      const patchCall = calls.find(([url]) => String(url).includes('/api/users/me'))
+      const patchCall = calls.find(([url]) => String(url).includes('/users/me'))
       expect(patchCall).toBeDefined()
       const body = JSON.parse(patchCall![1]!.body as string)
-      expect(body).toHaveProperty('password', 'NewPass2026!')
+      expect(body).toHaveProperty('newPassword', 'NewPass2026!')
     })
   })
 
@@ -132,7 +132,7 @@ describe('MePage — PATCH /api/users/me', () => {
 
     await waitFor(() => {
       const calls = vi.mocked(global.fetch).mock.calls
-      const patchCall = calls.find(([url]) => String(url).includes('/api/users/me'))
+      const patchCall = calls.find(([url]) => String(url).includes('/users/me'))
       if (patchCall) {
         const body = JSON.parse(patchCall[1]!.body as string)
         expect(body).not.toHaveProperty('role')

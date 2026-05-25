@@ -58,7 +58,7 @@ describe('UsuariosPage', () => {
   })
 
   it('shows access denied for PUESTO_COORDINATOR role', () => {
-    mockedUseAuth.mockReturnValue({ user: { role: 'PUESTO_COORDINATOR' } } as unknown as ReturnType<typeof useAuth>)
+    mockedUseAuth.mockReturnValue({ user: { role: 'PUESTO_COORDINATOR' }, role: 'PUESTO_COORDINATOR', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
     mockedUseUsers.mockReturnValue({ data: undefined, isLoading: false } as unknown as ReturnType<typeof useUsers>)
 
     render(<UsuariosPage />)
@@ -67,7 +67,7 @@ describe('UsuariosPage', () => {
   })
 
   it('renders user rows for SUPER_ADMIN', () => {
-    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' } } as unknown as ReturnType<typeof useAuth>)
+    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' }, role: 'SUPER_ADMIN', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
     mockedUseUsers.mockReturnValue({
       data: {
         data: [
@@ -96,7 +96,7 @@ describe('UsuariosPage', () => {
   })
 
   it('Crear usuario button is visible for admin', () => {
-    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' } } as unknown as ReturnType<typeof useAuth>)
+    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' }, role: 'SUPER_ADMIN', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
     mockedUseUsers.mockReturnValue({
       data: { data: [], total: 0, page: 1, limit: 20 },
       isLoading: false,
@@ -108,7 +108,7 @@ describe('UsuariosPage', () => {
   })
 
   it('shows Inactivo tag for inactive user', () => {
-    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' } } as unknown as ReturnType<typeof useAuth>)
+    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' }, role: 'SUPER_ADMIN', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
     mockedUseUsers.mockReturnValue({
       data: {
         data: [

@@ -23,6 +23,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
+    useQuery: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })),
     useMutation: vi.fn(() => ({
       mutate: vi.fn(),
       mutateAsync: vi.fn(),
@@ -53,7 +54,7 @@ describe('AbogadosPage', () => {
   })
 
   it('shows access denied for PUESTO_COORDINATOR', () => {
-    mockedUseAuth.mockReturnValue({ user: { role: 'PUESTO_COORDINATOR' } } as unknown as ReturnType<typeof useAuth>)
+    mockedUseAuth.mockReturnValue({ user: { role: 'PUESTO_COORDINATOR' }, role: 'PUESTO_COORDINATOR', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
 
     render(<AbogadosPage />)
 
@@ -61,7 +62,7 @@ describe('AbogadosPage', () => {
   })
 
   it('renders add form for MUNICIPAL_COORDINATOR', () => {
-    mockedUseAuth.mockReturnValue({ user: { role: 'MUNICIPAL_COORDINATOR' } } as unknown as ReturnType<typeof useAuth>)
+    mockedUseAuth.mockReturnValue({ user: { role: 'MUNICIPAL_COORDINATOR' }, role: 'MUNICIPAL_COORDINATOR', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
     mockedUseMunicipios.mockReturnValue({
       data: [{ id: 1, nombre: 'Medellín', subregionId: 1 }],
     } as unknown as ReturnType<typeof useMunicipios>)
@@ -72,11 +73,11 @@ describe('AbogadosPage', () => {
     expect(screen.getByText('Medellín')).toBeInTheDocument()
   })
 
-  it('shows amendment A19 banner', () => {
-    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' } } as unknown as ReturnType<typeof useAuth>)
+  it('renders manage form for SUPER_ADMIN', () => {
+    mockedUseAuth.mockReturnValue({ user: { role: 'SUPER_ADMIN' }, role: 'SUPER_ADMIN', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
 
     render(<AbogadosPage />)
 
-    expect(screen.getByText(/Fase 17/)).toBeInTheDocument()
+    expect(screen.getByText('Agregar abogado')).toBeInTheDocument()
   })
 })

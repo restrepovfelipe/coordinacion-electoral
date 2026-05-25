@@ -83,7 +83,7 @@ vi.mock('@/lib/api/testigos', () => ({
 }))
 
 vi.mock('@/lib/auth/use-auth', () => ({
-  useAuth: () => ({ user: { role: 'SUPER_ADMIN' } }),
+  useAuth: () => ({ user: { role: 'SUPER_ADMIN' }, role: 'SUPER_ADMIN', loading: false, signIn: vi.fn(), signOut: vi.fn() }),
 }))
 
 vi.mock('@/lib/api/ref-data', () => ({
