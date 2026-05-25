@@ -80,27 +80,27 @@ export default function ZonaPage({ params }: { params: Promise<{ slug: string }>
         {subregion && (
           <>
             <span>/</span>
-            <a href={`/subregion/${slugify(subregion.nombre)}`} className="hover:underline">
-              {subregion.nombre}
+            <a href={`/subregion/${slugify(subregion.name)}`} className="hover:underline">
+              {subregion.name}
             </a>
           </>
         )}
         {municipio && (
           <>
             <span>/</span>
-            <a href={`/municipio/${slugify(municipio.nombre)}`} className="hover:underline">
-              {municipio.nombre}
+            <a href={`/municipio/${slugify(municipio.name)}`} className="hover:underline">
+              {municipio.name}
             </a>
           </>
         )}
         {zona && (
           <>
             <span>/</span>
-            <span className="text-text">{zona.nombre}</span>
+            <span className="text-text">{zona.name}</span>
           </>
         )}
       </nav>
-      <h1 className="h1-display">{zona?.nombre ?? slug}</h1>
+      <h1 className="h1-display">{zona?.name ?? slug}</h1>
     </div>
   )
 
@@ -137,7 +137,7 @@ export default function ZonaPage({ params }: { params: Promise<{ slug: string }>
       id: p.id,
       lat: p.lat,
       lon: p.lon,
-      label: `${p.nombre} · ${prio?.coberturaPct ?? 0}%`,
+      label: `${p.name} · ${prio?.coberturaPct ?? 0}%`,
       color: covColor(prio?.coberturaPct ?? 0),
       onClick: () => router.push('/puesto/' + p.id),
     }]

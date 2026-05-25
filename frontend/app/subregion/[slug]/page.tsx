@@ -167,9 +167,9 @@ export default function SubregionPage({ params }: { params: Promise<{ slug: stri
     <div className="p-6 space-y-6">
       <div>
         <p className="text-[12px] text-text-3 mb-1">
-          Antioquia / {subregion.nombre}
+          Antioquia / {subregion.name}
         </p>
-        <h1 className="h1-display">{subregion.nombre}</h1>
+        <h1 className="h1-display">{subregion.name}</h1>
 
         {/* Tab row */}
         <div className="flex gap-1 border-b border-border mb-4 mt-4">

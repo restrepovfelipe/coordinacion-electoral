@@ -89,7 +89,7 @@ export default function AbogadosPage() {
             <label className="text-[12px] text-text-3 block mb-1">Municipio *</label>
             <select className="input" value={selectedMuniId} onChange={(e) => setSelectedMuniId(e.target.value ? Number(e.target.value) : '')} required>
               <option value="">Seleccionar...</option>
-              {municipios?.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+              {municipios?.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>
           <div>

@@ -102,7 +102,7 @@ export default function DashboardPage() {
         return (
           <section key={sub.id}>
             <h2 className="text-[13px] font-semibold uppercase tracking-wider text-text-3 mb-3">
-              {sub.nombre}
+              {sub.name}
             </h2>
             <div className="grid grid-cols-4 gap-3">
               {group.map((stat) => (

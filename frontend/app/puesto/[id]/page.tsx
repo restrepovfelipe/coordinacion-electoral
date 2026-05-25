@@ -233,8 +233,8 @@ export default function PuestoPage({ params }: { params: Promise<{ id: string }>
         {subregion && (
           <>
             <span>/</span>
-            <a href={`/subregion/${slugify(subregion.nombre)}`} className="hover:underline">
-              {subregion.nombre}
+            <a href={`/subregion/${slugify(subregion.name)}`} className="hover:underline">
+              {subregion.name}
             </a>
           </>
         )}
