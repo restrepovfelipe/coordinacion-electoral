@@ -23,11 +23,12 @@ function statToMuniData(stat: MunicipioStat): MunicipioData {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { data: stats, isLoading: statsLoading } = useDashboardStats()
-  const { data: subregiones, isLoading: subLoading } = useSubregiones()
-  const { data: municipios, isLoading: muniLoading } = useMunicipios()
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats()
+  const { data: subregiones, isLoading: subLoading, isError: subError } = useSubregiones()
+  const { data: municipios, isLoading: muniLoading, isError: muniError } = useMunicipios()
 
   const isLoading = statsLoading || subLoading || muniLoading
+  const hasError = statsError || subError || muniError
 
   const header = (
     <>
@@ -36,11 +37,20 @@ export default function DashboardPage() {
     </>
   )
 
+  if (hasError) {
+    return (
+      <div className="p-6">
+        {header}
+        <p className="mt-6 text-text-3">Error al cargar los datos. Por favor recarga la página.</p>
+      </div>
+    )
+  }
+
   if (isLoading || !stats || !subregiones || !municipios) {
     return (
       <div className="p-6">
         {header}
-        <p className="mt-6 text-text-3">Cargando...</p>
+        <p className="mt-6 text-text-3">Cargando datos de Antioquia…</p>
       </div>
     )
   }
