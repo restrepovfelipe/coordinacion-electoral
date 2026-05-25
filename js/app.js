@@ -37,10 +37,13 @@ const _testigoCountsByMuni = {}; // { [municipioName]: number }
 // Populated from GET /api/dashboard/stats (Phase 14); updated via SSE.
 const _dashboardStatsByMuni = {}; // { [municipioName]: MunicipioStat }
 let _muniIdToName = null; // { [municipioId]: municipioName } — built lazily
-// Amendment A24 — Opción A: FLOOR(capacidadCubrir / totMesas * 100), no 100% cap.
-function _coveragePct(capacidadCubrir, totMesas) {
+/**
+ * Physical coverage % — mesas with ≥1 testigo / total mesas.
+ * mesasCubiertas must be pre-computed as SUM(MIN(testigos_per_puesto, mesas_per_puesto)).
+ */
+function _coveragePct(mesasCubiertas, totMesas) {
   if (!totMesas) return 0;
-  return Math.floor((capacidadCubrir / totMesas) * 100);
+  return Math.floor((mesasCubiertas / totMesas) * 100);
 }
 
 async function _buildMuniIdMap() {
@@ -357,16 +360,15 @@ function goHome() {
 function renderMuni(n) {
   const comunas = RAW[n]; const s = gs(n); const ckeys = Object.keys(comunas).sort();
   let totP = 0, totM = 0, totV = 0;
-  let totTestReg = 0, totMesasSinAsignar = 0, totCapacidad = 0;
+  let totTestReg = 0, totTestFalt = 0, totCov = 0;
+  let totMesasCub = 0;
   ckeys.forEach(c => {
     comunas[c].forEach(p => { totP++; totM += (p.mesas || 0); totV += (p.total || 0); });
     const st = _ccStats(n, c);
-    totTestReg += st.testReg; totMesasSinAsignar += st.mesasSinAsignar; totCapacidad += st.capacidadCubrir;
+    totTestReg += st.testReg; totTestFalt += st.testFalt; totMesasCub += st.mesasCubiertas;
   });
   const _apiStatDetail = _dashboardStatsByMuni[n];
-  const pctCov = _apiStatDetail !== undefined ? _apiStatDetail.coberturaPct : _coveragePct(totCapacidad, totM);
-  const testigosExc = _apiStatDetail !== undefined ? (_apiStatDetail.testigosExcedentes || 0) : Math.max(0, totCapacidad - totM);
-  const isExcedente = pctCov > 100;
+  const pctCov = _apiStatDetail !== undefined ? _apiStatDetail.coberturaPct : _coveragePct(totMesasCub, totM);
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
@@ -385,9 +387,8 @@ function renderMuni(n) {
       <div class="sc"><div class="sl">Zonas/Comunas</div><div class="sv">${ckeys.length}</div></div>
       <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
       <div class="sc"><div class="sl">Testigos</div><div class="sv" id="mh-test-reg">${totTestReg}</div></div>
-      <div class="sc${totMesasSinAsignar > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Mesas sin asignar</div><div class="sv">${totMesasSinAsignar}</div></div>
-      <div class="sc${isExcedente ? ' sc-excedente' : ''}"><div class="sl">% Cobertura</div><div class="sv" id="mh-cov-pct" data-cobertura-muni="${n}">${pctCov}%</div></div>
-      ${testigosExc > 0 ? `<div class="sc sc-excedente"><div class="sl">Testigos excedentes</div><div class="sv">${testigosExc}</div></div>` : ''}
+      <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Mesas sin asignar</div><div class="sv">${totTestFalt}</div></div>
+      <div class="sc"><div class="sl">% Cobertura</div><div class="sv" id="mh-cov-pct" data-cobertura-muni="${n}">${pctCov}%</div></div>
     </div>
     <div class="otabs">
       <div class="otab on" onclick="switchOTab(this,'ot-comunas')">Por Zonas/Comunas</div>
@@ -416,35 +417,33 @@ function _ccStats(n, ck) {
   const puestos = RAW[n][ck] || [];
   const totPuestos = puestos.length;
   const totMesas = puestos.reduce((a, p) => a + (p.mesas || 0), 0);
-  let testReg = 0, testPuCub = 0;
+  let testReg = 0, mesasCubiertas = 0, testPuCub = 0;
   puestos.forEach(p => {
     const rows = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre);
     testReg += rows.length;
+    // Physical formula: each testigo covers 1 mesa, capped at puesto's mesas count
+    mesasCubiertas += Math.min(rows.length, p.mesas || 0);
     if (rows.length > 0) testPuCub++;
   });
-  // A24 Opción A: 1 testigo = 1 mesa (no cap at 100%)
-  const capacidadCubrir = testReg;
-  const mesasSinAsignar = Math.max(0, totMesas - capacidadCubrir);
-  const mesasExcedentes = Math.max(0, capacidadCubrir - totMesas);
-  const testigosExcedentes = Math.max(0, capacidadCubrir - totMesas);
+  const testFalt = Math.max(0, totMesas - mesasCubiertas);
   const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
-  const pct = _coveragePct(capacidadCubrir, totMesas);
+  const pct = _coveragePct(mesasCubiertas, totMesas);
   const resps = (s.movilidad?.[ck]?.responsables) || [];
   const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
   const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
-  return { totPuestos, totMesas, capacidadCubrir, testReg, mesasSinAsignar, mesasExcedentes, testigosExcedentes, testPuCub, covPuestos, pct, totMotos, totCarros };
+  return { totPuestos, totMesas, mesasCubiertas, testReg, testFalt, testPuCub, covPuestos, pct, totMotos, totCarros };
 }
 
 function _refreshCCStats(n, ck) {
   const id = cid(n, ck);
   if (!document.getElementById(id)) return;
-  const { testReg, mesasSinAsignar } = _ccStats(n, ck);
+  const { testReg, testFalt } = _ccStats(n, ck);
   const tEl = document.getElementById(id + '-s-t');
   const tfEl = document.getElementById(id + '-s-tf');
   if (tEl) tEl.textContent = testReg;
   if (tfEl) {
-    tfEl.querySelector('.v').textContent = mesasSinAsignar;
-    tfEl.classList.toggle('cc-st-warn', mesasSinAsignar > 0);
+    tfEl.querySelector('.v').textContent = testFalt;
+    tfEl.classList.toggle('cc-st-warn', testFalt > 0);
   }
   if (n === 'MEDELLIN') {
     const zona = (typeof MEDELLIN_ZONAS !== 'undefined' ? MEDELLIN_ZONAS : []).find(z => z.comunas.includes(ck));
@@ -462,7 +461,7 @@ function _refreshZonaStats(n, zonaNombre) {
     if (!RAW[n][ck]) return;
     const st = _ccStats(n, ck);
     totTestReg += st.testReg;
-    totTestFalt += st.mesasSinAsignar;
+    totTestFalt += st.testFalt;
   });
   const tEl = document.getElementById(zid + '-s-t');
   const tfEl = document.getElementById(zid + '-s-tf');
@@ -477,16 +476,19 @@ function _refreshMuniStats(n) {
   const tEl = document.getElementById('mh-test-reg');
   const tfEl = document.getElementById('mh-test-falt');
   if (!tEl || !tfEl) return;
-  let totTestReg = 0, totMesasSinAsignar = 0;
+  let totTestReg = 0, totTestFalt = 0, totMesasCub = 0, totM = 0;
   Object.keys(RAW[n] || {}).forEach(ck => {
     const st = _ccStats(n, ck);
     totTestReg += st.testReg;
-    totMesasSinAsignar += st.mesasSinAsignar;
+    totTestFalt += st.testFalt;
+    totMesasCub += st.mesasCubiertas;
+    (RAW[n][ck] || []).forEach(p => { totM += (p.mesas || 0); });
   });
   tEl.textContent = totTestReg;
-  tfEl.querySelector('.sv').textContent = totMesasSinAsignar;
-  tfEl.classList.toggle('sc-warn', totMesasSinAsignar > 0);
-  // NOTE: #mh-cov-pct is NOT updated here — API value set by _applyDashboardStatsToDom() is authoritative.
+  tfEl.querySelector('.sv').textContent = totTestFalt;
+  tfEl.classList.toggle('sc-warn', totTestFalt > 0);
+  const covEl = document.getElementById('mh-cov-pct');
+  if (covEl) covEl.textContent = _coveragePct(totMesasCub, totM) + '%';
 }
 
 async function loadAllTestigosForMuni(n) {
@@ -500,17 +502,17 @@ async function loadAllTestigosForMuni(n) {
 // ═══ ZONA CARDS ═══
 function buildZonaCard(n, zona) {
   const s = gs(n); const sz = (s.zonas || {})[zona.nombre] || {};
-  let totPuestos = 0, totMesas = 0, totCapacidad = 0;
-  let totTestReg = 0, totMesasSinAsignar = 0, totMotos = 0, totCarros = 0;
+  let totPuestos = 0, totMesas = 0, totMesasCub = 0;
+  let totTestReg = 0, totTestFalt = 0, totMotos = 0, totCarros = 0;
   zona.comunas.forEach(ck => {
     if (!RAW[n][ck]) return;
     const st = _ccStats(n, ck);
     totPuestos += st.totPuestos; totMesas += st.totMesas;
-    totTestReg += st.testReg; totMesasSinAsignar += st.mesasSinAsignar;
-    totCapacidad += st.capacidadCubrir;
+    totTestReg += st.testReg; totTestFalt += st.testFalt;
+    totMesasCub += st.mesasCubiertas;
     totMotos += st.totMotos; totCarros += st.totCarros;
   });
-  const pct = _coveragePct(totCapacidad, totMesas);
+  const pct = _coveragePct(totMesasCub, totMesas);
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
   const isOpen = OPEN_Z.has(n + zona.nombre);
   const el = document.createElement('div'); el.className = 'zona-card'; el.id = zid;
@@ -530,10 +532,10 @@ function buildZonaCard(n, zona) {
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
       <div class="cc-st"><div class="v" id="${zid}-s-t">${totTestReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${totMesasSinAsignar > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totMesasSinAsignar}</div><div class="l">Mesas sin asignar</div></div>
-      <div class="cc-st${pct > 100 ? ' cc-st-excedente' : ''}"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
+      <div class="cc-st${totTestFalt > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totTestFalt}</div><div class="l">Mesas sin asignar</div></div>
+      <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
-    <div class="prog"><div class="prog-f" style="width:${Math.min(pct, 100)}%"></div></div>
+    <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
     <div class="zona-card-bd${isOpen ? ' op' : ''}" id="${zid}-bd"></div>`;
   const bd = el.querySelector('#' + zid + '-bd');
   zona.comunas.forEach(ck => { if (RAW[n][ck]) bd.appendChild(buildCCCard(n, ck)); });
@@ -546,7 +548,7 @@ function buildCCCard(n, ck) {
   const totV = puestos.reduce((a, p) => a + (p.total || 0), 0);
   const id = cid(n, ck); const isOpen = OPEN_CC.has(n + ck);
   const card = document.createElement('div'); card.className = 'cc'; card.id = id;
-  const { totPuestos, totMesas, testReg, mesasSinAsignar, pct } = _ccStats(n, ck);
+  const { totPuestos, totMesas, testReg, testFalt, pct } = _ccStats(n, ck);
   card.innerHTML = `
     <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
       <div>
@@ -564,10 +566,10 @@ function buildCCCard(n, ck) {
       <div class="cc-st"><div class="v">${totPuestos}</div><div class="l">Puestos</div></div>
       <div class="cc-st"><div class="v">${totMesas.toLocaleString('es-CO')}</div><div class="l">Mesas</div></div>
       <div class="cc-st"><div class="v" id="${id}-s-t">${testReg}</div><div class="l">Testigos</div></div>
-      <div class="cc-st${mesasSinAsignar > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${mesasSinAsignar}</div><div class="l">Mesas sin asignar</div></div>
-      <div class="cc-st${pct > 100 ? ' cc-st-excedente' : ''}"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
+      <div class="cc-st${testFalt > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${testFalt}</div><div class="l">Mesas sin asignar</div></div>
+      <div class="cc-st"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
     </div>
-    <div class="prog"><div class="prog-f" style="width:${Math.min(pct, 100)}%"></div></div>
+    <div class="prog"><div class="prog-f" style="width:${pct}%"></div></div>
     <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
       <div class="itabs">
         <div class="itab on" data-pane="${id}-puestos" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
@@ -1196,12 +1198,12 @@ function renderOV() {
     const rTotM = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.mesas || 0), 0), 0), 0);
     const rTotV = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.total || 0), 0), 0), 0);
     const rTotZ = validMusis.reduce((a, n) => a + Object.keys(RAW[n]).length, 0);
-    let rTestReg = 0, rTestFalt = 0, rCapacidad = 0;
+    let rTestReg = 0, rTestFalt = 0, rMesasCub = 0;
     validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
       const st = _ccStats(n, c);
-      rTestReg += st.testReg; rTestFalt += st.mesasSinAsignar; rCapacidad += st.capacidadCubrir;
+      rTestReg += st.testReg; rTestFalt += st.testFalt; rMesasCub += st.mesasCubiertas;
     }));
-    const rPct = _coveragePct(rCapacidad, rTotM);
+    const rPct = _coveragePct(rMesasCub, rTotM);
     html += `
     <div style="margin-top:22px;margin-bottom:4px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
@@ -1225,12 +1227,12 @@ function renderOV() {
       const totP = ckeys.reduce((a, c) => a + RAW[n][c].length, 0);
       const totM = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.mesas || 0), 0), 0);
       const totV = ckeys.reduce((a, c) => a + RAW[n][c].reduce((b, p) => b + (p.total || 0), 0), 0);
-      let testReg = 0, testFalt = 0, mCap = 0;
+      let testReg = 0, testFalt = 0, mCub = 0;
       ckeys.forEach(c => {
         const st = _ccStats(n, c);
-        testReg += st.testReg; testFalt += st.mesasSinAsignar; mCap += st.capacidadCubrir;
+        testReg += st.testReg; testFalt += st.testFalt; mCub += st.mesasCubiertas;
       });
-      const pct = _coveragePct(mCap, totM);
+      const pct = _coveragePct(mCub, totM);
       const apiCount = _testigoCountsByMuni[n];
       const displayCount = apiCount !== undefined ? apiCount : testReg;
       const apiStat = _dashboardStatsByMuni[n];
@@ -1332,10 +1334,12 @@ async function startApp() {
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
   if (typeof initProfileWidget === 'function' && window.CURRENT_USER) initProfileWidget(window.CURRENT_USER);
-  // Show testigos page button for all authenticated roles
+  // Show testigos and jurados page buttons for all authenticated roles
   if (window.CURRENT_USER) {
     const _tBtn = document.getElementById('btn-testigos-page');
     if (_tBtn) _tBtn.classList.remove('hidden');
+    const _jBtn = document.getElementById('btn-jurados-page');
+    if (_jBtn) _jBtn.classList.remove('hidden');
   }
 }
 
