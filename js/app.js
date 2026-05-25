@@ -1339,6 +1339,58 @@ async function startApp() {
     const _tBtn = document.getElementById('btn-testigos-page');
     if (_tBtn) _tBtn.classList.remove('hidden');
   }
+  // One-time COORD_PRELOAD → DB seed (strangler, fire-and-forget)
+  _seedCoordPreload().catch(err => console.warn('[seedCoordPreload]', err?.status ?? err));
+}
+
+// ═══ COORD_PRELOAD → DB SEED ═══
+// Seeds the COORD_PRELOAD hardcoded data into the DB via PATCH /coordinador/:type/:id/adhoc.
+// Runs exactly once per client (localStorage flag). Uses Promise.allSettled so 409s (user-scope
+// already assigned) and network errors are swallowed. data.js COORD_PRELOAD stays as offline fallback.
+async function _seedCoordPreload() {
+  if (!window.api || !window.CURRENT_USER) return;
+  if (localStorage.getItem('coord_preload_v1_seeded')) return;
+
+  // Build pk-string → {muni, puestoName} from RAW so we can resolve puesto DB IDs
+  const pkToInfo = {};
+  for (const [muniName, comunas] of Object.entries(RAW)) {
+    for (const puestos of Object.values(comunas)) {
+      for (const p of puestos) {
+        pkToInfo[`${p.dd}_${p.mm}_${p.zz}_${p.pp}`] = { muni: muniName, name: p.puesto };
+      }
+    }
+  }
+
+  // Load IDs for every municipality present in COORD_PRELOAD, plus zona IDs
+  await Promise.allSettled(Object.keys(COORD_PRELOAD).map(m => loadPuestoIds(m)));
+  await _loadZonaIds();
+
+  const patches = [];
+  for (const [muni, data] of Object.entries(COORD_PRELOAD)) {
+    // Zonas
+    for (const [zonaNombre, zd] of Object.entries(data.zonas || {})) {
+      const id = _zonaIdCache[zonaNombre] ?? _zonaIdCache[zonaNombre.toUpperCase()];
+      if (id && zd.coord) patches.push(window.api.patch(`/coordinador/zona/${id}/adhoc`, { nombre: zd.coord, telefono: zd.phone || null }));
+    }
+    // Comunas
+    for (const [ck, cd] of Object.entries(data.comunas || {})) {
+      const ccIds = _puestoIdCache[muni]?._ccIds;
+      const id = ccIds ? (ccIds[ck] ?? ccIds[ck.toUpperCase()]) : null;
+      if (id && cd.coord) patches.push(window.api.patch(`/coordinador/comuna/${id}/adhoc`, { nombre: cd.coord, telefono: cd.phone || null }));
+    }
+    // Puestos (pk-string → RAW name → DB ID)
+    for (const [pkStr, pd] of Object.entries(data.puestos || {})) {
+      const info = pkToInfo[pkStr];
+      if (!info || info.muni !== muni) continue;
+      const id = _puestoIdCache[muni]?.[info.name.toUpperCase()];
+      if (id && pd.coord) patches.push(window.api.patch(`/coordinador/puesto/${id}/adhoc`, { nombre: pd.coord, telefono: pd.phone || null }));
+    }
+  }
+
+  if (patches.length === 0) { localStorage.setItem('coord_preload_v1_seeded', '1'); return; }
+  await Promise.allSettled(patches);
+  localStorage.setItem('coord_preload_v1_seeded', '1');
+  console.info(`[seedCoordPreload] seeded ${patches.length} coordinadores to DB`);
 }
 
 // ═══ EXPORT PDF ═══
