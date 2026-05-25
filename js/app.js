@@ -365,7 +365,7 @@ function renderMuni(n) {
   });
   const _apiStatDetail = _dashboardStatsByMuni[n];
   const pctCov = _apiStatDetail !== undefined ? _apiStatDetail.coberturaPct : _coveragePct(totCapacidad, totM);
-  const testigosExc = _apiStatDetail !== undefined ? (_apiStatDetail.testigosExcedentes || 0) : Math.max(0, Math.floor((totCapacidad - totM) / 2));
+  const testigosExc = _apiStatDetail !== undefined ? (_apiStatDetail.testigosExcedentes || 0) : Math.max(0, totCapacidad - totM);
   const isExcedente = pctCov > 100;
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
