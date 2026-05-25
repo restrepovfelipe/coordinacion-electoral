@@ -1349,6 +1349,7 @@ async function startApp() {
 // already assigned) and network errors are swallowed. data.js COORD_PRELOAD stays as offline fallback.
 async function _seedCoordPreload() {
   if (!window.api || !window.CURRENT_USER) return;
+  if (window.CURRENT_USER.role !== 'SUPER_ADMIN') return;
   if (localStorage.getItem('coord_preload_v1_seeded')) return;
 
   // Build pk-string → {muni, puestoName} from RAW so we can resolve puesto DB IDs
@@ -1388,9 +1389,19 @@ async function _seedCoordPreload() {
   }
 
   if (patches.length === 0) { localStorage.setItem('coord_preload_v1_seeded', '1'); return; }
-  await Promise.allSettled(patches);
-  localStorage.setItem('coord_preload_v1_seeded', '1');
-  console.info(`[seedCoordPreload] seeded ${patches.length} coordinadores to DB`);
+  const results = await Promise.allSettled(patches);
+  const successCount = results.filter(r =>
+    r.status === 'fulfilled' ||
+    (r.status === 'rejected' && r.reason?.status === 409)
+  ).length;
+  // 409 = ya existe = éxito semántico (alguien lo seedeó antes)
+
+  if (successCount > 0) {
+    localStorage.setItem('coord_preload_v1_seeded', '1');
+    console.log(`[seedCoordPreload] OK: ${successCount}/${patches.length} aplicados`);
+  } else {
+    console.warn('[seedCoordPreload] Todos los PATCHes fallaron. NO se marca como seeded, reintentará en próximo login.');
+  }
 }
 
 // ═══ EXPORT PDF ═══
