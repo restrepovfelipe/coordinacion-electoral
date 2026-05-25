@@ -367,7 +367,8 @@ function renderMuni(n) {
     const st = _ccStats(n, c);
     totTestReg += st.testReg; totTestFalt += st.testFalt; totMesasCub += st.mesasCubiertas;
   });
-  const pctCov = _coveragePct(totMesasCub, totM);
+  const _apiStatDetail = _dashboardStatsByMuni[n];
+  const pctCov = _apiStatDetail !== undefined ? _apiStatDetail.coberturaPct : _coveragePct(totMesasCub, totM);
   const isMed = (n === 'MEDELLIN'); const label = isMed ? 'MEDELLÍN' : n;
   document.getElementById('ct').innerHTML = `
     <div class="mh">
@@ -387,7 +388,7 @@ function renderMuni(n) {
       <div class="sc"><div class="sl">Votantes</div><div class="sv">${(totV / 1000).toFixed(0)}K</div></div>
       <div class="sc"><div class="sl">Testigos</div><div class="sv" id="mh-test-reg">${totTestReg}</div></div>
       <div class="sc${totTestFalt > 0 ? ' sc-warn' : ''}" id="mh-test-falt"><div class="sl">Mesas sin asignar</div><div class="sv">${totTestFalt}</div></div>
-      <div class="sc"><div class="sl">% Cobertura</div><div class="sv">${pctCov}%</div></div>
+      <div class="sc"><div class="sl">% Cobertura</div><div class="sv" id="mh-cov-pct" data-cobertura-muni="${n}">${pctCov}%</div></div>
     </div>
     <div class="otabs">
       <div class="otab on" onclick="switchOTab(this,'ot-comunas')">Por Zonas/Comunas</div>
@@ -475,15 +476,19 @@ function _refreshMuniStats(n) {
   const tEl = document.getElementById('mh-test-reg');
   const tfEl = document.getElementById('mh-test-falt');
   if (!tEl || !tfEl) return;
-  let totTestReg = 0, totTestFalt = 0;
+  let totTestReg = 0, totTestFalt = 0, totMesasCub = 0, totM = 0;
   Object.keys(RAW[n] || {}).forEach(ck => {
     const st = _ccStats(n, ck);
     totTestReg += st.testReg;
     totTestFalt += st.testFalt;
+    totMesasCub += st.mesasCubiertas;
+    (RAW[n][ck] || []).forEach(p => { totM += (p.mesas || 0); });
   });
   tEl.textContent = totTestReg;
   tfEl.querySelector('.sv').textContent = totTestFalt;
   tfEl.classList.toggle('sc-warn', totTestFalt > 0);
+  const covEl = document.getElementById('mh-cov-pct');
+  if (covEl) covEl.textContent = _coveragePct(totMesasCub, totM) + '%';
 }
 
 async function loadAllTestigosForMuni(n) {
