@@ -1,5 +1,5 @@
-// Amendment A24 — Opción A coverage formula (no 100% cap; 2 mesas per testigo)
-export const TESTIGOS_PER_MESA_CAPACITY = 2;
+// Amendment A24 — Opción A coverage formula (no 100% cap; 1 mesa per testigo)
+export const TESTIGOS_PER_MESA_CAPACITY = 1;
 
 export interface CoberturaResult {
   coberturaPct: number;
