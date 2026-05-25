@@ -422,11 +422,11 @@ function _ccStats(n, ck) {
     testReg += rows.length;
     if (rows.length > 0) testPuCub++;
   });
-  // A24 Opción A: capacity = testigos × 2 (no cap at 100%)
-  const capacidadCubrir = testReg * 2;
+  // A24 Opción A: 1 testigo = 1 mesa (no cap at 100%)
+  const capacidadCubrir = testReg;
   const mesasSinAsignar = Math.max(0, totMesas - capacidadCubrir);
   const mesasExcedentes = Math.max(0, capacidadCubrir - totMesas);
-  const testigosExcedentes = Math.max(0, Math.floor((capacidadCubrir - totMesas) / 2));
+  const testigosExcedentes = Math.max(0, capacidadCubrir - totMesas);
   const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
   const pct = _coveragePct(capacidadCubrir, totMesas);
   const resps = (s.movilidad?.[ck]?.responsables) || [];
