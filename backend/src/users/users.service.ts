@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, Role, ScopeType, User, UserScope } from '@prisma/client';
@@ -30,6 +31,8 @@ type UserWithoutCipUid = Omit<UserWithScopesResult, 'cipUid'>;
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly firebaseAdmin: FirebaseAdminService,
@@ -83,18 +86,27 @@ export class UsersService {
 
   async updateSelf(actor: UserWithScopes, dto: UpdateSelfDto): Promise<UserWithoutCipUid> {
     if (dto.newPassword) {
-      await this.firebaseAdmin.auth.updateUser(actor.cipUid, { password: dto.newPassword });
+      try {
+        await this.firebaseAdmin.auth.updateUser(actor.cipUid, { password: dto.newPassword });
+      } catch (err: any) {
+        this.logger.error(`Firebase updateUser failed for uid=${actor.cipUid}: ${err?.message ?? err}`);
+        throw new BadRequestException('No se pudo actualizar la contraseña. Inténtelo de nuevo.');
+      }
     }
 
+    const modelData = {
+      ...(dto.displayName !== undefined && { displayName: dto.displayName }),
+      ...(dto.phone !== undefined && { phone: dto.phone }),
+    };
+
     const updated = await this.prisma.$transaction(async (tx) => {
-      const result = await tx.user.update({
-        where: { id: actor.id },
-        data: {
-          ...(dto.displayName !== undefined && { displayName: dto.displayName }),
-          ...(dto.phone !== undefined && { phone: dto.phone }),
-        },
-        include: { scopes: true },
-      });
+      const result = Object.keys(modelData).length > 0
+        ? await tx.user.update({
+            where: { id: actor.id },
+            data: modelData,
+            include: { scopes: true },
+          })
+        : await tx.user.findUniqueOrThrow({ where: { id: actor.id }, include: { scopes: true } });
 
       await tx.auditLog.create({
         data: {

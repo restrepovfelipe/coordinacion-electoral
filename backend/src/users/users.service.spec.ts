@@ -58,6 +58,56 @@ function makeMockTx(updatedUser: any, newScopes: any[] = []) {
   };
 }
 
+describe('UsersService.updateSelf() — password change', () => {
+  let service: UsersService;
+  let prisma: any;
+  let firebaseAdmin: any;
+
+  const actor = makeActor(Role.PUESTO_COORDINATOR);
+
+  beforeEach(() => {
+    firebaseAdmin = { auth: { updateUser: jest.fn().mockResolvedValue({}) } };
+    prisma = {
+      user: { findUniqueOrThrow: jest.fn() },
+      auditLog: { create: jest.fn() },
+      $transaction: jest.fn(),
+    };
+    service = new UsersService(prisma as any, firebaseAdmin as any);
+  });
+
+  it('throws BadRequestException when Firebase updateUser fails', async () => {
+    firebaseAdmin.auth.updateUser.mockRejectedValue(new Error('auth/weak-password'));
+
+    await expect(
+      service.updateSelf(actor, { newPassword: 'newpass123' }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(firebaseAdmin.auth.updateUser).toHaveBeenCalledWith(actor.cipUid, { password: 'newpass123' });
+    // Prisma transaction must NOT have been called — we fail fast
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('completes normally when Firebase updateUser succeeds and only password changes', async () => {
+    const userRecord = {
+      ...makeActor(Role.PUESTO_COORDINATOR),
+      scopes: [],
+      cipUid: actor.cipUid,
+    };
+    const tx = {
+      user: { findUniqueOrThrow: jest.fn().mockResolvedValue(userRecord) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    prisma.$transaction.mockImplementation((cb: (tx: any) => any) => cb(tx));
+
+    const result = await service.updateSelf(actor, { newPassword: 'newpass123' });
+
+    expect(firebaseAdmin.auth.updateUser).toHaveBeenCalledWith(actor.cipUid, { password: 'newpass123' });
+    // No displayName/phone → findUniqueOrThrow used (empty-data guard)
+    expect(tx.user.findUniqueOrThrow).toHaveBeenCalled();
+    expect(result).not.toHaveProperty('cipUid');
+  });
+});
+
 describe('UsersService.update() — scope replacement', () => {
   let service: UsersService;
   let prisma: any;
