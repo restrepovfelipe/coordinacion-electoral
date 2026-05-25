@@ -1309,7 +1309,9 @@ function exportDirectorioPDF() {
 
 // ═══ START APP ═══
 async function startApp() {
-  document.getElementById('login-screen').style.display = 'none';
+  var overlay = document.getElementById('auth-gate-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.getElementById('login-screen').style.display = 'none'; // safety net
   ST = loadLocalSt();
   setSyncBadge('syncing', '⏳ Cargando...');
   await loadFromFirestore();

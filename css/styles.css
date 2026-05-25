@@ -531,7 +531,7 @@ table.pt tr:hover td{background:rgba(26,109,191,.04)}
 .profile-toast{position:fixed;bottom:80px;left:12px;background:var(--green);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s;z-index:1100;pointer-events:none}
 .profile-toast.show{opacity:1}
 /* ── Auth gate spinner ──────────────────────────────────────────────────── */
-#auth-gate-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+#auth-gate-overlay{position:fixed;inset:0;background:var(--bg);z-index:10000;display:flex;align-items:center;justify-content:center}
 .auth-gate-inner{display:flex;flex-direction:column;align-items:center;gap:1rem}
 .auth-gate-inner p{font-size:13px;color:var(--t3);margin:0}
 .spinner{width:44px;height:44px;border:4px solid var(--b1);border-top-color:var(--blue);border-radius:50%;animation:spin 1s linear infinite}

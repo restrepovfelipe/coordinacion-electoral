@@ -17,13 +17,19 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 </head>
 <body>
-<!-- LOGIN SCREEN — .login-box empieza oculto hasta que authReady resuelve -->
-<div id="login-screen">
-  <div id="auth-gate-spinner">
+<!-- Auth gate overlay — SEPARADO del login-screen, z-index superior.
+     Cubre toda la pantalla mientras Firebase rehidrata auth.currentUser.
+     Oculto por startApp() (sesión activa) o por _revealLoginForm() (sin sesión). -->
+<div id="auth-gate-overlay" style="display:flex">
+  <div class="auth-gate-inner">
     <div class="spinner"></div>
     <p>Verificando sesión…</p>
   </div>
-  <div class="login-box" style="display:none">
+</div>
+<!-- LOGIN SCREEN — empieza oculto (display:none inline). Solo se muestra cuando
+     authReady resuelve con user=null (_revealLoginForm lo hace display:flex). -->
+<div id="login-screen" style="display:none">
+  <div class="login-box">
     <div class="login-logo">🇨🇴</div>
     <div class="login-title">Coordinación Electoral</div>
     <div class="login-sub">Defensores de la Patria · Abelardo de la Espriella 2026</div>

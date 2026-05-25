@@ -217,10 +217,11 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// Swap the auth-gate spinner for the actual login form (index.html only).
+// Ocultar el gate overlay y revelar el login-screen (index.html only).
+// Llamado cuando authReady resuelve con user=null o error de red.
 function _revealLoginForm() {
-  const spinner = document.getElementById('auth-gate-spinner');
-  const loginBox = document.querySelector('#login-screen .login-box');
-  if (spinner) spinner.style.display = 'none';
-  if (loginBox) loginBox.style.display = '';
+  var overlay = document.getElementById('auth-gate-overlay');
+  if (overlay) overlay.style.display = 'none';
+  var loginScreen = document.getElementById('login-screen');
+  if (loginScreen) loginScreen.style.display = 'flex';
 }
