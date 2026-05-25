@@ -147,7 +147,7 @@ export default function TestigosPage() {
           >
             <option value="">Todos los municipios</option>
             {(municipios ?? []).map((m) => (
-              <option key={m.id} value={m.id}>{m.nombre}</option>
+              <option key={m.id} value={m.id}>{m.name}</option>
             ))}
           </select>
 

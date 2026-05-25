@@ -202,35 +202,35 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
         {subregion && (
           <>
             <span>/</span>
-            <a href={`/subregion/${slugify(subregion.nombre)}`} className="hover:underline">
-              {subregion.nombre}
+            <a href={`/subregion/${slugify(subregion.name)}`} className="hover:underline">
+              {subregion.name}
             </a>
           </>
         )}
         {municipio && (
           <>
             <span>/</span>
-            <a href={`/municipio/${slugify(municipio.nombre)}`} className="hover:underline">
-              {municipio.nombre}
+            <a href={`/municipio/${slugify(municipio.name)}`} className="hover:underline">
+              {municipio.name}
             </a>
           </>
         )}
         {zona && (
           <>
             <span>/</span>
-            <a href={`/zona/${slugify(zona.nombre)}`} className="hover:underline">
-              {zona.nombre}
+            <a href={`/zona/${slugify(zona.name)}`} className="hover:underline">
+              {zona.name}
             </a>
           </>
         )}
         {comuna && (
           <>
             <span>/</span>
-            <span className="text-text">{comuna.nombre}</span>
+            <span className="text-text">{comuna.name}</span>
           </>
         )}
       </nav>
-      <h1 className="h1-display">{comuna?.nombre ?? slug}</h1>
+      <h1 className="h1-display">{comuna?.name ?? slug}</h1>
     </div>
   )
 
@@ -265,7 +265,7 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
       id: p.id,
       lat: p.lat,
       lon: p.lon,
-      label: `${p.nombre} · ${prio?.coberturaPct ?? 0}%`,
+      label: `${p.name} · ${prio?.coberturaPct ?? 0}%`,
       color: covColor(prio?.coberturaPct ?? 0),
       onClick: () => router.push('/puesto/' + p.id),
     }]

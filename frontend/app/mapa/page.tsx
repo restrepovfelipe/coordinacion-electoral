@@ -40,7 +40,7 @@ export default function MapaPage() {
         id: m.id,
         lat: c.lat,
         lon: c.lon,
-        label: `${m.nombre} · ${pct}%`,
+        label: `${m.name} · ${pct}%`,
         color,
         onClick: () => setSelectedMuniId(m.id),
       }]
@@ -90,7 +90,7 @@ export default function MapaPage() {
         <div className="absolute top-[41px] right-0 bottom-0 z-10 w-72 bg-surface border-l border-border p-5 flex flex-col gap-4 overflow-y-auto">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-[16px] font-semibold">{selectedMuni.nombre}</h2>
+              <h2 className="text-[16px] font-semibold">{selectedMuni.name}</h2>
               <p className="text-[12px] text-text-3">
                 {selectedMuni.zonasCount ?? 0} zonas · {selectedMuni.puestosCount ?? 0} puestos
               </p>
@@ -108,7 +108,7 @@ export default function MapaPage() {
           <button
             type="button"
             className="btn btn-sm w-full"
-            onClick={() => router.push(`/municipio/${slugify(selectedMuni.nombre)}`)}
+            onClick={() => router.push(`/municipio/${slugify(selectedMuni.name)}`)}
           >
             Abrir municipio →
           </button>

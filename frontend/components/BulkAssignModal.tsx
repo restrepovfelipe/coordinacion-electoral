@@ -19,7 +19,7 @@ export function BulkAssignModal({ testigoIds, onSuccess, onClose }: BulkAssignMo
   const { data: puestos } = usePuestos()
 
   const filteredPuestos = (puestos ?? []).filter((p) =>
-    p.nombre.toLowerCase().includes(puestoSearch.toLowerCase()),
+    p.name.toLowerCase().includes(puestoSearch.toLowerCase()),
   )
 
   const mutation = useMutation({
@@ -58,7 +58,7 @@ export function BulkAssignModal({ testigoIds, onSuccess, onClose }: BulkAssignMo
                 }`}
                 onClick={() => setSelectedPuestoId(p.id)}
               >
-                {p.nombre} <span className="text-text-3">({p.mesas} mesas)</span>
+                {p.name} <span className="text-text-3">({p.mesas} mesas)</span>
               </button>
             ))
           )}

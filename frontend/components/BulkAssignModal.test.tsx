@@ -27,8 +27,8 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 vi.mock('@/lib/api/ref-data', () => ({
   usePuestos: vi.fn(() => ({
     data: [
-      { id: 1, nombre: 'IE Bello', mesas: 5, comunaId: 1, municipioId: 1, votosTotal: null },
-      { id: 2, nombre: 'Colegio Sur', mesas: 3, comunaId: 1, municipioId: 1, votosTotal: null },
+      { id: 1, name: 'IE Bello', mesas: 5, comunaId: 1, municipioId: 1, votosTotal: null },
+      { id: 2, name: 'Colegio Sur', mesas: 3, comunaId: 1, municipioId: 1, votosTotal: null },
     ],
   })),
 }))

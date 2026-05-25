@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
+import { useAuth } from '@/lib/auth/use-auth'
 
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -85,8 +86,10 @@ export type SidebarCounts = {
 }
 
 export function useSidebarCounts() {
+  const { user, loading } = useAuth()
   return useQuery({
     queryKey: ['sidebar-counts'],
+    enabled: !!user && !loading,
     queryFn: async ({ signal }) => {
       const stats = await getDashboardStats(signal)
       const testigos = stats.reduce((acc, s) => acc + s.testigosCount, 0)

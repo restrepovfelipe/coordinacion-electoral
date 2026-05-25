@@ -117,7 +117,7 @@ export default function MunicipioPage({ params }: { params: Promise<{ slug: stri
       id: p.id,
       lat: p.lat,
       lon: p.lon,
-      label: `${p.nombre} · ${prio?.coberturaPct ?? 0}%`,
+      label: `${p.name} · ${prio?.coberturaPct ?? 0}%`,
       color: covColor(prio?.coberturaPct ?? 0),
       onClick: () => router.push('/puesto/' + p.id),
     }]
@@ -145,7 +145,7 @@ export default function MunicipioPage({ params }: { params: Promise<{ slug: stri
       {renderBreadcrumbs(fullBreadcrumbs)}
 
       <div>
-        <h1 className="h1-display">{municipio.nombre}</h1>
+        <h1 className="h1-display">{municipio.name}</h1>
       </div>
 
       <CoordinatorWidget scopeType="municipio" scopeId={municipio.id} canEdit={isAdmin} />

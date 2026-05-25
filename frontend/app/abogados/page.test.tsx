@@ -64,7 +64,7 @@ describe('AbogadosPage', () => {
   it('renders add form for MUNICIPAL_COORDINATOR', () => {
     mockedUseAuth.mockReturnValue({ user: { role: 'MUNICIPAL_COORDINATOR' }, role: 'MUNICIPAL_COORDINATOR', loading: false, signIn: vi.fn(), signOut: vi.fn() } as unknown as ReturnType<typeof useAuth>)
     mockedUseMunicipios.mockReturnValue({
-      data: [{ id: 1, nombre: 'Medellín', subregionId: 1 }],
+      data: [{ id: 1, name: 'Medellín', subregionId: 1 }],
     } as unknown as ReturnType<typeof useMunicipios>)
 
     render(<AbogadosPage />)

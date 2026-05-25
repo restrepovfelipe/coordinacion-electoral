@@ -30,7 +30,7 @@ export default function PriorizacionPage() {
     if (!prioPuestosData?.items) return []
     let items = prioPuestosData.items
     if (subregionFilter !== 'all' && municipios && subregiones) {
-      const subr = subregiones.find((s) => slugify(s.nombre) === subregionFilter)
+      const subr = subregiones.find((s) => slugify(s.name) === subregionFilter)
       if (subr) {
         const muniIds = new Set(municipios.filter((m) => m.subregionId === subr.id).map((m) => m.id))
         items = items.filter((p) => muniIds.has(p.municipioId))
@@ -73,8 +73,8 @@ export default function PriorizacionPage() {
           >
             <option value="all">Antioquia</option>
             {subregiones?.map((s) => (
-              <option key={s.id} value={slugify(s.nombre)}>
-                {s.nombre}
+              <option key={s.id} value={slugify(s.name)}>
+                {s.name}
               </option>
             ))}
           </select>
