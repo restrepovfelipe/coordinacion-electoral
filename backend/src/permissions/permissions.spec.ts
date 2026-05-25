@@ -550,17 +550,18 @@ describe('AuthGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('expired session (auth_time > 3600s ago) → throws UnauthorizedException with SESSION_EXPIRED', async () => {
+  it('valid token with auth_time > 3600s ago → allowed (Firebase auto-refresh)', async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
     mockVerifyIdToken.mockResolvedValue({
       uid: 'mock-uid-2',
-      auth_time: nowSeconds - 4000, // > 3600 seconds ago
+      auth_time: nowSeconds - 4000, // > 3600 seconds ago — must be accepted now
     });
+    mockFindUnique.mockResolvedValue({ id: 99, cipUid: 'mock-uid-2', active: true, scopes: [] });
 
-    const ctx = makeContext({ authorization: 'Bearer mock-cip-token-old' });
-    await expect(guard.canActivate(ctx)).rejects.toThrow(
-      new UnauthorizedException('SESSION_EXPIRED'),
-    );
+    const req: Record<string, unknown> = { headers: { authorization: 'Bearer mock-cip-token-old' }, query: {} };
+    const ctx = { switchToHttp: () => ({ getRequest: () => req }) } as unknown as ExecutionContext;
+    const result = await guard.canActivate(ctx);
+    expect(result).toBe(true);
   });
 
   it('user not found in DB → throws UnauthorizedException', async () => {
