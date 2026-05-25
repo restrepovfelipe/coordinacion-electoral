@@ -8,7 +8,10 @@ export class FirebaseAdminService {
 
   constructor() {
     if (getApps().length === 0) {
-      initializeApp({ credential: applicationDefault() });
+      // projectId must be explicit: Cloud Run auto-sets GOOGLE_CLOUD_PROJECT=coordinacion-electoral
+      // (the GCP project), but Firebase Auth tokens carry aud=comando-electoral-amva (the Firebase
+      // project). Without this, verifyIdToken throws an aud-mismatch error → silent 401 for everyone.
+      initializeApp({ credential: applicationDefault(), projectId: 'comando-electoral-amva' });
     }
     this.auth = getAuth();
   }

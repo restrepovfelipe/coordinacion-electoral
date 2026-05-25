@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, FormEvent, Suspense } from 'react'
+import { useState, FormEvent, Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { getIdToken } from 'firebase/auth'
+import { getIdToken, signOut as firebaseSignOut } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { useAuth } from '@/lib/auth/use-auth'
 
@@ -33,6 +33,15 @@ function LoginForm() {
   const { signIn } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const reason = searchParams.get('reason')
+
+  // When redirected here due to a backend 401 (reason=session), sign out any stale
+  // Firebase session so the user sees the form instead of an infinite redirect loop.
+  useEffect(() => {
+    if (reason === 'session') {
+      firebaseSignOut(auth).catch(() => {})
+    }
+  }, [reason])
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !loading
 
@@ -89,6 +98,14 @@ function LoginForm() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="px-7 py-6 flex flex-col gap-4" noValidate>
+          {reason === 'session' && !error && (
+            <div
+              role="status"
+              className="text-[12.5px] text-text-2 bg-surface border border-border rounded-[6px] px-3 py-2.5"
+            >
+              Tu sesión expiró. Inicia sesión de nuevo.
+            </div>
+          )}
           {error && (
             <div
               role="alert"
