@@ -13,8 +13,7 @@ type StatusFilter = 'confirmado' | 'pendiente' | 'sin_contacto' | undefined
 type AsignacionFilter = 'con_puesto' | 'sin_puesto' | undefined
 
 export default function TestigosPage() {
-  const { user } = useAuth()
-  const role = (user as { role?: string } | null)?.role
+  const { role } = useAuth()
 
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(undefined)
