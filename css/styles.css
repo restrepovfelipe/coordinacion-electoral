@@ -76,7 +76,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);display
 .cc-stats-bar .cc-st:last-child{border-right:none}
 .cc-st .v{font-size:13px;font-weight:700;color:var(--t1)}.cc-st .l{font-size:9px;color:var(--t3);margin-top:1px;white-space:nowrap}
 .cc-st-warn .v{color:var(--red)!important}
+.cc-st-excedente .v{color:#2563eb!important}
 .sc-warn .sv{color:var(--red)!important}
+.sc-excedente .sv{color:#2563eb!important}
 /* Overview municipality cards */
 .ov-muni-card{background:var(--card);border:1px solid var(--b1);border-radius:var(--r);padding:12px;cursor:pointer;transition:border-color .12s;box-shadow:var(--shadow)}
 .ov-muni-card:hover{border-color:var(--t2)}

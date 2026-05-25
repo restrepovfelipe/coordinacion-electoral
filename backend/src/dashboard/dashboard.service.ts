@@ -3,6 +3,7 @@ import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { UserWithScopes } from '../common/types/request-with-user.js';
 import { CoverageService, EstadoPuesto } from '../common/coverage.service.js';
+import { calcularCobertura } from '../common/coverage.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,9 @@ export interface MunicipioStat {
   mesasCount: number;
   mesasCubiertas: number;
   coberturaPct: number;
+  mesasSinAsignar: number;
+  mesasExcedentes: number;
+  testigosExcedentes: number;
   prioridadAltaCount: number;
   prioridadMediaCount: number;
   prioridadBajaCount: number;
@@ -42,6 +46,9 @@ export interface PuestoPrioridadItem {
   nivelPrioridad: string;
   estado: EstadoPuesto;
   coberturaPct: number;
+  mesasSinAsignar: number;
+  mesasExcedentes: number;
+  testigosExcedentes: number;
 }
 
 export interface MapaPuesto {
@@ -347,7 +354,8 @@ export class DashboardService {
       const bajaCount = Number(r.bajaCount);
       const criticosUncovered = Number(r.criticosUncovered);
 
-      const coberturaPct = this.coverage.computePhysicalCoverage(mesasCubiertas, mesasCount);
+      const { coberturaPct, mesasSinAsignar, mesasExcedentes, testigosExcedentes } =
+        calcularCobertura(testigosCount, mesasCount);
 
       return {
         municipioId: Number(r.municipioId),
@@ -356,6 +364,9 @@ export class DashboardService {
         mesasCount,
         mesasCubiertas,
         coberturaPct,
+        mesasSinAsignar,
+        mesasExcedentes,
+        testigosExcedentes,
         prioridadAltaCount: altaCount,
         prioridadMediaCount: mediaCount,
         prioridadBajaCount: bajaCount,
@@ -578,14 +589,15 @@ export class DashboardService {
       const ratioBaja = Number(r.ratioMesasBaja);
       const votosTotal = Number(r.votosTotal);
 
-      // testigosRequeridos kept for display (ratio-based); not used for estado (A16).
+      // testigosRequeridos kept for display (ratio-based); not used for estado (A24).
       const testigosRequeridos = Math.ceil(
         mesas * (nivel === 'ALTA' ? ratioAlta : nivel === 'MEDIA' ? ratioMedia : ratioBaja),
       );
-      const pct = this.coverage.computePhysicalCoverage(mesasAsignadas, mesas);
-      const estado = this.coverage.computeEstado(nivel, votosTotal, mesasAsignadas, mesas);
+      const { coberturaPct: pct, mesasSinAsignar, mesasExcedentes, testigosExcedentes } =
+        calcularCobertura(testigosAsignados, mesas);
+      const estado = this.coverage.computeEstado(nivel, votosTotal, testigosAsignados, mesas);
 
-      const cubierto = mesasAsignadas >= mesas;
+      const cubierto = testigosAsignados * 2 >= mesas;
       if (opts.cubierto !== undefined && opts.cubierto !== cubierto) {
         return null as unknown as PuestoPrioridadItem;
       }
@@ -606,6 +618,9 @@ export class DashboardService {
         nivelPrioridad: nivel,
         estado,
         coberturaPct: pct,
+        mesasSinAsignar,
+        mesasExcedentes,
+        testigosExcedentes,
       };
     }).filter(Boolean);
 
