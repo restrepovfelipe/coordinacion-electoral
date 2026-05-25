@@ -3,11 +3,14 @@
 
 const firebaseConfig = {
   apiKey: "AIzaSyBmZtgzH8EFepEqUoOcNVWbajRCMD7CU_Y",
-  authDomain: "comando-electoral-amva.firebaseapp.com",
-  projectId: "comando-electoral-amva",
-  storageBucket: "comando-electoral-amva.firebasestorage.app",
-  messagingSenderId: "780534359669",
-  appId: "1:780534359669:web:03678820c44d205a8cba3c"
+  authDomain: "coordinacion-electoral.firebaseapp.com",
+  projectId: "coordinacion-electoral",
+  storageBucket: "coordinacion-electoral.appspot.com",
+  // messagingSenderId and appId: register a Web App in Firebase Console →
+  // coordinacion-electoral → Project settings to get these values.
+  // Not required for email/password Auth (the only feature in use).
+  messagingSenderId: "210392280319",
+  appId: "1:210392280319:web:pending-registration"
 };
 
 const firebaseApp = firebase.initializeApp(firebaseConfig);
