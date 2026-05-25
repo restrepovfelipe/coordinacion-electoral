@@ -2,8 +2,7 @@
 import { useAuth } from '@/lib/auth/use-auth'
 
 export default function CoordinadoresPage() {
-  const { user } = useAuth()
-  const role = (user as { role?: string } | null)?.role
+  const { role } = useAuth()
   return (
     <div className="p-6">
       <h1 className="h1-display">Coordinadores</h1>

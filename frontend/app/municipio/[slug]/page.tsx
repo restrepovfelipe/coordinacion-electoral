@@ -43,8 +43,7 @@ const ESTADO_TONE: Record<string, Tone> = {
 export default function MunicipioPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const router = useRouter()
-  const { user } = useAuth()
-  const role = (user as { role?: string } | null)?.role
+  const { role } = useAuth()
 
   const isAdmin = role === 'SUPER_ADMIN' || role === 'REGIONAL_COORDINATOR'
 

@@ -185,8 +185,7 @@ export default function PuestoPage({ params }: { params: Promise<{ id: string }>
 
   if (isNaN(puestoId)) notFound()
 
-  const { user } = useAuth()
-  const role = (user as { role?: string } | null)?.role
+  const { role } = useAuth()
   const isAdmin = role === 'SUPER_ADMIN' || role === 'REGIONAL_COORDINATOR'
   const canRecalculate = ['SUPER_ADMIN', 'REGIONAL_COORDINATOR', 'MUNICIPAL_COORDINATOR', 'ZONE_COORDINATOR', 'COMUNA_COORDINATOR'].includes(role ?? '')
 

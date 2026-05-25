@@ -45,8 +45,7 @@ function formatDate(iso: string | null | undefined): string {
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 export default function UsuariosPage() {
-  const { user } = useAuth()
-  const role = (user as { role?: string } | null)?.role
+  const { role } = useAuth()
 
   const [page, setPage] = useState(1)
   const [roleFilter, setRoleFilter] = useState<Role | undefined>(undefined)

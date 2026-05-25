@@ -87,13 +87,13 @@ function getInitials(name: string | null | undefined): string {
 // ── Sidebar ────────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
-  const { user, signOut } = useAuth()
+  const { user, role: rawRole, signOut } = useAuth()
   const { data: counts } = useSidebarCounts()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
-  const role = (user as { role?: string } | null)?.role ?? ''
+  const role = rawRole ?? ''
   const roleLabel = ROLE_LABELS[role] ?? role
   const displayName = user?.displayName ?? user?.email ?? ''
   const initials = getInitials(displayName)

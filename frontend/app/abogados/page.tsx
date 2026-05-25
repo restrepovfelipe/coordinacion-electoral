@@ -9,8 +9,8 @@ import { fetchAbogadosByMunicipio, createAbogado, patchAbogado, deleteAbogado, t
 const MANAGE_ROLES = ['SUPER_ADMIN', 'REGIONAL_COORDINATOR', 'MUNICIPAL_COORDINATOR']
 
 export default function AbogadosPage() {
-  const { user } = useAuth()
-  const role = (user as { role?: string } | null)?.role ?? ''
+  const { role: rawRole } = useAuth()
+  const role = rawRole ?? ''
   const canManage = MANAGE_ROLES.includes(role)
 
   const { data: municipios } = useMunicipios()
