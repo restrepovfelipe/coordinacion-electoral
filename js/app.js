@@ -1115,33 +1115,18 @@ function renderMovPanel(n, ck, id) {
   const respCards = resps.length
     ? resps.map((r, i) => `
       <div class="resp-card" style="padding:10px 12px;margin-bottom:8px;background:var(--bg2);border-radius:8px;border:1px solid var(--bdr)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span class="resp-num" style="font-weight:700;color:var(--t2);min-width:22px">#${i + 1}</span>
-          <select style="font-size:12px;padding:3px 6px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg);color:var(--fg)"
+          <select style="font-size:12px;padding:3px 6px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg);color:var(--fg);flex-shrink:0"
             onchange="updateResp('${n}','${ckE}',${i},'tipo',this.value,'${id}')">
             <option value="moto" ${r.tipo === 'moto' ? 'selected' : ''}>🏍 Moto</option>
             <option value="carro" ${r.tipo === 'carro' ? 'selected' : ''}>🚗 Carro</option>
           </select>
           <input class="resp-name-inp" type="text" placeholder="Placa" value="${esc(r.placa || '')}"
-            style="width:90px;font-size:12px;text-transform:uppercase"
+            style="width:90px;font-size:12px;text-transform:uppercase;flex-shrink:0"
             onchange="updateResp('${n}','${ckE}',${i},'placa',this.value,'${id}')">
-          <button class="del-btn" style="margin-left:auto" onclick="delResp('${n}','${ckE}',${i},'${id}')">×</button>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="background:var(--bg);border-radius:6px;padding:7px 9px">
-            <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Responsable</div>
-            <input class="resp-name-inp" type="text" placeholder="Nombre" value="${esc(r.nombreResp || '')}"
-              style="width:100%;margin-bottom:4px"
-              onchange="updateResp('${n}','${ckE}',${i},'nombreResp',this.value,'${id}')">
-            <div style="display:flex;align-items:center;gap:4px">
-              <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${esc(r.telefonoResp || '')}"
-                style="flex:1"
-                onchange="updateResp('${n}','${ckE}',${i},'telefonoResp',this.value,'${id}')">
-              ${_waBtn(r.telefonoResp)}
-            </div>
-          </div>
-          <div style="background:var(--bg);border-radius:6px;padding:7px 9px">
-            <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Conductor</div>
+          <div style="flex:1;min-width:180px;background:var(--bg);border-radius:6px;padding:6px 9px">
+            <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px">Conductor</div>
             <input class="resp-name-inp" type="text" placeholder="Nombre" value="${esc(r.nombreConductor || '')}"
               style="width:100%;margin-bottom:4px"
               onchange="updateResp('${n}','${ckE}',${i},'nombreConductor',this.value,'${id}')">
@@ -1152,6 +1137,7 @@ function renderMovPanel(n, ck, id) {
               ${_waBtn(r.telefonoConductor)}
             </div>
           </div>
+          <button class="del-btn" style="flex-shrink:0" onclick="delResp('${n}','${ckE}',${i},'${id}')">×</button>
         </div>
       </div>`).join('')
     : '<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin vehículos registrados aún</div>';
@@ -1192,12 +1178,12 @@ function updateResp(n, ck, idx, field, val, id) {
   const moEl = document.getElementById(id + '-tot-mo'); if (moEl) moEl.textContent = resps.filter(r => r.tipo === 'moto').length;
   const caEl = document.getElementById(id + '-tot-ca'); if (caEl) caEl.textContent = resps.filter(r => r.tipo === 'carro').length;
   // Refresh WA button on phone fields without full re-render
-  if (field === 'telefonoResp' || field === 'telefonoConductor') renderMovPanel(n, ck, id);
+  if (field === 'telefonoConductor') renderMovPanel(n, ck, id);
 }
 async function addResp(n, ck, id) {
   const s = gs(n);
   if (!s.movilidad[ck].responsables) s.movilidad[ck].responsables = [];
-  s.movilidad[ck].responsables.push({ tipo: 'moto', placa: '', nombreResp: '', telefonoResp: '', nombreConductor: '', telefonoConductor: '' });
+  s.movilidad[ck].responsables.push({ tipo: 'moto', placa: '', nombreConductor: '', telefonoConductor: '' });
   saveLocalSt();
   await writeMuni(n);
   renderMovPanel(n, ck, id);
