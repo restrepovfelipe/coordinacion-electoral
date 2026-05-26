@@ -165,6 +165,16 @@ function getPuestoBackendId(muniName, puestoRawName) {
   return cache[puestoRawName] || cache[puestoRawName?.toUpperCase()] || null;
 }
 
+// Resolve puestoId from a pk string (dd_mm_zz_pp) by reverse-looking up RAW.
+function getPuestoIdByPk(n, pkStr) {
+  for (const puestos of Object.values(RAW[n] || {})) {
+    for (const p of puestos) {
+      if (pk(p) === pkStr) return getPuestoBackendId(n, p.puesto);
+    }
+  }
+  return null;
+}
+
 // Resolve the backend integer ID for a coordinator scope from MCX context fields.
 function _coordScopeId(type, muniName, ck, k, zonaNombre) {
   if (type === 'muni') return _puestoIdCache[muniName]?._muniId ?? null;
@@ -832,7 +842,7 @@ async function savePCard(n, k, ck, pcid) {
   saveLocalSt();
   await writeMuni(n);
   if (window.api && window.CURRENT_USER) {
-    const puestoId = getPuestoBackendId(n, k);
+    const puestoId = getPuestoIdByPk(n, k);
     if (puestoId) {
       api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null })
         .catch(err => { if (err?.status !== 409) _onWriteError('coord puesto adhoc patch failed', err); });
