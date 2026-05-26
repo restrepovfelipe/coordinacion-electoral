@@ -357,25 +357,30 @@ async function loadCoordsForMuni(n) {
   if (!ccIds && Object.keys(_zonaIdCache).length === 0) return;
   const s = gs(n);
   let changed = false;
-  const fetches = Object.keys(RAW[n] || {}).map(async ck => {
-    const zonaId = _zonaIdCache[ck] ?? _zonaIdCache[(ck || '').toUpperCase()];
+  // Fetch commune coordinators (RAW keys are commune names)
+  const communeFetches = Object.keys(RAW[n] || {}).map(async ck => {
     const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
-    const scopeType = zonaId ? 'zona' : comunaId ? 'comuna' : null;
-    const scopeId = zonaId ?? comunaId;
-    if (!scopeType || !scopeId) return;
+    if (!comunaId) return;
     try {
-      const disp = await api.get(`/coordinador/${scopeType}/${scopeId}/display`);
-      if (scopeType === 'zona') {
-        if (!s.zonas) s.zonas = {};
-        s.zonas[ck] = { coord: disp.nombre || '', phone: disp.telefono || '' };
-      } else {
-        if (!s.comunas) s.comunas = {};
-        s.comunas[ck] = { coord: disp.nombre || '', phone: disp.telefono || '' };
-      }
+      const disp = await api.get(`/coordinador/comuna/${comunaId}/display`);
+      if (!s.comunas) s.comunas = {};
+      s.comunas[ck] = { coord: disp.nombre || '', phone: disp.telefono || '' };
       changed = true;
     } catch(e) {}
   });
-  await Promise.all(fetches);
+  // Fetch zone coordinators separately (stored in s.zonas, keyed by zone name)
+  const zoneNames = Object.keys(_zonaIdCache).filter(k => k !== k.toUpperCase());
+  const zoneFetches = zoneNames.map(async zonaNombre => {
+    const zonaId = _zonaIdCache[zonaNombre];
+    if (!zonaId) return;
+    try {
+      const disp = await api.get(`/coordinador/zona/${zonaId}/display`);
+      if (!s.zonas) s.zonas = {};
+      s.zonas[zonaNombre] = { coord: disp.nombre || '', phone: disp.telefono || '' };
+      changed = true;
+    } catch(e) {}
+  });
+  await Promise.all([...communeFetches, ...zoneFetches]);
   if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
 }
 function goHome() {
