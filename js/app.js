@@ -1669,29 +1669,57 @@ function buildPrintHTML(tipo, muni, ck) {
 }
 
 // ═══ ABOGADO (punto 2) ═══
+const _abogEditMode = new Set(); // panel IDs currently in edit mode
+
 function renderAbogadoPanel(n, ck, id) {
   const pane = document.getElementById(id + '-abog');
   const s = gs(n);
   if (!s.abogados) s.abogados = {};
   if (!s.abogados[ck]) s.abogados[ck] = { nombre: '', firma: '', telefono: '' };
   const ab = s.abogados[ck];
-  pane.innerHTML = `<div class="mov-panel">
-    <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Abogado responsable de esta zona/comuna</div>
-    <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Nombre</label>
-      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(ab.nombre)}"
-        onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','nombre',this.value)"></div>
-    <div class="mof" style="margin-bottom:12px"><label style="font-size:10px;color:var(--t3)">Teléfono / WhatsApp</label>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(ab.telefono)}"
-          onchange="updateAbogado('${n}','${ck.replace(/'/g,"\\'")}','telefono',this.value)">
-        ${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
-      </div></div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="mv-save-all" onclick="saveAbogado('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar abogado</button>
-      <span class="mv-ok" id="${id}-abog-ok">✓ Guardado</span>
-    </div>
-  </div>`;
+  const ckE = ck.replace(/'/g, "\\'");
+  const hasData = !!ab.nombre;
+  const isEditing = _abogEditMode.has(id) || !hasData;
+
+  if (!isEditing) {
+    // ── Vista: mostrar datos guardados + botón Editar ──
+    pane.innerHTML = `<div class="mov-panel">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:12px">Abogado responsable de esta zona/comuna</div>
+      <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:4px">⚖️ ${esc(ab.nombre)}</div>
+        ${ab.telefono ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2)">
+          📞 ${esc(ab.telefono)}
+          <a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
+        </div>` : '<div style="font-size:12px;color:var(--t3)">Sin teléfono</div>'}
+      </div>
+      <button class="export-btn" style="font-size:12px" onclick="editAbogado('${n}','${ckE}','${id}')">✏️ Editar</button>
+    </div>`;
+  } else {
+    // ── Edición: inputs + Guardar / Cancelar ──
+    pane.innerHTML = `<div class="mov-panel">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Abogado responsable de esta zona/comuna</div>
+      <div class="mof" style="margin-bottom:8px">
+        <label style="font-size:10px;color:var(--t3)">NOMBRE</label>
+        <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(ab.nombre)}"
+          onchange="updateAbogado('${n}','${ckE}','nombre',this.value)">
+      </div>
+      <div class="mof" style="margin-bottom:12px">
+        <label style="font-size:10px;color:var(--t3)">TELÉFONO / WHATSAPP</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(ab.telefono)}"
+            onchange="updateAbogado('${n}','${ckE}','telefono',this.value)">
+          ${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="mv-save-all" onclick="saveAbogado('${n}','${ckE}','${id}')">💾 Guardar abogado</button>
+        ${hasData ? `<button class="export-btn" style="font-size:12px" onclick="cancelAbogado('${n}','${ckE}','${id}')">Cancelar</button>` : ''}
+      </div>
+    </div>`;
+  }
 }
+function editAbogado(n, ck, id) { _abogEditMode.add(id); renderAbogadoPanel(n, ck, id); }
+function cancelAbogado(n, ck, id) { _abogEditMode.delete(id); renderAbogadoPanel(n, ck, id); }
 function updateAbogado(n, ck, field, val) {
   const s = gs(n);
   if (!s.abogados) s.abogados = {};
@@ -1700,34 +1728,33 @@ function updateAbogado(n, ck, field, val) {
   saveLocalSt();
 }
 function saveAbogado(n, ck, id) {
-  const ok = document.getElementById(id + '-abog-ok');
-  if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  const s = gs(n);
+  const ab = s.abogados?.[ck];
+  if (!ab?.nombre) return; // don't save empty
+  saveLocalSt();
   // Best-effort API sync
   if (window.api && window.CURRENT_USER) {
     const muniBackendId = _puestoIdCache[n]?._muniId;
     if (muniBackendId) {
-      const s = gs(n);
-      const ab = s.abogados[ck];
-      if (ab) {
-        if (ab._backendId) {
-          api.patch(`/abogados/${ab._backendId}`, {
-            name: ab.nombre || '',
-            phone: ab.telefono || undefined,
-            notes: ab.firma || undefined,
-          }).catch(err => _onWriteError('abogado update failed', err));
-        } else {
-          api.post(`/municipios/${muniBackendId}/abogados`, {
-            name: ab.nombre || '',
-            phone: ab.telefono || undefined,
-            notes: ab.firma || undefined,
-          }).then(created => {
-            ab._backendId = created.id;
-            saveLocalSt();
-          }).catch(err => _onWriteError('abogado create failed', err));
-        }
+      if (ab._backendId) {
+        api.patch(`/abogados/${ab._backendId}`, {
+          name: ab.nombre || '',
+          phone: ab.telefono || undefined,
+          notes: ab.firma || undefined,
+        }).catch(err => _onWriteError('abogado update failed', err));
+      } else {
+        api.post(`/municipios/${muniBackendId}/abogados`, {
+          name: ab.nombre || '',
+          phone: ab.telefono || undefined,
+          notes: ab.firma || undefined,
+        }).then(created => {
+          ab._backendId = created.id;
+          saveLocalSt();
+        }).catch(err => _onWriteError('abogado create failed', err));
       }
     }
   }
+  _abogEditMode.delete(id); // switch to view mode
   renderAbogadoPanel(n, ck, id);
 }
 
