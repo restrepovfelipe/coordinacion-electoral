@@ -15,6 +15,13 @@ export class MovilidadService {
     private readonly realtime: RealtimeService,
   ) {}
 
+  async findByScope(scopeType: ScopeType, scopeId: number) {
+    return this.prisma.movilidad.findMany({
+      where: { scopeType, scopeId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async create(dto: CreateMovilidadDto, user: UserWithScopes) {
     const canAccess = await this.permissions.canAccess(
       user,

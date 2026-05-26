@@ -2,15 +2,18 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ScopeType } from '@prisma/client';
 import { AuthGuard } from '../../common/guards/auth.guard.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { UserWithScopes } from '../../common/types/request-with-user.js';
@@ -24,6 +27,14 @@ import { UpdateMovilidadDto } from './dto/update-movilidad.dto.js';
 @Controller('movilidad')
 export class MovilidadController {
   constructor(private readonly movilidadService: MovilidadService) {}
+
+  @Get()
+  findByScope(
+    @Query('scopeType') scopeType: ScopeType,
+    @Query('scopeId', ParseIntPipe) scopeId: number,
+  ) {
+    return this.movilidadService.findByScope(scopeType, scopeId);
+  }
 
   @Post()
   create(

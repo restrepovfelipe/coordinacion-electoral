@@ -342,7 +342,7 @@ function buildSB() {
 }
 function selMuni(n) {
   CUR = n; buildSB(); renderMuni(n);
-  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); loadAbogadosForMuni(n); });
+  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); loadAbogadosForMuni(n); loadMovilidadForMuni(n); });
   _loadZonaIds().then(() => loadCoordsForMuni(n));
   loadAllTestigosForMuni(n);
 }
@@ -1100,6 +1100,8 @@ function _migrateMovResps(mov) {
     return r;
   });
 }
+const _movEditMode = new Set();
+
 function renderMovPanel(n, ck, id) {
   const pane = document.getElementById(id + '-mov');
   const s = gs(n);
@@ -1112,6 +1114,34 @@ function renderMovPanel(n, ck, id) {
   const totalCarrosReg = resps.filter(r => r.tipo === 'carro').length;
   const motosNec = mov.motos_nec || 0; const carrosNec = mov.carros_nec || 0;
   const ckE = ck.replace(/'/g, "\\'");
+  // Start in edit mode if explicitly set OR no vehicles yet
+  const isEdit = _movEditMode.has(id) || resps.length === 0;
+
+  if (!isEdit) {
+    // ── VIEW MODE ──
+    const viewCards = resps.map((r, i) => {
+      const tipoIcon = r.tipo === 'moto' ? '🏍' : '🚗';
+      const tipoLabel = r.tipo === 'moto' ? 'Moto' : 'Carro';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:var(--bg2);border-radius:7px;border:1px solid var(--bdr);flex-wrap:wrap">
+        <span style="font-weight:700;color:var(--t2);font-size:12px;min-width:20px">#${i+1}</span>
+        <span style="font-size:12px;flex-shrink:0">${tipoIcon} <strong>${tipoLabel}</strong></span>
+        ${r.placa ? `<span style="font-size:11px;font-weight:600;color:var(--t1);background:var(--bg);border:1px solid var(--bdr);border-radius:4px;padding:2px 7px;letter-spacing:.5px">${esc(r.placa.toUpperCase())}</span>` : ''}
+        <span style="font-size:12px;color:var(--t1);flex:1;min-width:120px">👤 ${esc(r.nombreConductor || '—')}</span>
+        ${r.telefonoConductor ? `<span style="font-size:12px;color:var(--t2)">${esc(r.telefonoConductor)}</span>${_waBtn(r.telefonoConductor)}` : ''}
+      </div>`;
+    }).join('');
+    pane.innerHTML = `<div class="mov-panel">
+      <div class="mov-totals-row">
+        <div class="mov-total mo"><span class="lbl">🏍 Registradas:</span><span class="tot-val">${totalMotosReg}</span><span class="sep">/ necesarias:</span><span style="font-weight:600;color:var(--t1)">${motosNec}</span></div>
+        <div class="mov-total ca"><span class="lbl">🚗 Registrados:</span><span class="tot-val">${totalCarrosReg}</span><span class="sep">/ necesarios:</span><span style="font-weight:600;color:var(--t1)">${carrosNec}</span></div>
+      </div>
+      <div style="margin:8px 0">${viewCards}</div>
+      <button class="export-btn" onclick="editMov('${n}','${ckE}','${id}')">✏️ Editar</button>
+    </div>`;
+    return;
+  }
+
+  // ── EDIT MODE ──
   const respCards = resps.length
     ? resps.map((r, i) => `
       <div class="resp-card" style="padding:10px 12px;margin-bottom:8px;background:var(--bg2);border-radius:8px;border:1px solid var(--bdr)">
@@ -1160,12 +1190,15 @@ function renderMovPanel(n, ck, id) {
     </div>
     <div class="resp-list" id="${id}-resp-list">${respCards}</div>
     <button class="resp-add-btn" onclick="addResp('${n}','${ckE}','${id}')">+ Agregar vehículo</button>
-    <div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
       <button class="mv-save-all" onclick="saveMovAll('${n}','${ckE}','${id}')">💾 Guardar movilidad</button>
-      <span class="mv-ok" id="${id}-mov-ok">✓ Guardado</span>
+      ${resps.length > 0 ? `<button onclick="cancelMov('${n}','${ckE}','${id}')" style="padding:5px 12px;font-size:12px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg2);color:var(--t2);cursor:pointer">✕ Cancelar</button>` : ''}
     </div>
   </div>`;
 }
+
+function editMov(n, ck, id) { _movEditMode.add(id); renderMovPanel(n, ck, id); }
+function cancelMov(n, ck, id) { _movEditMode.delete(id); renderMovPanel(n, ck, id); }
 
 function updateResp(n, ck, idx, field, val, id) {
   const s = gs(n);
@@ -1189,9 +1222,14 @@ async function addResp(n, ck, id) {
   renderMovPanel(n, ck, id);
 }
 async function delResp(n, ck, idx, id) {
-  const s = gs(n); s.movilidad[ck].responsables.splice(idx, 1);
+  const s = gs(n);
+  const resp = s.movilidad[ck].responsables[idx];
+  // Delete from backend if it has a backend ID
+  if (resp?._backendId && window.api && window.CURRENT_USER) {
+    api.delete(`/movilidad/${resp._backendId}`).catch(err => console.warn('[mov] delete failed', err));
+  }
+  s.movilidad[ck].responsables.splice(idx, 1);
   saveLocalSt();
-  await writeMuni(n);
   renderMovPanel(n, ck, id);
 }
 function saveMovNec(n, ck, field, val) {
@@ -1202,10 +1240,62 @@ function saveMovNec(n, ck, field, val) {
 async function saveMovAll(n, ck, id) {
   const s = gs(n);
   saveLocalSt();
-  await writeMuni(n);
-  renderCCs(n);
-  const ok = document.getElementById(id + '-mov-ok');
-  if (ok) { ok.classList.add('show'); setTimeout(() => ok.classList.remove('show'), 2000); }
+  // Sync each vehicle to backend
+  if (window.api && window.CURRENT_USER) {
+    const ccIds = _puestoIdCache[n]?._ccIds;
+    const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
+    if (comunaId) {
+      const resps = s.movilidad[ck]?.responsables || [];
+      for (const r of resps) {
+        const payload = {
+          vehicleType: r.tipo || 'moto',
+          plate: r.placa || '',
+          driverName: r.nombreConductor || '',
+          driverPhone: r.telefonoConductor || undefined,
+        };
+        try {
+          if (r._backendId) {
+            await api.patch(`/movilidad/${r._backendId}`, payload);
+          } else {
+            const created = await api.post('/movilidad', { ...payload, scopeType: 'COMUNA', scopeId: comunaId });
+            r._backendId = created.id;
+          }
+        } catch(err) { console.warn('[mov] sync failed', err); }
+      }
+      saveLocalSt();
+    }
+  }
+  _movEditMode.delete(id);
+  renderMovPanel(n, ck, id);
+}
+
+// Load movilidad for a municipality from the backend so all users see the latest data.
+async function loadMovilidadForMuni(n) {
+  if (!window.api || !window.CURRENT_USER) return;
+  const ccIds = _puestoIdCache[n]?._ccIds;
+  if (!ccIds) return;
+  const s = gs(n);
+  if (!s.movilidad) s.movilidad = {};
+  let changed = false;
+  const fetches = Object.keys(RAW[n] || {}).map(async ck => {
+    const comunaId = ccIds[ck] ?? ccIds[(ck || '').toUpperCase()];
+    if (!comunaId) return;
+    try {
+      const vehicles = await api.get(`/movilidad?scopeType=COMUNA&scopeId=${comunaId}`);
+      if (!Array.isArray(vehicles) || vehicles.length === 0) return;
+      if (!s.movilidad[ck]) s.movilidad[ck] = { responsables: [], motos_nec: s.movilidad[ck]?.motos_nec || 0, carros_nec: s.movilidad[ck]?.carros_nec || 0 };
+      s.movilidad[ck].responsables = vehicles.map(v => ({
+        tipo: v.vehicleType || 'moto',
+        placa: v.plate || '',
+        nombreConductor: v.driverName || '',
+        telefonoConductor: v.driverPhone || '',
+        _backendId: v.id,
+      }));
+      changed = true;
+    } catch(e) {}
+  });
+  await Promise.all(fetches);
+  if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
 }
 
 // ═══ MODAL ═══
