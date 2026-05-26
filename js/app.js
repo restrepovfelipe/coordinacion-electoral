@@ -340,7 +340,44 @@ function buildSB() {
     list.appendChild(grp);
   });
 }
-function selMuni(n) { CUR = n; buildSB(); renderMuni(n); loadPuestoIds(n).then(() => refreshCoordDisplay(n)); _loadZonaIds(); loadAllTestigosForMuni(n); }
+function selMuni(n) {
+  CUR = n; buildSB(); renderMuni(n);
+  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); });
+  _loadZonaIds().then(() => loadCoordsForMuni(n));
+  loadAllTestigosForMuni(n);
+}
+
+// Load all zone/commune coordinators from the backend and update localStorage.
+// Called after IDs are available so other users always see the latest data.
+async function loadCoordsForMuni(n) {
+  if (!window.api || !window.CURRENT_USER) return;
+  // Need both puestoId cache (for comunas) and zonaIdCache ready
+  const ccIds = _puestoIdCache[n]?._ccIds;
+  const muniId = _puestoIdCache[n]?._muniId;
+  if (!ccIds && Object.keys(_zonaIdCache).length === 0) return;
+  const s = gs(n);
+  let changed = false;
+  const fetches = Object.keys(RAW[n] || {}).map(async ck => {
+    const zonaId = _zonaIdCache[ck] ?? _zonaIdCache[(ck || '').toUpperCase()];
+    const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
+    const scopeType = zonaId ? 'zona' : comunaId ? 'comuna' : null;
+    const scopeId = zonaId ?? comunaId;
+    if (!scopeType || !scopeId) return;
+    try {
+      const disp = await api.get(`/coordinador/${scopeType}/${scopeId}/display`);
+      if (scopeType === 'zona') {
+        if (!s.zonas) s.zonas = {};
+        s.zonas[ck] = { coord: disp.nombre || '', phone: disp.telefono || '' };
+      } else {
+        if (!s.comunas) s.comunas = {};
+        s.comunas[ck] = { coord: disp.nombre || '', phone: disp.telefono || '' };
+      }
+      changed = true;
+    } catch(e) {}
+  });
+  await Promise.all(fetches);
+  if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
+}
 function goHome() {
   CUR = null; buildSB();
   document.getElementById('ct').innerHTML = `
@@ -1168,6 +1205,8 @@ async function saveM() {
   if (window.api && window.CURRENT_USER) {
     const _scopeTypeMap = { muni: 'municipio', cc: 'comuna', p: 'puesto', zona: 'zona' };
     const scopeStr = _scopeTypeMap[MCX.type];
+    // For zona type, ensure _zonaIdCache is populated before looking up the ID
+    if (MCX.type === 'zona') await _loadZonaIds();
     const scopeId = _coordScopeId(MCX.type, MCX.n, MCX.ck, MCX.k, MCX.zonaNombre);
     if (scopeStr && scopeId) {
       api.patch(`/coordinador/${scopeStr}/${scopeId}/adhoc`, { nombre: coord || null, telefono: phone || null })
