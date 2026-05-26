@@ -123,6 +123,8 @@ function _applyDashboardStatsToDom() {
       el.textContent = s.coberturaPct + '%';
     }
   });
+  // Re-render overview so subregion totals also pick up the fresh stats
+  if (document.getElementById('ov-wrap')) renderOV();
 }
 
 // Load puesto backend IDs for a municipality from the API
@@ -1212,11 +1214,19 @@ function renderOV() {
     const rTotV = validMusis.reduce((a, n) => a + Object.values(RAW[n]).reduce((b, c) => b + c.reduce((d, p) => d + (p.total || 0), 0), 0), 0);
     const rTotZ = validMusis.reduce((a, n) => a + Object.keys(RAW[n]).length, 0);
     let rTestReg = 0, rTestFalt = 0, rCapacidad = 0;
-    validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
-      const st = _ccStats(n, c);
-      rTestReg += st.testReg; rTestFalt += st.mesasSinAsignar; rCapacidad += st.capacidadCubrir;
-    }));
-    const rPct = _coveragePct(rCapacidad, rTotM);
+    const _allMusisHaveDsStats = validMusis.every(n => _dashboardStatsByMuni[n]);
+    if (_allMusisHaveDsStats) {
+      validMusis.forEach(n => { rTestReg += _dashboardStatsByMuni[n].testigosCount; });
+      rTestFalt = Math.max(0, rTotM - rTestReg);
+    } else {
+      validMusis.forEach(n => Object.keys(RAW[n]).forEach(c => {
+        const st = _ccStats(n, c);
+        rTestReg += st.testReg; rTestFalt += st.mesasSinAsignar; rCapacidad += st.capacidadCubrir;
+      }));
+    }
+    const rPct = _allMusisHaveDsStats
+      ? (rTotM ? Math.round(rTestReg / rTotM * 100) : 0)
+      : _coveragePct(rCapacidad, rTotM);
     html += `
     <div style="margin-top:22px;margin-bottom:4px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
