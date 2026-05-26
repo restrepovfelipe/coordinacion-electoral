@@ -24,6 +24,13 @@ import { PatchAdhocDto } from './dto/patch-adhoc.dto.js';
 export class CoordinadorController {
   constructor(private readonly coordinadorService: CoordinadorService) {}
 
+  @Get('puestos-by-muni/:municipioId')
+  puestosByMuni(
+    @Param('municipioId', ParseIntPipe) municipioId: number,
+  ) {
+    return this.coordinadorService.puestosByMuni(municipioId);
+  }
+
   @Get(':scopeType/:id/display')
   display(
     @Param('scopeType') scopeType: string,

@@ -380,7 +380,31 @@ async function loadCoordsForMuni(n) {
       changed = true;
     } catch(e) {}
   });
-  await Promise.all([...communeFetches, ...zoneFetches]);
+  // Fetch all puesto coordinators in one batch call
+  const puestoFetch = (async () => {
+    if (!muniId) return;
+    try {
+      const list = await api.get(`/coordinador/puestos-by-muni/${muniId}`);
+      if (!Array.isArray(list) || list.length === 0) return;
+      // Build reverse map: puestoId → pk_str using _puestoIdCache + RAW
+      const idToPk = {};
+      for (const puestos of Object.values(RAW[n] || {})) {
+        for (const p of puestos) {
+          const pid = _puestoIdCache[n]?.[p.puesto.toUpperCase()];
+          if (pid) idToPk[pid] = `${p.dd}_${p.mm}_${p.zz}_${p.pp}`;
+        }
+      }
+      if (!s.puestos) s.puestos = {};
+      for (const { puestoId, nombre, telefono } of list) {
+        const pkStr = idToPk[puestoId];
+        if (!pkStr) continue;
+        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '' };
+        changed = true;
+      }
+    } catch(e) {}
+  })();
+
+  await Promise.all([...communeFetches, ...zoneFetches, puestoFetch]);
   if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
 }
 
