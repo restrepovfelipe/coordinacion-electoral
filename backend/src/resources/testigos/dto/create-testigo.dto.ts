@@ -17,6 +17,11 @@ export class CreateTestigoDto {
   @IsOptional()
   phone?: string;
 
+  @ApiPropertyOptional({ description: 'Email address' })
+  @IsString()
+  @IsOptional()
+  correo?: string;
+
   @ApiPropertyOptional({ description: 'Additional notes' })
   @IsString()
   @IsOptional()

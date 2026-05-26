@@ -131,6 +131,7 @@ model Puesto {
   coordinadorAdHocNombre   String?
   coordinadorAdHocTelefono String?
   testigos                 Testigo[]
+  jurados                  Jurado[]
   prioridad                PuestoPrioridad?
 
   @@index([municipioId])
@@ -170,8 +171,9 @@ model Testigo {
   puestoId    Int?
   puesto      Puesto?  @relation(fields: [puestoId], references: [id])
   name        String
-  cedula      String?
+  cedula      String?  @unique
   phone       String?
+  correo      String?
   status      String   @default("pendiente")
   notes       String?
   mesaInicial Int?
@@ -182,6 +184,24 @@ model Testigo {
   updatedAt   DateTime @updatedAt
 
   @@index([puestoId, id])
+}
+
+model Jurado {
+  id              Int      @id @default(autoincrement())
+  cedula          String   @unique
+  nombre          String
+  telefono        String?
+  correo          String?
+  puestoId        Int?
+  puesto          Puesto?  @relation(fields: [puestoId], references: [id])
+  puestoNombreCsv String?
+  municipio       String
+  estado          String   @default("confirmado")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([puestoId])
+  @@index([municipio])
 }
 
 model Abogado {
