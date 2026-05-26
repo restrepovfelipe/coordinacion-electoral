@@ -349,6 +349,7 @@ function goHome() {
       <div id="ov-wrap" style="margin-top:20px;padding:0 10px"></div>
     </div>`;
   renderOV();
+  loadAllTestigosForAllMusis(); // re-trigger if not yet complete
   loadTestigoCounts();
   loadDashboardStats();
 }
@@ -495,6 +496,20 @@ async function loadAllTestigosForMuni(n) {
   await Promise.all(comunas.map(ck => loadTestigosForComune(n, ck)));
   _refreshMuniStats(n);
   if (n === CUR && document.getElementById('ot-todos')?.classList.contains('on')) renderAllPuestos(n);
+}
+
+let _allTestigosLoading = false;
+let _allTestigosLoaded = false;
+async function loadAllTestigosForAllMusis() {
+  if (!window.api || !window.CURRENT_USER) return;
+  if (_allTestigosLoading || _allTestigosLoaded) return;
+  _allTestigosLoading = true;
+  for (const n of ALL_MUNIS.filter(m => RAW[m])) {
+    await loadAllTestigosForMuni(n);
+  }
+  _allTestigosLoaded = true;
+  _allTestigosLoading = false;
+  renderOV();
 }
 
 // ═══ ZONA CARDS ═══
@@ -1325,6 +1340,7 @@ async function startApp() {
   _initialized = true;
   buildSB();
   renderOV();
+  loadAllTestigosForAllMusis(); // load all testigos in background for overview stats
   loadTestigoCounts();
   loadDashboardStats();
   buildExportMenu();
