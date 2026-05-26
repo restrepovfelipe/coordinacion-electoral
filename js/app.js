@@ -475,8 +475,8 @@ function _ccStats(n, ck) {
   const covPuestos = puestos.filter(p => (s.puestos[pk(p)] || {}).coord).length;
   const pct = _coveragePct(capacidadCubrir, totMesas);
   const resps = (s.movilidad?.[ck]?.responsables) || [];
-  const totMotos = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
-  const totCarros = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
+  const totMotos = resps.filter(r => (r.tipo || (parseInt(r.motos) > 0 ? 'moto' : 'carro')) === 'moto').length || resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
+  const totCarros = resps.filter(r => (r.tipo || (parseInt(r.carros) > 0 ? 'carro' : 'moto')) === 'carro').length || resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
   return { totPuestos, totMesas, capacidadCubrir, testReg, mesasSinAsignar, mesasExcedentes, testigosExcedentes, testPuCub, covPuestos, pct, totMotos, totCarros };
 }
 
@@ -1053,75 +1053,102 @@ function delTestigo(n, ck, pKey, idx, id) {
 }
 
 // ═══ MOVILIDAD ═══
+function _waBtn(phone) {
+  return phone ? `<a class="wa-btn" href="https://wa.me/57${phone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '';
+}
+function _migrateMovResps(mov) {
+  // Migrate old format {nombre,telefono,motos,carros} → new per-vehicle format
+  if (!mov.responsables) {
+    const oldMotos = mov.motos || []; const oldCarros = mov.carros || [];
+    mov.responsables = [];
+    [...oldMotos.map(m => ({ ...m, tipo: 'moto' })), ...oldCarros.map(c => ({ ...c, tipo: 'carro' }))]
+      .forEach(v => mov.responsables.push({ tipo: v.tipo, placa: '', nombreResp: v.nombre || '', telefonoResp: v.telefono || '', nombreConductor: '', telefonoConductor: '' }));
+    delete mov.motos; delete mov.carros;
+  }
+  mov.responsables = mov.responsables.map(r => {
+    if (r.nombre !== undefined || r.motos !== undefined) {
+      // Old entry — upgrade in place
+      return { tipo: parseInt(r.motos) > 0 ? 'moto' : 'carro', placa: r.placa || '', nombreResp: r.nombre || r.nombreResp || '', telefonoResp: r.telefono || r.telefonoResp || '', nombreConductor: r.nombreConductor || '', telefonoConductor: r.telefonoConductor || '' };
+    }
+    return r;
+  });
+}
 function renderMovPanel(n, ck, id) {
   const pane = document.getElementById(id + '-mov');
   const s = gs(n);
   if (!s.movilidad) s.movilidad = {};
   if (!s.movilidad[ck]) s.movilidad[ck] = { responsables: [], motos_nec: 0, carros_nec: 0 };
   const mov = s.movilidad[ck];
-  if (!mov.responsables) {
-    const oldMotos = mov.motos || []; const oldCarros = mov.carros || [];
-    const maxLen = Math.max(oldMotos.length, oldCarros.length);
-    mov.responsables = [];
-    for (let i = 0; i < maxLen; i++) {
-      const m = oldMotos[i] || {}; const c = oldCarros[i] || {};
-      mov.responsables.push({ nombre: m.nombre || c.nombre || '', telefono: m.telefono || c.telefono || '', motos: m.nombre ? 1 : 0, carros: c.nombre ? 1 : 0 });
-    }
-    delete mov.motos; delete mov.carros;
-  }
+  _migrateMovResps(mov);
   const resps = mov.responsables;
-  const totalMotosReg = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
-  const totalCarrosReg = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
+  const totalMotosReg = resps.filter(r => r.tipo === 'moto').length;
+  const totalCarrosReg = resps.filter(r => r.tipo === 'carro').length;
   const motosNec = mov.motos_nec || 0; const carrosNec = mov.carros_nec || 0;
+  const ckE = ck.replace(/'/g, "\\'");
   const respCards = resps.length
     ? resps.map((r, i) => `
-      <div class="resp-card">
-        <div class="resp-hd">
-          <span class="resp-num">#${i + 1}</span>
-          <input class="resp-name-inp" type="text" placeholder="Nombre" value="${esc(r.nombre)}"
-            onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'nombre',this.value,'${id}')">
-          <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${esc(r.telefono)}"
-            onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'telefono',this.value,'${id}')">
-          ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
-          <button class="del-btn" onclick="delResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'${id}')">×</button>
+      <div class="resp-card" style="padding:10px 12px;margin-bottom:8px;background:var(--bg2);border-radius:8px;border:1px solid var(--bdr)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="resp-num" style="font-weight:700;color:var(--t2);min-width:22px">#${i + 1}</span>
+          <select style="font-size:12px;padding:3px 6px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg);color:var(--fg)"
+            onchange="updateResp('${n}','${ckE}',${i},'tipo',this.value,'${id}')">
+            <option value="moto" ${r.tipo === 'moto' ? 'selected' : ''}>🏍 Moto</option>
+            <option value="carro" ${r.tipo === 'carro' ? 'selected' : ''}>🚗 Carro</option>
+          </select>
+          <input class="resp-name-inp" type="text" placeholder="Placa" value="${esc(r.placa || '')}"
+            style="width:90px;font-size:12px;text-transform:uppercase"
+            onchange="updateResp('${n}','${ckE}',${i},'placa',this.value,'${id}')">
+          <button class="del-btn" style="margin-left:auto" onclick="delResp('${n}','${ckE}',${i},'${id}')">×</button>
         </div>
-        <div class="resp-body">
-          <div class="resp-veh mo">
-            <span class="resp-veh-icon">🏍</span><span class="resp-veh-lbl">Motos</span>
-            <input class="resp-veh-inp" type="number" min="0" value="${r.motos || 0}"
-              onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'motos',this.value,'${id}')">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:var(--bg);border-radius:6px;padding:7px 9px">
+            <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Responsable</div>
+            <input class="resp-name-inp" type="text" placeholder="Nombre" value="${esc(r.nombreResp || '')}"
+              style="width:100%;margin-bottom:4px"
+              onchange="updateResp('${n}','${ckE}',${i},'nombreResp',this.value,'${id}')">
+            <div style="display:flex;align-items:center;gap:4px">
+              <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${esc(r.telefonoResp || '')}"
+                style="flex:1"
+                onchange="updateResp('${n}','${ckE}',${i},'telefonoResp',this.value,'${id}')">
+              ${_waBtn(r.telefonoResp)}
+            </div>
           </div>
-          <div class="resp-veh ca">
-            <span class="resp-veh-icon">🚗</span><span class="resp-veh-lbl">Carros</span>
-            <input class="resp-veh-inp" type="number" min="0" value="${r.carros || 0}"
-              onchange="updateResp('${n}','${ck.replace(/'/g, "\\'")}',${i},'carros',this.value,'${id}')">
+          <div style="background:var(--bg);border-radius:6px;padding:7px 9px">
+            <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Conductor</div>
+            <input class="resp-name-inp" type="text" placeholder="Nombre" value="${esc(r.nombreConductor || '')}"
+              style="width:100%;margin-bottom:4px"
+              onchange="updateResp('${n}','${ckE}',${i},'nombreConductor',this.value,'${id}')">
+            <div style="display:flex;align-items:center;gap:4px">
+              <input class="resp-phone-inp" type="text" placeholder="Teléfono" value="${esc(r.telefonoConductor || '')}"
+                style="flex:1"
+                onchange="updateResp('${n}','${ckE}',${i},'telefonoConductor',this.value,'${id}')">
+              ${_waBtn(r.telefonoConductor)}
+            </div>
           </div>
-        </div></div>`).join('')
-    : '<div style="font-size:11px;color:var(--t3);padding:6px 0;text-align:center">Sin responsables aún</div>';
+        </div>
+      </div>`).join('')
+    : '<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin vehículos registrados aún</div>';
   pane.innerHTML = `<div class="mov-panel">
-    <div style="background:var(--warn,#fff3cd);color:#856404;border:1px solid #ffc107;border-radius:6px;padding:7px 10px;font-size:11px;margin-bottom:10px">
-      ⚠ Movilidad: datos guardados solo en este navegador. Phase 16 los persistirá en BD.
-    </div>
     <div class="mov-totals-row">
       <div class="mov-total mo">
         <span class="lbl">🏍 Registradas:</span>
         <span class="tot-val" id="${id}-tot-mo">${totalMotosReg}</span>
         <span class="sep">/ necesarias:</span>
         <input class="nec-inp" type="number" min="0" value="${motosNec}"
-          onchange="saveMovNec('${n}','${ck.replace(/'/g, "\\'")}','motos_nec',this.value)">
+          onchange="saveMovNec('${n}','${ckE}','motos_nec',this.value)">
       </div>
       <div class="mov-total ca">
         <span class="lbl">🚗 Registrados:</span>
         <span class="tot-val" id="${id}-tot-ca">${totalCarrosReg}</span>
         <span class="sep">/ necesarios:</span>
         <input class="nec-inp" type="number" min="0" value="${carrosNec}"
-          onchange="saveMovNec('${n}','${ck.replace(/'/g, "\\'")}','carros_nec',this.value)">
+          onchange="saveMovNec('${n}','${ckE}','carros_nec',this.value)">
       </div>
     </div>
     <div class="resp-list" id="${id}-resp-list">${respCards}</div>
-    <button class="resp-add-btn" onclick="addResp('${n}','${ck.replace(/'/g, "\\'")}','${id}')">+ Agregar responsable</button>
+    <button class="resp-add-btn" onclick="addResp('${n}','${ckE}','${id}')">+ Agregar vehículo</button>
     <div style="display:flex;align-items:center;gap:8px">
-      <button class="mv-save-all" onclick="saveMovAll('${n}','${ck.replace(/'/g, "\\'")}','${id}')">💾 Guardar movilidad</button>
+      <button class="mv-save-all" onclick="saveMovAll('${n}','${ckE}','${id}')">💾 Guardar movilidad</button>
       <span class="mv-ok" id="${id}-mov-ok">✓ Guardado</span>
     </div>
   </div>`;
@@ -1130,19 +1157,20 @@ function renderMovPanel(n, ck, id) {
 function updateResp(n, ck, idx, field, val, id) {
   const s = gs(n);
   if (!s.movilidad[ck].responsables[idx]) return;
-  s.movilidad[ck].responsables[idx][field] = field === 'motos' || field === 'carros' ? parseInt(val) || 0 : val;
+  s.movilidad[ck].responsables[idx][field] = val;
   saveLocalSt();
   writeDebounced(n, 700);
+  // Update totals in-place
   const resps = s.movilidad[ck].responsables;
-  const mo = resps.reduce((a, r) => a + (parseInt(r.motos) || 0), 0);
-  const ca = resps.reduce((a, r) => a + (parseInt(r.carros) || 0), 0);
-  const moEl = document.getElementById(id + '-tot-mo'); if (moEl) moEl.textContent = mo;
-  const caEl = document.getElementById(id + '-tot-ca'); if (caEl) caEl.textContent = ca;
+  const moEl = document.getElementById(id + '-tot-mo'); if (moEl) moEl.textContent = resps.filter(r => r.tipo === 'moto').length;
+  const caEl = document.getElementById(id + '-tot-ca'); if (caEl) caEl.textContent = resps.filter(r => r.tipo === 'carro').length;
+  // Refresh WA button on phone fields without full re-render
+  if (field === 'telefonoResp' || field === 'telefonoConductor') renderMovPanel(n, ck, id);
 }
 async function addResp(n, ck, id) {
   const s = gs(n);
   if (!s.movilidad[ck].responsables) s.movilidad[ck].responsables = [];
-  s.movilidad[ck].responsables.push({ nombre: '', telefono: '', motos: 0, carros: 0 });
+  s.movilidad[ck].responsables.push({ tipo: 'moto', placa: '', nombreResp: '', telefonoResp: '', nombreConductor: '', telefonoConductor: '' });
   saveLocalSt();
   await writeMuni(n);
   renderMovPanel(n, ck, id);
