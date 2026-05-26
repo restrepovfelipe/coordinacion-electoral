@@ -134,6 +134,83 @@ function handleRealtimeEvent(event) {
   }
 
   if (event.type === 'coordinador:adhoc_changed') {
+    // Update localStorage for the changed scope so all users see the latest data.
+    const scopeType = (event.scopeType || event.payload?.scopeType || '').toUpperCase();
+    const scopeId   = event.scopeId   ?? event.payload?.scopeId;
+    const nombre    = event.payload?.nombre    ?? null;
+    const telefono  = event.payload?.telefono  ?? null;
+
+    if (scopeId !== undefined && typeof gs !== 'undefined' && typeof saveLocalSt !== 'undefined') {
+      if (scopeType === 'MUNICIPIO') {
+        // Find which municipality and update its coordinator
+        const affectedMuni = (typeof ALL_MUNIS !== 'undefined' ? ALL_MUNIS : [])
+          .find(n => typeof _puestoIdCache !== 'undefined' && _puestoIdCache[n]?._muniId === scopeId);
+        if (affectedMuni) {
+          const s = gs(affectedMuni);
+          s.coord = nombre || ''; s.phone = telefono || '';
+          saveLocalSt();
+        }
+      } else if (scopeType === 'ZONA') {
+        // Zones belong to MEDELLIN — reverse-lookup by ID in _zonaIdCache
+        if (typeof _zonaIdCache !== 'undefined' && typeof RAW !== 'undefined') {
+          const zonaNombre = Object.keys(RAW['MEDELLIN'] || {})
+            .find(k => _zonaIdCache[k] === scopeId || _zonaIdCache[(k || '').toUpperCase()] === scopeId);
+          if (zonaNombre) {
+            const s = gs('MEDELLIN');
+            if (!s.zonas) s.zonas = {};
+            s.zonas[zonaNombre] = { coord: nombre || '', phone: telefono || '' };
+            saveLocalSt();
+          }
+        }
+      } else if (scopeType === 'COMUNA') {
+        // Find which municipality + commune this belongs to
+        if (typeof ALL_MUNIS !== 'undefined' && typeof RAW !== 'undefined' && typeof _puestoIdCache !== 'undefined') {
+          for (const n of ALL_MUNIS) {
+            if (!RAW[n]) continue;
+            const ccIds = _puestoIdCache[n]?._ccIds;
+            if (!ccIds) continue;
+            const ck = Object.keys(RAW[n]).find(k => ccIds[k] === scopeId || ccIds[(k||'').toUpperCase()] === scopeId);
+            if (ck) {
+              const s = gs(n);
+              if (!s.comunas) s.comunas = {};
+              s.comunas[ck] = { coord: nombre || '', phone: telefono || '' };
+              saveLocalSt();
+              break;
+            }
+          }
+        }
+      } else if (scopeType === 'PUESTO') {
+        // Find which municipality + puesto this belongs to
+        if (typeof ALL_MUNIS !== 'undefined' && typeof RAW !== 'undefined' && typeof _puestoIdCache !== 'undefined') {
+          for (const n of ALL_MUNIS) {
+            if (!RAW[n]) continue;
+            const cache = _puestoIdCache[n];
+            if (!cache) continue;
+            const pName = Object.keys(cache).find(k => !k.startsWith('_') && cache[k] === scopeId);
+            if (pName) {
+              // Find the puesto object in RAW to get its pk key
+              for (const ck of Object.keys(RAW[n])) {
+                const pObj = RAW[n][ck].find(p => p.puesto.toUpperCase() === pName.toUpperCase());
+                if (pObj) {
+                  const s = gs(n);
+                  if (!s.puestos) s.puestos = {};
+                  const key = `${pObj.dd}_${pObj.mm}_${pObj.zz}_${pObj.pp}`;
+                  if (!s.puestos[key]) s.puestos[key] = {};
+                  s.puestos[key].coord = nombre || '';
+                  s.puestos[key].phone = telefono || '';
+                  saveLocalSt();
+                  break;
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Re-render current view and refresh municipality header
+    rerenderIfNotEditing();
     if (typeof refreshCoordDisplay === 'function' && typeof CUR !== 'undefined' && CUR) {
       refreshCoordDisplay(CUR);
     }
