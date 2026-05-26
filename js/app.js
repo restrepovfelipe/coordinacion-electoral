@@ -477,6 +477,7 @@ function _refreshZonaStats(n, zonaNombre) {
 }
 
 function _refreshMuniStats(n) {
+  if (n !== CUR) return; // don't overwrite stats of a different municipality
   const tEl = document.getElementById('mh-test-reg');
   const tfEl = document.getElementById('mh-test-falt');
   if (!tEl || !tfEl) return;
