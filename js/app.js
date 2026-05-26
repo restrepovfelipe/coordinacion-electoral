@@ -342,7 +342,7 @@ function buildSB() {
 }
 function selMuni(n) {
   CUR = n; buildSB(); renderMuni(n);
-  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); });
+  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); loadAbogadosForMuni(n); });
   _loadZonaIds().then(() => loadCoordsForMuni(n));
   loadAllTestigosForMuni(n);
 }
@@ -383,6 +383,33 @@ async function loadCoordsForMuni(n) {
   await Promise.all([...communeFetches, ...zoneFetches]);
   if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
 }
+
+// Load abogados for a municipality from the backend so all users see the latest data.
+async function loadAbogadosForMuni(n) {
+  if (!window.api || !window.CURRENT_USER) return;
+  const muniId = _puestoIdCache[n]?._muniId;
+  if (!muniId) return;
+  try {
+    const abogados = await api.get(`/municipios/${muniId}/abogados`);
+    if (!Array.isArray(abogados) || abogados.length === 0) return;
+    const s = gs(n);
+    if (!s.abogados) s.abogados = {};
+    let changed = false;
+    for (const ab of abogados) {
+      const ck = ab.notes; // commune key stored in notes field
+      if (!ck) continue;
+      s.abogados[ck] = {
+        nombre: ab.name || '',
+        telefono: ab.phone || '',
+        firma: '',
+        _backendId: ab.id,
+      };
+      changed = true;
+    }
+    if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
+  } catch(e) {}
+}
+
 function goHome() {
   CUR = null; buildSB();
   document.getElementById('ct').innerHTML = `
@@ -1740,13 +1767,13 @@ function saveAbogado(n, ck, id) {
         api.patch(`/abogados/${ab._backendId}`, {
           name: ab.nombre || '',
           phone: ab.telefono || undefined,
-          notes: ab.firma || undefined,
+          notes: ck,
         }).catch(err => _onWriteError('abogado update failed', err));
       } else {
         api.post(`/municipios/${muniBackendId}/abogados`, {
           name: ab.nombre || '',
           phone: ab.telefono || undefined,
-          notes: ab.firma || undefined,
+          notes: ck,
         }).then(created => {
           ab._backendId = created.id;
           saveLocalSt();
