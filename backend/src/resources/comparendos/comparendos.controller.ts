@@ -28,6 +28,13 @@ import { UpdateComparendoDto } from './dto/update-comparendo.dto.js';
 export class ComparendosController {
   constructor(private readonly comparendosService: ComparendosService) {}
 
+  @Get('by-muni/:municipioId')
+  findByMuni(
+    @Param('municipioId', ParseIntPipe) municipioId: number,
+  ) {
+    return this.comparendosService.findByMuni(municipioId);
+  }
+
   @Get()
   findByComuna(
     @Query('comunaId', ParseIntPipe) comunaId: number,

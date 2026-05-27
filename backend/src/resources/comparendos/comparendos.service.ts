@@ -74,6 +74,21 @@ export class ComparendosService {
     });
   }
 
+  // Returns all comparendos (scopeType=COMUNA) for every commune in a municipality.
+  async findByMuni(municipioId: number): Promise<Array<{ id: number; scopeId: number; date: Date; description: string; status: string; notes: string | null; updatedAt: Date }>> {
+    const comunas = await this.prisma.comuna.findMany({
+      where: { municipioId },
+      select: { id: true },
+    });
+    const comunaIds = comunas.map(c => c.id);
+    if (comunaIds.length === 0) return [];
+    return this.prisma.comparendo.findMany({
+      where: { scopeType: ScopeType.COMUNA, scopeId: { in: comunaIds } },
+      select: { id: true, scopeId: true, date: true, description: true, status: true, notes: true, updatedAt: true },
+      orderBy: { date: 'asc' as const },
+    });
+  }
+
   async update(
     id: number,
     dto: UpdateComparendoDto,

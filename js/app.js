@@ -369,7 +369,7 @@ function buildSB() {
 }
 function selMuni(n) {
   CUR = n; buildSB(); renderMuni(n);
-  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); loadAbogadosForMuni(n); loadMovilidadForMuni(n); loadRefrigeriosForMuni(n); });
+  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); loadAbogadosForMuni(n); loadMovilidadForMuni(n); loadRefrigeriosForMuni(n); loadComparendosForMuni(n); });
   _loadZonaIds().then(() => loadCoordsForMuni(n));
   loadAllTestigosForMuni(n);
 }
@@ -2038,50 +2038,88 @@ async function loadRefrigeriosForMuni(n) {
 }
 
 // ═══ COMPARENDOS (punto 7) ═══
+const _compEditMode = new Set(); // panel IDs currently in edit mode
+
+function _compEstadoBadge(estado) {
+  return estado === 'resuelto'
+    ? '<span style="font-size:10px;font-weight:700;background:#1a4a1a;color:#4caf50;border-radius:4px;padding:2px 7px">✓ Resuelto</span>'
+    : '<span style="font-size:10px;font-weight:700;background:#4a3a00;color:#ffc107;border-radius:4px;padding:2px 7px">⏳ Pendiente</span>';
+}
+
 function renderComparendosPanel(n, ck, id) {
   const pane = document.getElementById(id + '-comp');
   const s = gs(n);
   if (!s.comparendos) s.comparendos = {};
   if (!s.comparendos[ck]) s.comparendos[ck] = [];
   const list = s.comparendos[ck];
-  const rows = list.map((c, i) => `
-    <div class="comp-row" style="background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:10px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:10px;font-weight:700;color:var(--gold)">Comparendo #${i+1}</span>
-        <div style="display:flex;gap:6px;align-items:center">
-          <select style="font-size:10px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:4px;padding:2px 4px"
-            onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'estado',this.value)">
-            <option value="pendiente" ${c.estado==='pendiente'?'selected':''}>⏳ Pendiente</option>
-            <option value="resuelto" ${c.estado==='resuelto'?'selected':''}>✓ Resuelto</option>
-          </select>
-          <button class="del-btn" onclick="delComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'${id}')">×</button>
+  const ckE = ck.replace(/'/g, "\\'");
+  const hasData = list.length > 0;
+  const isEditing = _compEditMode.has(id) || !hasData;
+
+  if (!isEditing) {
+    // ── Vista: tarjetas read-only + botón Editar ──
+    const cards = list.map((c, i) => `
+      <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;font-weight:700;color:var(--gold)">Comparendo #${i+1}</span>
+          ${_compEstadoBadge(c.estado)}
         </div>
+        ${c.nombre ? `<div style="font-size:13px;font-weight:600;color:var(--fg);margin-bottom:3px">👤 ${esc(c.nombre)}</div>` : ''}
+        ${c.puesto ? `<div style="font-size:12px;color:var(--t2);margin-bottom:3px">📍 ${esc(c.puesto)}</div>` : ''}
+        <div style="display:flex;gap:12px;font-size:11px;color:var(--t3);margin-bottom:${c.notas?'4px':'0'}">
+          ${c.fecha ? `<span>📅 ${c.fecha}</span>` : ''}
+          ${c.tipo ? `<span>📋 ${esc(c.tipo)}</span>` : ''}
+        </div>
+        ${c.notas ? `<div style="font-size:11px;color:var(--t2);margin-top:4px;font-style:italic">${esc(c.notas)}</div>` : ''}
+      </div>`).join('');
+    pane.innerHTML = `<div class="mov-panel">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px">${list.length} comparendo(s) registrado(s)</div>
+      ${cards}
+      <button class="export-btn" style="font-size:12px;margin-top:4px" onclick="editComparendos('${n}','${ckE}','${id}')">✏️ Editar</button>
+    </div>`;
+  } else {
+    // ── Edición: formularios + Guardar / Cancelar ──
+    const rows = list.map((c, i) => `
+      <div class="comp-row" style="background:var(--bg3);border:1px solid var(--b1);border-radius:6px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:10px;font-weight:700;color:var(--gold)">Comparendo #${i+1}</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <select style="font-size:10px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:4px;padding:2px 4px"
+              onchange="updateComparendo('${n}','${ckE}',${i},'estado',this.value)">
+              <option value="pendiente" ${c.estado==='pendiente'?'selected':''}>⏳ Pendiente</option>
+              <option value="resuelto" ${c.estado==='resuelto'?'selected':''}>✓ Resuelto</option>
+            </select>
+            <button class="del-btn" onclick="delComparendo('${n}','${ckE}',${i},'${id}')">×</button>
+          </div>
+        </div>
+        <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Nombre" value="${esc(c.nombre || '')}"
+          onchange="updateComparendo('${n}','${ckE}',${i},'nombre',this.value)">
+        <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Puesto de votación" value="${esc(c.puesto || '')}"
+          onchange="updateComparendo('${n}','${ckE}',${i},'puesto',this.value)">
+        <div style="display:flex;gap:6px;margin-bottom:5px">
+          <input class="resp-phone-inp" style="flex:1" type="date" value="${c.fecha||''}"
+            onchange="updateComparendo('${n}','${ckE}',${i},'fecha',this.value)">
+          <input class="resp-phone-inp" style="flex:1" type="text" placeholder="Tipo" value="${esc(c.tipo || '')}"
+            onchange="updateComparendo('${n}','${ckE}',${i},'tipo',this.value)">
+        </div>
+        <textarea style="width:100%;font-size:11px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:4px;padding:5px;box-sizing:border-box;resize:vertical;min-height:48px" placeholder="Notas / descripción"
+          onchange="updateComparendo('${n}','${ckE}',${i},'notas',this.value)">${esc(c.notas || '')}</textarea>
+      </div>`).join('');
+    pane.innerHTML = `<div class="mov-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--t3)">${list.length} comparendo(s)</span>
+        <button class="resp-add-btn" onclick="addComparendo('${n}','${ckE}','${id}')">+ Agregar comparendo</button>
       </div>
-      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Nombre" value="${esc(c.nombre || '')}"
-        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'nombre',this.value)">
-      <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Puesto de votación" value="${esc(c.puesto)}"
-        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'puesto',this.value)">
-      <div style="display:flex;gap:6px;margin-bottom:5px">
-        <input class="resp-phone-inp" style="flex:1" type="date" value="${c.fecha||''}"
-          onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'fecha',this.value)">
-        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="Tipo" value="${esc(c.tipo)}"
-          onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'tipo',this.value)">
+      <div id="${id}-comp-list">${rows || '<div style="font-size:11px;color:var(--t3);text-align:center;padding:12px">Sin comparendos registrados</div>'}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <button class="mv-save-all" onclick="saveComparendos('${n}','${ckE}','${id}')">💾 Guardar comparendos</button>
+        ${hasData ? `<button class="export-btn" style="font-size:12px" onclick="cancelComparendos('${n}','${ckE}','${id}')">Cancelar</button>` : ''}
       </div>
-      <textarea style="width:100%;font-size:11px;background:var(--bg2);color:var(--t1);border:1px solid var(--b1);border-radius:4px;padding:5px;box-sizing:border-box;resize:vertical;min-height:48px" placeholder="Notas / descripción"
-        onchange="updateComparendo('${n}','${ck.replace(/'/g,"\\'")}',${i},'notas',this.value)">${esc(c.notas)}</textarea>
-    </div>`).join('');
-  pane.innerHTML = `<div class="mov-panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <span style="font-size:11px;color:var(--t3)">${list.length} comparendo(s) registrado(s)</span>
-      <button class="resp-add-btn" onclick="addComparendo('${n}','${ck.replace(/'/g,"\\'")}','${id}')">+ Agregar comparendo</button>
-    </div>
-    <div id="${id}-comp-list">${rows || '<div style="font-size:11px;color:var(--t3);text-align:center;padding:12px">Sin comparendos registrados</div>'}</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-      <button class="mv-save-all" onclick="saveComparendos('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar comparendos</button>
-      <span class="mv-ok" id="${id}-comp-ok">✓ Guardado</span>
-    </div>
-  </div>`;
+    </div>`;
+  }
 }
+function editComparendos(n, ck, id) { _compEditMode.add(id); renderComparendosPanel(n, ck, id); }
+function cancelComparendos(n, ck, id) { _compEditMode.delete(id); renderComparendosPanel(n, ck, id); }
 function updateComparendo(n, ck, idx, field, val) {
   const s = gs(n);
   if (!s.comparendos) s.comparendos = {};
@@ -2096,50 +2134,97 @@ function addComparendo(n, ck, id) {
   if (!s.comparendos[ck]) s.comparendos[ck] = [];
   s.comparendos[ck].push({ nombre: '', puesto: '', fecha: '', tipo: '', notas: '', estado: 'pendiente' });
   saveLocalSt();
-  // Best-effort API sync
-  if (window.api && window.CURRENT_USER) {
-    const muniBackendId = _puestoIdCache[n]?._muniId;
-    if (muniBackendId) {
-      const newC = s.comparendos[ck][s.comparendos[ck].length - 1];
-      api.post('/comparendos', {
-        scopeType: 'MUNICIPIO',
-        scopeId: muniBackendId,
-        date: newC.fecha ? new Date(newC.fecha).toISOString() : new Date().toISOString(),
-        description: newC.tipo || 'Sin descripción',
-        status: 'abierto',
-        notes: newC.notas || undefined,
-      }).then(created => {
-        newC._backendId = created.id;
-        saveLocalSt();
-      }).catch(err => _onWriteError('comparendo create failed', err));
-    }
-  }
+  _compEditMode.add(id);
   renderComparendosPanel(n, ck, id);
 }
 function delComparendo(n, ck, idx, id) {
   const s = gs(n);
+  const c = s.comparendos[ck][idx];
+  if (c?._backendId && window.api && window.CURRENT_USER) {
+    api.delete(`/comparendos/${c._backendId}`).catch(err => _onWriteError('comparendo delete failed', err));
+  }
   s.comparendos[ck].splice(idx, 1);
   saveLocalSt();
   renderComparendosPanel(n, ck, id);
 }
 function saveComparendos(n, ck, id) {
-  const ok = document.getElementById(id + '-comp-ok');
-  if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
-  // Best-effort API sync: patch existing comparendos
+  saveLocalSt();
   if (window.api && window.CURRENT_USER) {
-    const s = gs(n);
-    const list = s.comparendos?.[ck] || [];
-    for (const c of list) {
-      if (c._backendId) {
-        api.patch(`/comparendos/${c._backendId}`, {
-          date: c.fecha ? new Date(c.fecha).toISOString() : undefined,
-          description: c.tipo || undefined,
-          status: c.estado === 'resuelto' ? 'resuelto' : 'abierto',
-          notes: c.notas || undefined,
-        }).catch(err => _onWriteError('comparendo update failed', err));
+    const ccIds = _puestoIdCache[n]?._ccIds;
+    const comunaId = ccIds ? (ccIds[ck] ?? ccIds[(ck || '').toUpperCase()]) : undefined;
+    if (comunaId) {
+      const s = gs(n);
+      const list = s.comparendos?.[ck] || [];
+      for (const c of list) {
+        const notesJson = JSON.stringify({ nombre: c.nombre || '', puesto: c.puesto || '', notas: c.notas || '' });
+        if (c._backendId) {
+          api.patch(`/comparendos/${c._backendId}`, {
+            date: c.fecha ? new Date(c.fecha).toISOString() : undefined,
+            description: c.tipo || 'Sin tipo',
+            status: c.estado === 'resuelto' ? 'resuelto' : 'abierto',
+            notes: notesJson,
+          }).catch(err => _onWriteError('comparendo update failed', err));
+        } else {
+          api.post('/comparendos', {
+            scopeType: 'COMUNA',
+            scopeId: comunaId,
+            date: c.fecha ? new Date(c.fecha).toISOString() : new Date().toISOString(),
+            description: c.tipo || 'Sin tipo',
+            status: c.estado === 'resuelto' ? 'resuelto' : 'abierto',
+            notes: notesJson,
+          }).then(created => {
+            c._backendId = created.id;
+            saveLocalSt();
+          }).catch(err => _onWriteError('comparendo create failed', err));
+        }
       }
     }
   }
+  _compEditMode.delete(id); // switch to view mode
+  renderComparendosPanel(n, ck, id);
+}
+
+async function loadComparendosForMuni(n) {
+  if (!window.api || !window.CURRENT_USER) return;
+  const muniId = _puestoIdCache[n]?._muniId;
+  const ccIds = _puestoIdCache[n]?._ccIds;
+  if (!muniId || !ccIds) return;
+  try {
+    const items = await api.get(`/comparendos/by-muni/${muniId}`);
+    if (!Array.isArray(items) || items.length === 0) return;
+    // Build reverse map: comunaId → ck
+    const idToCk = {};
+    for (const [ck, cid] of Object.entries(ccIds)) {
+      if (ck.startsWith('_')) continue;
+      idToCk[cid] = ck;
+    }
+    const s = gs(n);
+    if (!s.comparendos) s.comparendos = {};
+    // Group items by commune
+    const byComuna = {};
+    for (const item of items) {
+      const ck = idToCk[item.scopeId];
+      if (!ck) continue;
+      if (!byComuna[ck]) byComuna[ck] = [];
+      let extra = { nombre: '', puesto: '', notas: '' };
+      try { extra = JSON.parse(item.notes || '{}'); } catch(e) {}
+      byComuna[ck].push({
+        _backendId: item.id,
+        nombre: extra.nombre || '',
+        puesto: extra.puesto || '',
+        notas: extra.notas || '',
+        tipo: item.description || '',
+        fecha: item.date ? item.date.slice(0, 10) : '',
+        estado: item.status === 'resuelto' ? 'resuelto' : 'pendiente',
+      });
+    }
+    let changed = false;
+    for (const [ck, list] of Object.entries(byComuna)) {
+      s.comparendos[ck] = list;
+      changed = true;
+    }
+    if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
+  } catch(e) { console.warn('[comp] load failed', e); }
 }
 
 // ═══ MAPA DE PUESTOS (punto 4) ═══
