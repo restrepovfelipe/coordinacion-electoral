@@ -28,6 +28,13 @@ import { UpdateRefrigerioDto } from './dto/update-refrigerio.dto.js';
 export class RefrigeriosController {
   constructor(private readonly refrigeriosService: RefrigeriosService) {}
 
+  @Get('by-muni/:municipioId')
+  findByMuni(
+    @Param('municipioId', ParseIntPipe) municipioId: number,
+  ) {
+    return this.refrigeriosService.findByMuni(municipioId);
+  }
+
   @Get()
   findByPuesto(
     @Query('puestoId', ParseIntPipe) puestoId: number,

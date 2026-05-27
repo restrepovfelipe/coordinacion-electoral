@@ -69,6 +69,21 @@ export class RefrigeriosService {
     });
   }
 
+  // Returns all refrigerios (scopeType=COMUNA) for every commune in a municipality.
+  async findByMuni(municipioId: number): Promise<Array<{ id: number; scopeId: number; notes: string | null; updatedAt: Date }>> {
+    const comunas = await this.prisma.comuna.findMany({
+      where: { municipioId },
+      select: { id: true },
+    });
+    const comunaIds = comunas.map(c => c.id);
+    if (comunaIds.length === 0) return [];
+    return this.prisma.refrigerio.findMany({
+      where: { scopeType: ScopeType.COMUNA, scopeId: { in: comunaIds } },
+      select: { id: true, scopeId: true, notes: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' as const },
+    });
+  }
+
   async update(
     id: number,
     dto: UpdateRefrigerioDto,

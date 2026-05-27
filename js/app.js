@@ -369,7 +369,7 @@ function buildSB() {
 }
 function selMuni(n) {
   CUR = n; buildSB(); renderMuni(n);
-  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); loadAbogadosForMuni(n); loadMovilidadForMuni(n); });
+  loadPuestoIds(n).then(() => { refreshCoordDisplay(n); loadCoordsForMuni(n); loadAbogadosForMuni(n); loadMovilidadForMuni(n); loadRefrigeriosForMuni(n); });
   _loadZonaIds().then(() => loadCoordsForMuni(n));
   loadAllTestigosForMuni(n);
 }
@@ -1946,22 +1946,25 @@ function updateRefrig(n, ck, field, val) {
 function saveRefrig(n, ck, id) {
   const ok = document.getElementById(id + '-refrig-ok');
   if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  saveLocalSt();
   // Best-effort API sync
   if (window.api && window.CURRENT_USER) {
-    const muniBackendId = _puestoIdCache[n]?._muniId;
-    if (muniBackendId) {
+    const ccIds = _puestoIdCache[n]?._ccIds;
+    const comunaId = ccIds ? (ccIds[ck] ?? ccIds[(ck || '').toUpperCase()]) : undefined;
+    if (comunaId) {
       const s = gs(n);
       const rf = s.refrigerios[ck];
       if (rf) {
+        const notesJson = JSON.stringify({ nombre: rf.nombre || '', telefono: rf.telefono || '' });
         if (rf._backendId) {
           api.patch(`/refrigerios/${rf._backendId}`, {
-            notes: rf.nombre || undefined,
+            notes: notesJson,
           }).catch(err => _onWriteError('refrigerio update failed', err));
         } else {
           api.post('/refrigerios', {
-            scopeType: 'MUNICIPIO',
-            scopeId: muniBackendId,
-            notes: rf.nombre || undefined,
+            scopeType: 'COMUNA',
+            scopeId: comunaId,
+            notes: notesJson,
           }).then(created => {
             rf._backendId = created.id;
             saveLocalSt();
@@ -1971,6 +1974,38 @@ function saveRefrig(n, ck, id) {
     }
   }
   renderRefrigPanel(n, ck, id);
+}
+
+async function loadRefrigeriosForMuni(n) {
+  if (!window.api || !window.CURRENT_USER) return;
+  const muniId = _puestoIdCache[n]?._muniId;
+  const ccIds = _puestoIdCache[n]?._ccIds;
+  if (!muniId || !ccIds) return;
+  try {
+    const items = await api.get(`/refrigerios/by-muni/${muniId}`);
+    if (!Array.isArray(items) || items.length === 0) return;
+    // Build reverse map: comunaId → ck
+    const idToCk = {};
+    for (const [ck, id] of Object.entries(ccIds)) {
+      if (ck.startsWith('_')) continue;
+      idToCk[id] = ck;
+    }
+    const s = gs(n);
+    if (!s.refrigerios) s.refrigerios = {};
+    let changed = false;
+    for (const item of items) {
+      const ck = idToCk[item.scopeId];
+      if (!ck) continue;
+      let parsed = { nombre: '', telefono: '' };
+      try { parsed = JSON.parse(item.notes || '{}'); } catch(e) { parsed = { nombre: item.notes || '', telefono: '' }; }
+      if (!s.refrigerios[ck]) s.refrigerios[ck] = {};
+      s.refrigerios[ck].nombre = parsed.nombre || '';
+      s.refrigerios[ck].telefono = parsed.telefono || '';
+      s.refrigerios[ck]._backendId = item.id;
+      changed = true;
+    }
+    if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
+  } catch(e) { console.warn('[refrig] load failed', e); }
 }
 
 // ═══ COMPARENDOS (punto 7) ═══
