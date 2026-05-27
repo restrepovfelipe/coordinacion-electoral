@@ -1913,29 +1913,57 @@ function saveAbogado(n, ck, id) {
 }
 
 // ═══ REFRIGERIOS (punto 6) ═══
+const _refrigEditMode = new Set(); // panel IDs currently in edit mode
+
 function renderRefrigPanel(n, ck, id) {
   const pane = document.getElementById(id + '-refrig');
   const s = gs(n);
   if (!s.refrigerios) s.refrigerios = {};
   if (!s.refrigerios[ck]) s.refrigerios[ck] = { nombre: '', telefono: '' };
   const rf = s.refrigerios[ck];
-  pane.innerHTML = `<div class="mov-panel">
-    <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Encargado de refrigerios para esta zona/comuna</div>
-    <div class="mof" style="margin-bottom:8px"><label style="font-size:10px;color:var(--t3)">Nombre</label>
-      <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(rf.nombre)}"
-        onchange="updateRefrig('${n}','${ck.replace(/'/g,"\\'")}','nombre',this.value)"></div>
-    <div class="mof" style="margin-bottom:12px"><label style="font-size:10px;color:var(--t3)">Teléfono / WhatsApp</label>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(rf.telefono)}"
-          onchange="updateRefrig('${n}','${ck.replace(/'/g,"\\'")}','telefono',this.value)">
-        ${rf.telefono ? `<a class="wa-btn" href="https://wa.me/57${rf.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
-      </div></div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <button class="mv-save-all" onclick="saveRefrig('${n}','${ck.replace(/'/g,"\\'")}','${id}')">💾 Guardar encargado</button>
-      <span class="mv-ok" id="${id}-refrig-ok">✓ Guardado</span>
-    </div>
-  </div>`;
+  const ckE = ck.replace(/'/g, "\\'");
+  const hasData = !!rf.nombre;
+  const isEditing = _refrigEditMode.has(id) || !hasData;
+
+  if (!isEditing) {
+    // ── Vista: mostrar datos guardados + botón Editar ──
+    pane.innerHTML = `<div class="mov-panel">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:12px">Encargado de refrigerios para esta zona/comuna</div>
+      <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:4px">🍱 ${esc(rf.nombre)}</div>
+        ${rf.telefono ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2)">
+          📞 ${esc(rf.telefono)}
+          <a class="wa-btn" href="https://wa.me/57${rf.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
+        </div>` : '<div style="font-size:12px;color:var(--t3)">Sin teléfono</div>'}
+      </div>
+      <button class="export-btn" style="font-size:12px" onclick="editRefrig('${n}','${ckE}','${id}')">✏️ Editar</button>
+    </div>`;
+  } else {
+    // ── Edición: inputs + Guardar / Cancelar ──
+    pane.innerHTML = `<div class="mov-panel">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Encargado de refrigerios para esta zona/comuna</div>
+      <div class="mof" style="margin-bottom:8px">
+        <label style="font-size:10px;color:var(--t3)">NOMBRE</label>
+        <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(rf.nombre)}"
+          onchange="updateRefrig('${n}','${ckE}','nombre',this.value)">
+      </div>
+      <div class="mof" style="margin-bottom:12px">
+        <label style="font-size:10px;color:var(--t3)">TELÉFONO / WHATSAPP</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(rf.telefono)}"
+            onchange="updateRefrig('${n}','${ckE}','telefono',this.value)">
+          ${rf.telefono ? `<a class="wa-btn" href="https://wa.me/57${rf.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="mv-save-all" onclick="saveRefrig('${n}','${ckE}','${id}')">💾 Guardar encargado</button>
+        ${hasData ? `<button class="export-btn" style="font-size:12px" onclick="cancelRefrig('${n}','${ckE}','${id}')">Cancelar</button>` : ''}
+      </div>
+    </div>`;
+  }
 }
+function editRefrig(n, ck, id) { _refrigEditMode.add(id); renderRefrigPanel(n, ck, id); }
+function cancelRefrig(n, ck, id) { _refrigEditMode.delete(id); renderRefrigPanel(n, ck, id); }
 function updateRefrig(n, ck, field, val) {
   const s = gs(n);
   if (!s.refrigerios) s.refrigerios = {};
@@ -1944,8 +1972,8 @@ function updateRefrig(n, ck, field, val) {
   saveLocalSt();
 }
 function saveRefrig(n, ck, id) {
-  const ok = document.getElementById(id + '-refrig-ok');
-  if (ok) { ok.style.opacity = 1; setTimeout(() => { ok.style.opacity = 0; }, 2000); }
+  const s0 = gs(n);
+  if (!s0.refrigerios?.[ck]?.nombre) return; // no guardar vacío
   saveLocalSt();
   // Best-effort API sync
   if (window.api && window.CURRENT_USER) {
@@ -1973,6 +2001,7 @@ function saveRefrig(n, ck, id) {
       }
     }
   }
+  _refrigEditMode.delete(id); // switch to view mode
   renderRefrigPanel(n, ck, id);
 }
 
