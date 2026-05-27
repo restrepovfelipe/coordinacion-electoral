@@ -1514,22 +1514,44 @@ function closeDirectorio() { document.getElementById('dir-modal').style.display 
 function renderDirectorio() {
   const el = document.getElementById('dir-content'); let html = '';
   ALL_MUNIS.forEach(n => {
-    if (!RAW[n]) return; const s = gs(n); const items = [];
-    if (s.coord) items.push({ rol: `Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}`, nombre: s.coord, phone: s.phone || '', zona: '' });
+    if (!RAW[n]) return; const s = gs(n);
+    const muniLabel = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+
+    // ── Municipality-level coordinator header ──
+    if (s.coord) {
+      html += `<div class="dir-section" style="margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="margin:0">${muniLabel}</h3>
+          <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="exportPDF('muni','${n}','')">📄 PDF municipio</button>
+        </div>
+        <div class="dir-row">
+          <div><div class="dir-name">${esc(s.coord)}</div><div class="dir-role">Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}</div></div>
+          <div class="dir-phone">${s.phone ? esc(s.phone) : '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
+        </div></div>`;
+    }
+
+    // ── Per-commune sections ──
     Object.keys(RAW[n]).sort().forEach(ck => {
       const sc = (s.comunas || {})[ck] || {};
-      if (sc.coord) items.push({ rol: 'Coord. zona', nombre: sc.coord, phone: sc.phone || '', zona: ck });
+      const items = [];
+      if (sc.coord) items.push({ rol: 'Coord. zona/comuna', nombre: sc.coord, phone: sc.phone || '' });
       RAW[n][ck].forEach(p => {
         const ps = (s.puestos || {})[pk(p)] || {};
-        if (ps.coord) items.push({ rol: 'Coord. puesto', nombre: ps.coord, phone: ps.phone || '', zona: p.puesto });
+        if (ps.coord) items.push({ rol: 'Coord. puesto · ' + p.puesto, nombre: ps.coord, phone: ps.phone || '' });
       });
+      if (!items.length) return;
+      const ckE = ck.replace(/'/g, "\\'");
+      const exportCall = n === 'MEDELLIN' ? `exportPDF('comuna','MEDELLIN','${ckE}')` : `exportPDF('muni','${n}','')`;
+      html += `<div class="dir-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="margin:0;font-size:13px">${esc(ck)}</h3>
+          <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="${exportCall}">📄 PDF</button>
+        </div>
+        ${items.map(it => `<div class="dir-row">
+          <div><div class="dir-name">${esc(it.nombre)}</div><div class="dir-role">${esc(it.rol)}</div></div>
+          <div class="dir-phone">${it.phone ? esc(it.phone) : '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
+        </div>`).join('')}</div>`;
     });
-    if (!items.length) return;
-    html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n} (${items.length})</h3>
-      ${items.map(it => `<div class="dir-row">
-        <div><div class="dir-name">${esc(it.nombre)}</div><div class="dir-role">${esc(it.rol)}${it.zona ? ' · ' + esc(it.zona) : ''}</div></div>
-        <div class="dir-phone">${it.phone ? esc(it.phone) : '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
-      </div>`).join('')}</div>`;
   });
   if (!html) html = '<div class="dir-empty">Aún no hay coordinadores registrados.</div>';
   el.innerHTML = html;
