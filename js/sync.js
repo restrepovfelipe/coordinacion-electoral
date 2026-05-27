@@ -139,6 +139,7 @@ function handleRealtimeEvent(event) {
     const scopeId   = event.scopeId   ?? event.payload?.scopeId;
     const nombre    = event.payload?.nombre    ?? null;
     const telefono  = event.payload?.telefono  ?? null;
+    const tag       = event.payload?.tag       ?? null;
 
     if (scopeId !== undefined && typeof gs !== 'undefined' && typeof saveLocalSt !== 'undefined') {
       if (scopeType === 'MUNICIPIO') {
@@ -198,6 +199,7 @@ function handleRealtimeEvent(event) {
                   if (!s.puestos[key]) s.puestos[key] = {};
                   s.puestos[key].coord = nombre || '';
                   s.puestos[key].phone = telefono || '';
+                  if (tag !== null) s.puestos[key].tag = tag;
                   saveLocalSt();
                   break;
                 }

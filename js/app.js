@@ -422,10 +422,10 @@ async function loadCoordsForMuni(n) {
         }
       }
       if (!s.puestos) s.puestos = {};
-      for (const { puestoId, nombre, telefono } of list) {
+      for (const { puestoId, nombre, telefono, tag } of list) {
         const pkStr = idToPk[puestoId];
         if (!pkStr) continue;
-        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '' };
+        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '', tag: tag || 'n' };
         changed = true;
       }
     } catch(e) {}
@@ -861,7 +861,7 @@ async function savePCard(n, k, ck, pcid) {
   if (window.api && window.CURRENT_USER) {
     const puestoId = getPuestoBackendId(n, k); // k is pk string, now stored in cache
     if (puestoId) {
-      api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null })
+      api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null, tag: tag || null })
         .catch(err => { if (err?.status !== 409) _onWriteError('coord puesto adhoc patch failed', err); });
     }
   }

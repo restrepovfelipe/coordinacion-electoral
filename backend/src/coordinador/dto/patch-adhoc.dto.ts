@@ -10,4 +10,9 @@ export class PatchAdhocDto {
   @IsString()
   @MaxLength(50)
   telefono?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  tag?: string | null;
 }
