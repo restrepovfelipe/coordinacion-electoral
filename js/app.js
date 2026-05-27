@@ -1522,7 +1522,7 @@ function renderDirectorio() {
       html += `<div class="dir-section" style="margin-bottom:6px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <h3 style="margin:0">${muniLabel}</h3>
-          <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="exportPDF('muni','${n}','')">📄 PDF municipio</button>
+          <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="exportDirectorioSeccionPDF('${n}','')">📄 PDF municipio</button>
         </div>
         <div class="dir-row">
           <div><div class="dir-name">${esc(s.coord)}</div><div class="dir-role">Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}</div></div>
@@ -1541,11 +1541,10 @@ function renderDirectorio() {
       });
       if (!items.length) return;
       const ckE = ck.replace(/'/g, "\\'");
-      const exportCall = n === 'MEDELLIN' ? `exportPDF('comuna','MEDELLIN','${ckE}')` : `exportPDF('muni','${n}','')`;
       html += `<div class="dir-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <h3 style="margin:0;font-size:13px">${esc(ck)}</h3>
-          <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="${exportCall}">📄 PDF</button>
+          <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="exportDirectorioSeccionPDF('${n}','${ckE}')">📄 PDF</button>
         </div>
         ${items.map(it => `<div class="dir-row">
           <div><div class="dir-name">${esc(it.nombre)}</div><div class="dir-role">${esc(it.rol)}</div></div>
@@ -1556,31 +1555,72 @@ function renderDirectorio() {
   if (!html) html = '<div class="dir-empty">Aún no hay coordinadores registrados.</div>';
   el.innerHTML = html;
 }
-function exportDirectorioPDF() {
-  const now = new Date().toLocaleString('es-CO'); let sections = '';
-  ALL_MUNIS.forEach(n => {
-    if (!RAW[n]) return; const s = gs(n); const items = [];
-    if (s.coord) items.push({ rol: `Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}`, nombre: s.coord, phone: s.phone || '', zona: '' });
-    Object.keys(RAW[n]).sort().forEach(ck => {
-      const sc = (s.comunas || {})[ck] || {};
-      if (sc.coord) items.push({ rol: 'Coord. zona', nombre: sc.coord, phone: sc.phone || '', zona: ck });
-      RAW[n][ck].forEach(p => {
-        const ps = (s.puestos || {})[pk(p)] || {};
-        if (ps.coord) items.push({ rol: 'Coord. puesto', nombre: ps.coord, phone: ps.phone || '', zona: p.puesto });
-      });
+// Build coordinator-only table rows for a municipality (optionally filtered to one commune)
+function _dirCoordRows(n, ckFilter) {
+  if (!RAW[n]) return [];
+  const s = gs(n); const items = [];
+  if (!ckFilter && s.coord) items.push({ rol: `Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}`, nombre: s.coord, phone: s.phone || '', zona: '—' });
+  Object.keys(RAW[n]).sort().filter(ck => !ckFilter || ck === ckFilter).forEach(ck => {
+    const sc = (s.comunas || {})[ck] || {};
+    if (sc.coord) items.push({ rol: 'Coord. zona/comuna', nombre: sc.coord, phone: sc.phone || '', zona: ck });
+    RAW[n][ck].forEach(p => {
+      const ps = (s.puestos || {})[pk(p)] || {};
+      if (ps.coord) items.push({ rol: 'Coord. puesto', nombre: ps.coord, phone: ps.phone || '', zona: p.puesto });
     });
-    if (!items.length) return;
-    sections += `<div style="margin-bottom:20px;page-break-inside:avoid">
-      <h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:6px;margin-bottom:10px;font-size:14px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>
-      <table style="width:100%;border-collapse:collapse;font-size:11px">
-        <tr style="background:#f0f0f0"><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Rol</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Teléfono</th></tr>
-        ${items.map(it => `<tr><td style="padding:5px 8px;border:1px solid #ddd">${esc(it.nombre)}</td><td style="padding:5px 8px;border:1px solid #ddd">${esc(it.rol)}</td><td style="padding:5px 8px;border:1px solid #ddd">${it.zona ? esc(it.zona) : '—'}</td><td style="padding:5px 8px;border:1px solid #ddd">${it.phone ? esc(it.phone) : '—'}</td></tr>`).join('')}
-      </table></div>`;
+  });
+  return items;
+}
+
+function _dirBuildHTML(title, sections) {
+  const now = new Date().toLocaleString('es-CO');
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px}h1{font-size:16px;color:#1a2030;margin-bottom:4px}.meta{font-size:11px;color:#666;margin-bottom:20px}@media print{body{padding:10px}}</style>
+  </head><body>
+    <h1>👥 ${title}</h1><div class="meta">Generado: ${now} · Coordinación Electoral AMVA 2026</div>
+    ${sections || '<p>Sin coordinadores registrados.</p>'}
+  </body></html>`;
+}
+
+function _dirSectionHTML(label, items) {
+  if (!items.length) return '';
+  return `<div style="margin-bottom:20px;page-break-inside:avoid">
+    <h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:6px;margin-bottom:10px;font-size:13px">${label}</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tr style="background:#f0f0f0">
+        <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Nombre</th>
+        <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Rol</th>
+        <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Zona / Puesto</th>
+        <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Teléfono</th>
+      </tr>
+      ${items.map(it => `<tr>
+        <td style="padding:5px 8px;border:1px solid #ddd">${esc(it.nombre)}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd">${esc(it.rol)}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd">${esc(it.zona) || '—'}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd">${it.phone ? esc(it.phone) : '—'}</td>
+      </tr>`).join('')}
+    </table></div>`;
+}
+
+// Export full AMVA coordinators directory (called from modal header button)
+function exportDirectorioPDF() {
+  let sections = '';
+  ALL_MUNIS.forEach(n => {
+    const items = _dirCoordRows(n, null);
+    if (items.length) sections += _dirSectionHTML(n === 'MEDELLIN' ? 'MEDELLÍN' : n, items);
   });
   const win = window.open('', '_blank', 'width=900,height=700');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Directorio</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body>
-    <h1>👥 Directorio de Coordinadores — AMVA 2026</h1><div style="font-size:11px;color:#666;margin-bottom:24px">Generado: ${now}</div>
-    ${sections || '<p>Sin coordinadores registrados.</p>'}</body></html>`);
+  win.document.write(_dirBuildHTML('Directorio de Coordinadores — AMVA 2026', sections));
+  win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+}
+
+// Export coordinators directory for a single commune or municipality (called from modal per-section buttons)
+function exportDirectorioSeccionPDF(n, ck) {
+  const items = _dirCoordRows(n, ck || null);
+  const label = ck ? ck : (n === 'MEDELLIN' ? 'MEDELLÍN' : n);
+  const title = `Directorio de Coordinadores — ${label}`;
+  const sections = _dirSectionHTML(label, items);
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(_dirBuildHTML(title, sections));
   win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
 }
 
