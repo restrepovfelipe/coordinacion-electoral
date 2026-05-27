@@ -130,7 +130,11 @@ function _applyDashboardStatsToDom() {
 // Load puesto backend IDs for a municipality from the API
 async function loadPuestoIds(muniName) {
   if (!window.api || !window.CURRENT_USER) return;
-  if (_puestoIdCache[muniName]) return; // already loaded
+  // Re-load if cache exists but pk→id mapping was not built (legacy cache without pk keys)
+  if (_puestoIdCache[muniName] && _puestoIdCache[muniName]._pkMapped) return;
+  if (_puestoIdCache[muniName] && !_puestoIdCache[muniName]._pkMapped) {
+    delete _puestoIdCache[muniName]; // force reload to build pk→id map
+  }
 
   try {
     // Get municipio ID first
@@ -145,8 +149,21 @@ async function loadPuestoIds(muniName) {
     ]);
     _puestoIdCache[muniName] = {};
     _puestoIdCache[muniName]._muniId = muni.id;
+    _puestoIdCache[muniName]._pkMapped = true;
+    // Build name→id map
+    const nameToId = {};
     for (const p of puestos) {
       _puestoIdCache[muniName][p.name.toUpperCase()] = p.id;
+      nameToId[p.name.toUpperCase()] = p.id;
+    }
+    // Also build pk→id map by cross-referencing RAW data
+    if (typeof RAW !== 'undefined' && RAW[muniName]) {
+      for (const rawPuestos of Object.values(RAW[muniName])) {
+        for (const rp of rawPuestos) {
+          const id = nameToId[(rp.puesto || '').toUpperCase()];
+          if (id) _puestoIdCache[muniName][`${rp.dd}_${rp.mm}_${rp.zz}_${rp.pp}`] = id;
+        }
+      }
     }
     _puestoIdCache[muniName]._ccIds = {};
     for (const c of (comunas || [])) {
@@ -842,7 +859,7 @@ async function savePCard(n, k, ck, pcid) {
   saveLocalSt();
   await writeMuni(n);
   if (window.api && window.CURRENT_USER) {
-    const puestoId = getPuestoIdByPk(n, k);
+    const puestoId = getPuestoBackendId(n, k); // k is pk string, now stored in cache
     if (puestoId) {
       api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null })
         .catch(err => { if (err?.status !== 409) _onWriteError('coord puesto adhoc patch failed', err); });
