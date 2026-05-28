@@ -445,20 +445,31 @@ async function loadAbogadosForMuni(n) {
     if (!Array.isArray(abogados) || abogados.length === 0) return;
     const s = gs(n);
     if (!s.abogados) s.abogados = {};
+    // Reset arrays for this muni so we get a clean load from backend
+    const seenCks = new Set(abogados.map(a => a.notes).filter(Boolean));
+    seenCks.forEach(ck => { s.abogados[ck] = []; });
     let changed = false;
     for (const ab of abogados) {
       const ck = ab.notes; // commune key stored in notes field
       if (!ck) continue;
-      s.abogados[ck] = {
+      if (!Array.isArray(s.abogados[ck])) s.abogados[ck] = [];
+      s.abogados[ck].push({
         nombre: ab.name || '',
         telefono: ab.phone || '',
-        firma: '',
         _backendId: ab.id,
-      };
+      });
       changed = true;
     }
     if (changed) { saveLocalSt(); if (n === CUR) rerenderIfNotEditing(); }
   } catch(e) {}
+}
+// Helper: ensure s.abogados[ck] is always an array (migrate old single-object format)
+function _abogList(s, ck) {
+  if (!s.abogados) s.abogados = {};
+  const cur = s.abogados[ck];
+  if (!cur) { s.abogados[ck] = []; }
+  else if (!Array.isArray(cur)) { s.abogados[ck] = cur.nombre ? [{ nombre: cur.nombre, telefono: cur.telefono || '', _backendId: cur._backendId || null }] : []; }
+  return s.abogados[ck];
 }
 
 function goHome() {
@@ -1885,82 +1896,109 @@ function buildPrintHTML(tipo, muni, ck) {
 }
 
 // ═══ ABOGADO (punto 2) ═══
-const _abogEditMode = new Set(); // panel IDs currently in edit mode
+const _abogEditMode = new Set(); // strings "${panelId}:${index}" for items in edit mode
 
 function renderAbogadoPanel(n, ck, id) {
   const pane = document.getElementById(id + '-abog');
   const s = gs(n);
-  if (!s.abogados) s.abogados = {};
-  if (!s.abogados[ck]) s.abogados[ck] = { nombre: '', firma: '', telefono: '' };
-  const ab = s.abogados[ck];
+  const list = _abogList(s, ck);
   const ckE = ck.replace(/'/g, "\\'");
-  const hasData = !!ab.nombre;
-  const isEditing = _abogEditMode.has(id) || !hasData;
 
-  if (!isEditing) {
-    // ── Vista: mostrar datos guardados + botón Editar ──
-    pane.innerHTML = `<div class="mov-panel">
-      <div style="font-size:11px;color:var(--t3);margin-bottom:12px">Abogado responsable de esta zona/comuna</div>
-      <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px;margin-bottom:12px">
-        <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:4px">⚖️ ${esc(ab.nombre)}</div>
-        ${ab.telefono ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2)">
-          📞 ${esc(ab.telefono)}
-          <a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
-        </div>` : '<div style="font-size:12px;color:var(--t3)">Sin teléfono</div>'}
-      </div>
-      <button class="export-btn" style="font-size:12px" onclick="editAbogado('${n}','${ckE}','${id}')">✏️ Editar</button>
-    </div>`;
-  } else {
-    // ── Edición: inputs + Guardar / Cancelar ──
-    pane.innerHTML = `<div class="mov-panel">
-      <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Abogado responsable de esta zona/comuna</div>
-      <div class="mof" style="margin-bottom:8px">
-        <label style="font-size:10px;color:var(--t3)">NOMBRE</label>
-        <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(ab.nombre)}"
-          onchange="updateAbogado('${n}','${ckE}','nombre',this.value)">
-      </div>
-      <div class="mof" style="margin-bottom:12px">
-        <label style="font-size:10px;color:var(--t3)">TELÉFONO / WHATSAPP</label>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(ab.telefono)}"
-            onchange="updateAbogado('${n}','${ckE}','telefono',this.value)">
-          ${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
+  let html = `<div class="mov-panel">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:12px">Abogados responsables de esta zona/comuna</div>`;
+
+  list.forEach((ab, i) => {
+    const isEditing = _abogEditMode.has(`${id}:${i}`);
+    if (!isEditing) {
+      html += `<div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:3px">⚖️ ${esc(ab.nombre)}</div>
+            ${ab.telefono ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2)">
+              📞 ${esc(ab.telefono)}
+              <a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
+            </div>` : '<div style="font-size:12px;color:var(--t3)">Sin teléfono</div>'}
+          </div>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button class="export-btn" style="font-size:11px;padding:3px 8px" onclick="editAbogadoItem('${n}','${ckE}','${id}',${i})">✏️</button>
+            <button class="export-btn" style="font-size:11px;padding:3px 8px;color:#e53" onclick="delAbogadoItem('${n}','${ckE}','${id}',${i})">🗑️</button>
+          </div>
         </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="mv-save-all" onclick="saveAbogado('${n}','${ckE}','${id}')">💾 Guardar abogado</button>
-        ${hasData ? `<button class="export-btn" style="font-size:12px" onclick="cancelAbogado('${n}','${ckE}','${id}')">Cancelar</button>` : ''}
-      </div>
-    </div>`;
+      </div>`;
+    } else {
+      html += `<div style="background:var(--bg2);border:2px solid var(--accent,#f5c842);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div class="mof" style="margin-bottom:8px">
+          <label style="font-size:10px;color:var(--t3)">NOMBRE</label>
+          <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(ab.nombre)}"
+            onchange="updateAbogadoItem('${n}','${ckE}',${i},'nombre',this.value)">
+        </div>
+        <div class="mof" style="margin-bottom:10px">
+          <label style="font-size:10px;color:var(--t3)">TELÉFONO / WHATSAPP</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="resp-phone-inp" style="flex:1" type="text" placeholder="300 000 0000" value="${esc(ab.telefono || '')}"
+              onchange="updateAbogadoItem('${n}','${ckE}',${i},'telefono',this.value)">
+            ${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="mv-save-all" onclick="saveAbogadoItem('${n}','${ckE}','${id}',${i})">💾 Guardar</button>
+          ${ab.nombre ? `<button class="export-btn" style="font-size:12px" onclick="cancelAbogadoItem('${n}','${ckE}','${id}',${i})">Cancelar</button>` : ''}
+        </div>
+      </div>`;
+    }
+  });
+
+  html += `<button class="export-btn" style="font-size:12px;margin-top:4px" onclick="addAbogadoItem('${n}','${ckE}','${id}')">➕ Agregar abogado</button>
+  </div>`;
+
+  pane.innerHTML = html;
+}
+
+function editAbogadoItem(n, ck, id, i) { _abogEditMode.add(`${id}:${i}`); renderAbogadoPanel(n, ck, id); }
+function cancelAbogadoItem(n, ck, id, i) {
+  const s = gs(n); const list = _abogList(s, ck);
+  if (!list[i]?.nombre) { list.splice(i, 1); saveLocalSt(); } // remove blank entry
+  _abogEditMode.delete(`${id}:${i}`); renderAbogadoPanel(n, ck, id);
+}
+function addAbogadoItem(n, ck, id) {
+  const s = gs(n); const list = _abogList(s, ck);
+  list.push({ nombre: '', telefono: '', _backendId: null });
+  _abogEditMode.add(`${id}:${list.length - 1}`);
+  saveLocalSt(); renderAbogadoPanel(n, ck, id);
+}
+function updateAbogadoItem(n, ck, i, field, val) {
+  const s = gs(n); const list = _abogList(s, ck);
+  if (list[i]) { list[i][field] = val; saveLocalSt(); }
+}
+function delAbogadoItem(n, ck, id, i) {
+  const s = gs(n); const list = _abogList(s, ck);
+  if (!list[i]) return;
+  const ab = list[i];
+  if (ab._backendId && window.api && window.CURRENT_USER) {
+    api.delete(`/abogados/${ab._backendId}`).catch(err => _onWriteError('abogado delete failed', err));
   }
+  list.splice(i, 1);
+  // Clean up any edit mode keys for this panel (re-index)
+  [..._abogEditMode].filter(k => k.startsWith(`${id}:`)).forEach(k => _abogEditMode.delete(k));
+  saveLocalSt(); renderAbogadoPanel(n, ck, id);
 }
-function editAbogado(n, ck, id) { _abogEditMode.add(id); renderAbogadoPanel(n, ck, id); }
-function cancelAbogado(n, ck, id) { _abogEditMode.delete(id); renderAbogadoPanel(n, ck, id); }
-function updateAbogado(n, ck, field, val) {
-  const s = gs(n);
-  if (!s.abogados) s.abogados = {};
-  if (!s.abogados[ck]) s.abogados[ck] = { nombre: '', firma: '', telefono: '' };
-  s.abogados[ck][field] = val;
+function saveAbogadoItem(n, ck, id, i) {
+  const s = gs(n); const list = _abogList(s, ck);
+  const ab = list[i];
+  if (!ab?.nombre) return;
   saveLocalSt();
-}
-function saveAbogado(n, ck, id) {
-  const s = gs(n);
-  const ab = s.abogados?.[ck];
-  if (!ab?.nombre) return; // don't save empty
-  saveLocalSt();
-  // Best-effort API sync
   if (window.api && window.CURRENT_USER) {
     const muniBackendId = _puestoIdCache[n]?._muniId;
     if (muniBackendId) {
       if (ab._backendId) {
         api.patch(`/abogados/${ab._backendId}`, {
-          name: ab.nombre || '',
+          name: ab.nombre,
           phone: ab.telefono || undefined,
           notes: ck,
         }).catch(err => _onWriteError('abogado update failed', err));
       } else {
         api.post(`/municipios/${muniBackendId}/abogados`, {
-          name: ab.nombre || '',
+          name: ab.nombre,
           phone: ab.telefono || undefined,
           notes: ck,
         }).then(created => {
@@ -1970,9 +2008,14 @@ function saveAbogado(n, ck, id) {
       }
     }
   }
-  _abogEditMode.delete(id); // switch to view mode
+  _abogEditMode.delete(`${id}:${i}`);
   renderAbogadoPanel(n, ck, id);
 }
+// Legacy stubs kept for safety (not called from new UI)
+function editAbogado(n, ck, id) { editAbogadoItem(n, ck, id, 0); }
+function cancelAbogado(n, ck, id) { cancelAbogadoItem(n, ck, id, 0); }
+function updateAbogado(n, ck, field, val) { updateAbogadoItem(n, ck, 0, field, val); }
+function saveAbogado(n, ck, id) { saveAbogadoItem(n, ck, id, 0); }
 
 // ═══ REFRIGERIOS (punto 6) ═══
 const _refrigEditMode = new Set(); // panel IDs currently in edit mode
@@ -2390,10 +2433,12 @@ function renderDirAbogados() {
     if (!RAW[n]) return;
     const s = gs(n); let muniHtml = '';
     Object.keys(RAW[n]).sort().forEach(ck => {
-      const ab = s.abogados?.[ck];
-      if (!ab || !ab.nombre) return;
-      muniHtml += `<div class="dir-row" style="margin-bottom:6px"><div><div class="dir-name">${esc(ab.nombre)}</div><div class="dir-role">⚖️ Abogado · ${ck}${ab.firma ? ' · ' + esc(ab.firma) : ''}</div></div>
-        <div class="dir-phone">${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${esc(ab.telefono)}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`;
+      const list = Array.isArray(s.abogados?.[ck]) ? s.abogados[ck]
+                 : (s.abogados?.[ck]?.nombre ? [s.abogados[ck]] : []);
+      list.filter(ab => ab.nombre).forEach(ab => {
+        muniHtml += `<div class="dir-row" style="margin-bottom:6px"><div><div class="dir-name">${esc(ab.nombre)}</div><div class="dir-role">⚖️ Abogado · ${esc(ck)}</div></div>
+          <div class="dir-phone">${ab.telefono ? `<a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${esc(ab.telefono)}` : '<span style="color:var(--t3)">Sin teléfono</span>'}</div></div>`;
+      });
     });
     if (!muniHtml) return;
     html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>${muniHtml}</div>`;
@@ -2406,11 +2451,14 @@ function exportDirAbogadosPDF() {
     if (!RAW[n]) return;
     const s = gs(n); let muniRows = '';
     Object.keys(RAW[n]).sort().forEach(ck => {
-      const ab = s.abogados?.[ck];
-      if (ab && ab.nombre) muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${ck}</td><td style="padding:4px 8px;border:1px solid #ddd">${esc(ab.nombre)}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.firma ? esc(ab.firma) : '—'}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono ? esc(ab.telefono) : '—'}</td></tr>`;
+      const list = Array.isArray(s.abogados?.[ck]) ? s.abogados[ck]
+                 : (s.abogados?.[ck]?.nombre ? [s.abogados[ck]] : []);
+      list.filter(ab => ab.nombre).forEach(ab => {
+        muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${esc(ck)}</td><td style="padding:4px 8px;border:1px solid #ddd">${esc(ab.nombre)}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono ? esc(ab.telefono) : '—'}</td></tr>`;
+      });
     });
     if (!muniRows) return;
-    sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Firma</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>${muniRows}</table></div>`;
+    sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona/Comuna</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>${muniRows}</table></div>`;
   });
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Abogados</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body><h1 style="font-size:16px;color:#1a2030">Directorio de Abogados</h1><div style="font-size:11px;color:#666;margin-bottom:20px">Generado: ${now}</div>${sections||'<p>Sin abogados registrados.</p>'}</body></html>`);
