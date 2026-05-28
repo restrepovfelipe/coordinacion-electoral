@@ -673,7 +673,7 @@ function buildZonaCard(n, zona) {
         <div class="zona-card-coord">
           <span>Coord:</span><span id="${zid}-cv">${esc(sz.coord) || '—'}</span>
           <span id="${zid}-phone-wa">${sz.phone ? `<span>· ${esc(sz.phone)}</span><a class="wa-btn" href="https://wa.me/57${sz.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}</span>
-          <button class="zona-ced" onclick="event.stopPropagation();editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
+          ${_isReadOnly() ? '' : `<button class="zona-ced" onclick="event.stopPropagation();editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>`}
         </div>
       </div>
       <div class="chev${isOpen ? ' op' : ''}">▾</div>
@@ -826,16 +826,22 @@ function buildPT(n, puestos, ckKey) {
         <div class="pc-section">
           <div class="pc-section-title">Coordinador del puesto</div>
           <div class="pc-coord-row">
-            <input class="pc-inp" type="text" placeholder="Nombre coordinador" value="${esc(ps.coord)}" id="${pcid}-coord">
-            <input class="pc-inp" type="text" placeholder="Teléfono" value="${esc(ps.phone)}" id="${pcid}-phone" style="max-width:150px">
-            <select class="pc-inp" id="${pcid}-tag" style="max-width:130px">
-              <option value="n" ${t === 'n' ? 'selected' : ''}>Sin estado</option>
-              <option value="ok" ${t === 'ok' ? 'selected' : ''}>✓ Cubierto</option>
-              <option value="pr" ${t === 'pr' ? 'selected' : ''}>★ Prioritario</option>
-              <option value="pe" ${t === 'pe' ? 'selected' : ''}>⏳ Pendiente</option>
-              <option value="al" ${t === 'al' ? 'selected' : ''}>⚠ Alerta</option>
-            </select>
-            <button class="pc-save" onclick="savePCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}','${pcid}')">💾 Guardar</button>
+            ${_isReadOnly() ? `
+              <span style="font-size:13px;color:var(--t1)">${esc(ps.coord) || '—'}</span>
+              ${ps.phone ? `<span style="font-size:12px;color:var(--t2)">&nbsp;· ${esc(ps.phone)}</span>` : ''}
+              <span class="${tg.cls}" style="cursor:default;margin-left:6px">${tg.lbl}</span>
+            ` : `
+              <input class="pc-inp" type="text" placeholder="Nombre coordinador" value="${esc(ps.coord)}" id="${pcid}-coord">
+              <input class="pc-inp" type="text" placeholder="Teléfono" value="${esc(ps.phone)}" id="${pcid}-phone" style="max-width:150px">
+              <select class="pc-inp" id="${pcid}-tag" style="max-width:130px">
+                <option value="n" ${t === 'n' ? 'selected' : ''}>Sin estado</option>
+                <option value="ok" ${t === 'ok' ? 'selected' : ''}>✓ Cubierto</option>
+                <option value="pr" ${t === 'pr' ? 'selected' : ''}>★ Prioritario</option>
+                <option value="pe" ${t === 'pe' ? 'selected' : ''}>⏳ Pendiente</option>
+                <option value="al" ${t === 'al' ? 'selected' : ''}>⚠ Alerta</option>
+              </select>
+              <button class="pc-save" onclick="savePCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}','${pcid}')">💾 Guardar</button>
+            `}
           </div>
         </div>
         <div class="pc-info-row">
@@ -917,7 +923,7 @@ function renderAllPuestos(n) {
       html += `<div class="zona-hdr">
         <span style="flex:1">${zona.nombre}</span>
         ${sz.coord ? `<span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--blue);font-weight:600">👤 ${esc(sz.coord)}${sz.phone ? ' · ' + esc(sz.phone) : ''}</span>` : ''}
-        <button class="zona-ced" onclick="editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>
+        ${_isReadOnly() ? '' : `<button class="zona-ced" onclick="editZona('${n}','${zona.nombre.replace(/'/g, "\\'")}')">✎</button>`}
       </div>`;
       zona.comunas.forEach(ck => { if (RAW[n][ck]) html += buildAllPuestosSection(n, ck, RAW[n][ck], s); });
     });
