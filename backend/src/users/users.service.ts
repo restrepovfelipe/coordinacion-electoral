@@ -26,6 +26,7 @@ const ROLE_SCOPE_TYPE: Record<Role, ScopeType | null> = {
   [Role.ZONE_COORDINATOR]: ScopeType.ZONA,
   [Role.COMUNA_COORDINATOR]: ScopeType.COMUNA,
   [Role.PUESTO_COORDINATOR]: ScopeType.PUESTO,
+  [Role.VIEWER]: null,
 };
 type UserWithoutCipUid = Omit<UserWithScopesResult, 'cipUid'>;
 

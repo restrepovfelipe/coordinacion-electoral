@@ -4,6 +4,9 @@ function esc(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ═══ READ-ONLY MODE ═══
+function _isReadOnly() { return window.CURRENT_USER?.role === 'VIEWER'; }
+
 // ═══ WRITE ERROR BADGE ═══
 // Shows a temporary sync-badge error when a background API write fails.
 function _onWriteError(label, err) {
@@ -510,7 +513,7 @@ function renderMuni(n) {
       </div>
       <div class="mh-coord">
         <div><div class="cl">Coordinador ${isMed ? 'ciudad' : 'municipal'}</div><div class="cv" id="mh-cv">${esc(s.coord) || '—'}</div><span id="mh-phone-wa">${s.phone ? `<div class="cp">${esc(s.phone)}<a class="wa-btn" href="https://wa.me/57${s.phone.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a></div>` : ''}</span></div>
-        <button class="ebtn" onclick="editMuni('${n}')">✎ Editar</button>
+        ${_isReadOnly() ? '' : `<button class="ebtn" onclick="editMuni('${n}')">✎ Editar</button>`}
       </div>
     </div>
     <div class="stats">
@@ -704,7 +707,7 @@ function buildCCCard(n, ck) {
           <span class="cc-crd-lbl">Coord:</span>
           <span class="cc-crd-val" id="${id}-cv">${esc(sc.coord) || '—'}</span>
           <span id="${id}-phone-wa">${sc.phone ? `<span class="cc-crd-ph">· ${esc(sc.phone)}</span><a class="wa-btn" href="https://wa.me/57${sc.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}</span>
-          <button class="cc-ced" onclick="event.stopPropagation();editCC('${n}','${ck.replace(/'/g, "\\'")}')">✎</button>
+          ${_isReadOnly() ? '' : `<button class="cc-ced" onclick="event.stopPropagation();editCC('${n}','${ck.replace(/'/g, "\\'")}')">✎</button>`}
         </div>
       </div>
       <div class="chev${isOpen ? ' op' : ''}">▾</div>
@@ -798,8 +801,8 @@ function buildPT(n, puestos, ckKey) {
     const divipole = `${String(p.dd).padStart(2, '0')}.${String(p.mm).padStart(3, '0')}.${String(p.zz).padStart(2, '0')}.${String(p.pp).padStart(2, '0')}`;
     const pcid = 'pc_' + k + '_' + btoa(unescape(encodeURIComponent(ckKey))).replace(/[^a-z0-9]/gi, '');
     const coordPill = ps.coord
-      ? `<span class="pc-pill coord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">👤 ${esc(ps.coord)}${ps.phone ? ' · ' + esc(ps.phone) : ''}</span>${ps.phone ? `<a class="wa-btn" href="https://wa.me/57${ps.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}`
-      : `<span class="pc-pill nocoord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">+ Coord. puesto</span>`;
+      ? `<span class="pc-pill coord" ${_isReadOnly() ? '' : `onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')"`}>👤 ${esc(ps.coord)}${ps.phone ? ' · ' + esc(ps.phone) : ''}</span>${ps.phone ? `<a class="wa-btn" href="https://wa.me/57${ps.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}`
+      : (_isReadOnly() ? '' : `<span class="pc-pill nocoord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">+ Coord. puesto</span>`);
     return `<div class="pc" id="${pcid}">
       <div class="pc-hd" onclick="togglePC('${pcid}')">
         <div class="pc-left">
@@ -808,14 +811,14 @@ function buildPT(n, puestos, ckKey) {
           <div class="pc-pills">
             <span class="pc-pill">${p.mesas || 0} mesas</span>
             <span class="pc-pill">${(p.total || 0).toLocaleString('es-CO')} v.</span>
-            <button class="${tg.cls} tbtn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}');">${tg.lbl}</button>
+            ${_isReadOnly() ? `<span class="${tg.cls} tbtn" style="cursor:default">${tg.lbl}</span>` : `<button class="${tg.cls} tbtn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}');">${tg.lbl}</button>`}
             ${coordPill}
             ${testReg > 0 ? `<span class="pc-pill" style="color:var(--green);border-color:rgba(46,216,122,.3)">Test. ${testReg}</span>` : ''}
             ${map}
           </div>
         </div>
         <div class="pc-right">
-          <button class="pc-edit-btn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')" title="Editar coordinador">✎</button>
+          ${_isReadOnly() ? '' : `<button class="pc-edit-btn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')" title="Editar coordinador">✎</button>`}
           <div class="pc-chev" id="${pcid}-chev">▾</div>
         </div>
       </div>
@@ -900,7 +903,7 @@ function buildAllPuestosSection(n, ck, puestos, s) {
     <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${_ckLabel(n, ck)}</div>
       ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
-      <button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>
+      ${_isReadOnly() ? '' : `<button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>`}
     </div>
     ${buildPT(n, puestos, ck)}
   </div>`;
@@ -1198,7 +1201,7 @@ function renderMovPanel(n, ck, id) {
         <div class="mov-total ca"><span class="lbl">🚗 Registrados:</span><span class="tot-val">${totalCarrosReg}</span><span class="sep">/ necesarios:</span><span style="font-weight:600;color:var(--t1)">${carrosNec}</span></div>
       </div>
       <div style="margin:8px 0">${viewCards}</div>
-      <button class="export-btn" onclick="editMov('${n}','${ckE}','${id}')">✏️ Editar</button>
+      ${_isReadOnly() ? '' : `<button class="export-btn" onclick="editMov('${n}','${ckE}','${id}')">✏️ Editar</button>`}
     </div>`;
     return;
   }
@@ -1926,10 +1929,10 @@ function renderAbogadoPanel(n, ck, id) {
               <a class="wa-btn" href="https://wa.me/57${ab.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
             </div>` : '<div style="font-size:12px;color:var(--t3)">Sin teléfono</div>'}
           </div>
-          <div style="display:flex;gap:4px;flex-shrink:0">
+          ${_isReadOnly() ? '' : `<div style="display:flex;gap:4px;flex-shrink:0">
             <button class="export-btn" style="font-size:11px;padding:3px 8px" onclick="editAbogadoItem('${n}','${ckE}','${id}',${i})">✏️</button>
             <button class="export-btn" style="font-size:11px;padding:3px 8px;color:#e53" onclick="delAbogadoItem('${n}','${ckE}','${id}',${i})">🗑️</button>
-          </div>
+          </div>`}
         </div>
       </div>`;
     } else {
@@ -1955,8 +1958,8 @@ function renderAbogadoPanel(n, ck, id) {
     }
   });
 
-  html += `<button class="export-btn" style="font-size:12px;margin-top:4px" onclick="addAbogadoItem('${n}','${ckE}','${id}')">➕ Agregar abogado</button>
-  </div>`;
+  if (!_isReadOnly()) html += `<button class="export-btn" style="font-size:12px;margin-top:4px" onclick="addAbogadoItem('${n}','${ckE}','${id}')">➕ Agregar abogado</button>`;
+  html += '</div>';
 
   pane.innerHTML = html;
 }
@@ -2048,7 +2051,7 @@ function renderRefrigPanel(n, ck, id) {
           <a class="wa-btn" href="https://wa.me/57${rf.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
         </div>` : '<div style="font-size:12px;color:var(--t3)">Sin teléfono</div>'}
       </div>
-      <button class="export-btn" style="font-size:12px" onclick="editRefrig('${n}','${ckE}','${id}')">✏️ Editar</button>
+      ${_isReadOnly() ? '' : `<button class="export-btn" style="font-size:12px" onclick="editRefrig('${n}','${ckE}','${id}')">✏️ Editar</button>`}
     </div>`;
   } else {
     // ── Edición: inputs + Guardar / Cancelar ──
@@ -2187,7 +2190,7 @@ function renderComparendosPanel(n, ck, id) {
     pane.innerHTML = `<div class="mov-panel">
       <div style="font-size:11px;color:var(--t3);margin-bottom:10px">${list.length} comparendo(s) registrado(s)</div>
       ${cards}
-      <button class="export-btn" style="font-size:12px;margin-top:4px" onclick="editComparendos('${n}','${ckE}','${id}')">✏️ Editar</button>
+      ${_isReadOnly() ? '' : `<button class="export-btn" style="font-size:12px;margin-top:4px" onclick="editComparendos('${n}','${ckE}','${id}')">✏️ Editar</button>`}
     </div>`;
   } else {
     // ── Edición: formularios + Guardar / Cancelar ──
@@ -2201,7 +2204,7 @@ function renderComparendosPanel(n, ck, id) {
               <option value="pendiente" ${c.estado==='pendiente'?'selected':''}>⏳ Pendiente</option>
               <option value="resuelto" ${c.estado==='resuelto'?'selected':''}>✓ Resuelto</option>
             </select>
-            <button class="del-btn" onclick="delComparendo('${n}','${ckE}',${i},'${id}')">×</button>
+            ${_isReadOnly() ? '' : `<button class="del-btn" onclick="delComparendo('${n}','${ckE}',${i},'${id}')">×</button>`}
           </div>
         </div>
         <input class="resp-name-inp" style="width:100%;margin-bottom:5px" type="text" placeholder="Nombre" value="${esc(c.nombre || '')}"
@@ -2220,12 +2223,12 @@ function renderComparendosPanel(n, ck, id) {
     pane.innerHTML = `<div class="mov-panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <span style="font-size:11px;color:var(--t3)">${list.length} comparendo(s)</span>
-        <button class="resp-add-btn" onclick="addComparendo('${n}','${ckE}','${id}')">+ Agregar comparendo</button>
+        ${_isReadOnly() ? '' : `<button class="resp-add-btn" onclick="addComparendo('${n}','${ckE}','${id}')">+ Agregar comparendo</button>`}
       </div>
       <div id="${id}-comp-list">${rows || '<div style="font-size:11px;color:var(--t3);text-align:center;padding:12px">Sin comparendos registrados</div>'}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-        <button class="mv-save-all" onclick="saveComparendos('${n}','${ckE}','${id}')">💾 Guardar comparendos</button>
-        ${hasData ? `<button class="export-btn" style="font-size:12px" onclick="cancelComparendos('${n}','${ckE}','${id}')">Cancelar</button>` : ''}
+        ${_isReadOnly() ? '' : `<button class="mv-save-all" onclick="saveComparendos('${n}','${ckE}','${id}')">💾 Guardar comparendos</button>`}
+        ${(!_isReadOnly() && hasData) ? `<button class="export-btn" style="font-size:12px" onclick="cancelComparendos('${n}','${ckE}','${id}')">Cancelar</button>` : ''}
       </div>
     </div>`;
   }

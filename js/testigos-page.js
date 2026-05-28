@@ -79,7 +79,7 @@ function _buildPanelHTML() {
         <button class="t-btn-cancel" data-action="t-clear-filters">Limpiar filtros</button>
       </div>
 
-      <div class="t-bulk-bar hidden" id="t-bulk-bar">
+      <div class="t-bulk-bar hidden" id="t-bulk-bar" style="${window.CURRENT_USER?.role === 'VIEWER' ? 'display:none!important' : ''}">
         <span id="t-sel-count">0 seleccionados</span>
         <button class="t-btn-primary" data-action="bulk-assign-btn">Asignar a puesto...</button>
         <button class="t-btn-cancel" data-action="t-deselect-all">Deseleccionar todo</button>
@@ -143,7 +143,7 @@ function _renderTable() {
       : '—';
 
     return `<tr>
-      <td><input type="checkbox" class="t-row-cb" data-id="${t.id}" ${checked}></td>
+      <td>${window.CURRENT_USER?.role === 'VIEWER' ? '' : `<input type="checkbox" class="t-row-cb" data-id="${t.id}" ${checked}>`}</td>
       <td style="color:var(--t3)">${t.id}</td>
       <td style="font-weight:500">${esc(t.name || '—')}</td>
       <td>${esc(t.cedula || '—')}</td>
@@ -151,7 +151,7 @@ function _renderTable() {
       <td>${statusBadge}</td>
       <td>${puesto}</td>
       <td>${municipioName}</td>
-      <td><button class="tbtn" data-action="edit-testigo" data-id="${t.id}" style="font-size:11px;padding:3px 10px">Editar</button></td>
+      <td>${window.CURRENT_USER?.role === 'VIEWER' ? '' : `<button class="tbtn" data-action="edit-testigo" data-id="${t.id}" style="font-size:11px;padding:3px 10px">Editar</button>`}</td>
     </tr>`;
   }).join('');
 

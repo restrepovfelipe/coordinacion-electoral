@@ -67,6 +67,15 @@ export const PERMISSIONS: Record<Role, Record<Resource, readonly Action[]>> = {
     comparendos: ['READ'],
     users:       [],
   },
+  [Role.VIEWER]: {
+    // Strictly read-only across all resources
+    testigos:    ['READ'],
+    abogados:    ['READ'],
+    movilidad:   ['READ'],
+    refrigerios: ['READ'],
+    comparendos: ['READ'],
+    users:       ['READ'],
+  },
 } as const;
 
 /**

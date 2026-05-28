@@ -13,6 +13,7 @@ const ROLE_SCOPE: Record<Role, ScopeType | null> = {
   [Role.ZONE_COORDINATOR]: ScopeType.ZONA,
   [Role.COMUNA_COORDINATOR]: ScopeType.COMUNA,
   [Role.PUESTO_COORDINATOR]: ScopeType.PUESTO,
+  [Role.VIEWER]: null,
 };
 
 @ApiTags('admin')
