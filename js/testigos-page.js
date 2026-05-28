@@ -14,6 +14,7 @@ let _tAllData = [];
 let _tTotal = 0;
 let _tSearchTimer = null;
 let _tMunicipiosMap = {}; // id -> name
+let _tMunicipiosList = []; // [{id, name}] full list for search
 let _tPuestosCache = {}; // municipioId -> [{id, name}]
 
 // ── Open / Close ───────────────────────────────────────────────────────────
@@ -59,9 +60,11 @@ function _buildPanelHTML() {
           <input type="checkbox" id="t-sin-puesto-cb">
           Sin puesto
         </label>
-        <select id="t-municipio-sel">
-          <option value="">Todos los municipios</option>
-        </select>
+        <div style="position:relative;display:inline-block" id="t-muni-wrap">
+          <input type="text" id="t-municipio-input" placeholder="🔍 Municipio..." autocomplete="off"
+            style="width:160px;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg2);color:var(--fg);font-size:12px;box-sizing:border-box">
+          <div id="t-muni-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:200;background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;max-height:220px;overflow-y:auto;min-width:180px;box-shadow:0 4px 14px rgba(0,0,0,.18)"></div>
+        </div>
         <select id="t-puesto-sel" disabled style="opacity:0.55">
           <option value="">Todos los puestos</option>
         </select>
@@ -227,11 +230,11 @@ function _attachListeners() {
       _tPuestoId = null;
       const searchEl = document.getElementById('t-search');
       const cbEl = document.getElementById('t-sin-puesto-cb');
-      const selEl = document.getElementById('t-municipio-sel');
+      const muniInput = document.getElementById('t-municipio-input');
       const puestoSel = document.getElementById('t-puesto-sel');
       if (searchEl) searchEl.value = '';
       if (cbEl) cbEl.checked = false;
-      if (selEl) selEl.value = '';
+      if (muniInput) muniInput.value = '';
       if (puestoSel) { puestoSel.innerHTML = '<option value="">Todos los puestos</option>'; puestoSel.disabled = true; puestoSel.style.opacity = '0.55'; }
       _loadTestigos(1);
     } else if (action === 't-deselect-all') {
@@ -282,16 +285,6 @@ function _attachListeners() {
       return;
     }
 
-    if (e.target.id === 't-municipio-sel') {
-      _tMunicipioId = e.target.value ? Number(e.target.value) : null;
-      _tPuestoId = null; // reset puesto when municipio changes
-      const puestoSel = document.getElementById('t-puesto-sel');
-      if (puestoSel) { puestoSel.innerHTML = '<option value="">Todos los puestos</option>'; puestoSel.disabled = true; puestoSel.style.opacity = '0.55'; }
-      if (_tMunicipioId) _loadPuestosForFilter(_tMunicipioId);
-      _loadTestigos(1);
-      return;
-    }
-
     if (e.target.id === 't-puesto-sel') {
       _tPuestoId = e.target.value ? Number(e.target.value) : null;
       _loadTestigos(1);
@@ -334,19 +327,62 @@ async function _loadMunicipios() {
     const cached = _getMunisFromCache();
     const munis = cached || await window.api.get('/municipios');
     if (!cached) _setMunisCache(munis);
-    const sel = document.getElementById('t-municipio-sel');
-    munis.forEach(m => {
-      _tMunicipiosMap[m.id] = m.name;
-      if (sel) {
-        const opt = document.createElement('option');
-        opt.value = m.id;
-        opt.textContent = m.name;
-        sel.appendChild(opt);
-      }
-    });
+    _tMunicipiosList = munis.map(m => ({ id: m.id, name: m.name }));
+    munis.forEach(m => { _tMunicipiosMap[m.id] = m.name; });
+    _initMuniCombobox();
   } catch (err) {
     console.error('_loadMunicipios failed:', err);
   }
+}
+
+function _initMuniCombobox() {
+  const input = document.getElementById('t-municipio-input');
+  const dropdown = document.getElementById('t-muni-dropdown');
+  if (!input || !dropdown) return;
+
+  function renderDropdown(filter) {
+    const q = (filter || '').toLowerCase().trim();
+    const items = q
+      ? _tMunicipiosList.filter(m => m.name.toLowerCase().includes(q))
+      : _tMunicipiosList;
+    const allRow = `<div data-muni-id="" style="padding:7px 12px;font-size:12px;cursor:pointer;color:var(--t3)" class="t-muni-opt">Todos los municipios</div>`;
+    const rows = items.map(m =>
+      `<div data-muni-id="${m.id}" style="padding:7px 12px;font-size:12px;cursor:pointer;color:var(--fg)" class="t-muni-opt">${esc(m.name)}</div>`
+    ).join('');
+    dropdown.innerHTML = allRow + rows;
+  }
+
+  function showDropdown(filter) { renderDropdown(filter); dropdown.style.display = 'block'; }
+  function hideDropdown() { dropdown.style.display = 'none'; }
+
+  input.addEventListener('focus', () => showDropdown(input.value));
+  input.addEventListener('input', () => showDropdown(input.value));
+  input.addEventListener('blur', () => setTimeout(hideDropdown, 150));
+
+  dropdown.addEventListener('mousedown', e => {
+    const opt = e.target.closest('.t-muni-opt');
+    if (!opt) return;
+    const muniId = opt.dataset.muniId ? Number(opt.dataset.muniId) : null;
+    _tMunicipioId = muniId;
+    _tPuestoId = null;
+    input.value = muniId ? (_tMunicipiosMap[muniId] || '') : '';
+    hideDropdown();
+    // Reset puesto select
+    const puestoSel = document.getElementById('t-puesto-sel');
+    if (puestoSel) { puestoSel.innerHTML = '<option value="">Todos los puestos</option>'; puestoSel.disabled = true; puestoSel.style.opacity = '0.55'; }
+    if (muniId) _loadPuestosForFilter(muniId);
+    _loadTestigos(1);
+  });
+
+  // Highlight on hover
+  dropdown.addEventListener('mouseover', e => {
+    const opt = e.target.closest('.t-muni-opt');
+    if (opt) opt.style.background = 'var(--bg3, #f0f0f0)';
+  });
+  dropdown.addEventListener('mouseout', e => {
+    const opt = e.target.closest('.t-muni-opt');
+    if (opt) opt.style.background = '';
+  });
 }
 
 // ── Load puestos into filter select ───────────────────────────────────────
