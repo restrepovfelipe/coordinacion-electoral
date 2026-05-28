@@ -995,13 +995,13 @@ async function renderTestigosPanel(n, ck, id) {
         <div class="test-section">
           <h5>🧾 Testigos electorales <span style="color:var(--t3);font-weight:400">(${testReg})</span></h5>
           <div id="${id}-test-${btoa(pKey).replace(/=/g, '')}">${buildTestRows(n, ck, pName, id, pKey)}</div>
-          <button class="add-btn" onclick="addTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}','${id}')">+ Agregar testigo</button>
+          ${_isReadOnly() ? '' : `<button class="add-btn" onclick="addTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}','${id}')">+ Agregar testigo</button>`}
         </div>
         <div class="test-section" style="margin-top:8px">
           <h5>📋 Asignación de mesas</h5>
           ${buildAsignacionTable(n, ck, pName, p.mesas || 0)}
           <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-            <button class="add-btn" onclick="recalcularAsignacion('${n}','${ck.replace(/'/g, "\\'")}','${pKey}','${id}')">↺ Recalcular asignaciones</button>
+            ${_isReadOnly() ? '' : `<button class="add-btn" onclick="recalcularAsignacion('${n}','${ck.replace(/'/g, "\\'")}','${pKey}','${id}')">↺ Recalcular asignaciones</button>`}
             <button class="add-btn" onclick="descargarPdfAsignacion('${n}','${encodeURIComponent(pName)}')">⬇ Descargar PDF</button>
           </div>
         </div>
@@ -1027,6 +1027,13 @@ function getTestigos(n, ck, pName) { return (gs(n).testigos?.[ck]?.[pName]) || [
 function buildTestRows(n, ck, pName, id, pKey) {
   const rows = getTestigos(n, ck, pName);
   if (!rows.length) return '<div style="font-size:10px;color:var(--t3);padding:2px 0">Sin testigos aún</div>';
+  if (_isReadOnly()) {
+    return rows.map(r => `<div class="test-row">
+      <span style="flex:2;font-size:12px;color:var(--t1)">${esc(r.nombre) || '—'}</span>
+      <span style="font-size:12px;color:var(--t2)">${esc(r.telefono) || ''}</span>
+      ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
+    </div>`).join('');
+  }
   return rows.map((r, i) => `<div class="test-row">
     <input class="pi" style="flex:2" type="text" placeholder="Nombre" value="${esc(r.nombre)}"
       onchange="updateTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'nombre',this.value)">
