@@ -15,7 +15,11 @@ let _tTotal = 0;
 let _tSearchTimer = null;
 let _tMunicipiosMap = {}; // id -> name
 let _tMunicipiosList = []; // [{id, name}] full list for search
-let _tPuestosCache = {}; // municipioId -> [{id, name}]
+let _tComunaId = null;
+let _tComunasList = []; // [{id, name}] for current municipio
+let _tComunasCache = {}; // municipioId -> [{id, name}]
+let _tPuestosCache = {}; // key (muniId or muniId+comunaId) -> [{id, name}]
+let _tPuestosList = []; // [{id, name}] for current municipio+comuna
 
 // ── Open / Close ───────────────────────────────────────────────────────────
 function openTestigosPage() {
@@ -56,18 +60,22 @@ function _buildPanelHTML() {
 
       <div class="t-filter-bar">
         <input type="text" id="t-search" placeholder="Buscar nombre, cédula o teléfono..." style="flex:1;min-width:200px">
-        <label>
-          <input type="checkbox" id="t-sin-puesto-cb">
-          Sin puesto
-        </label>
-        <div style="position:relative;display:inline-block" id="t-muni-wrap">
+        <label><input type="checkbox" id="t-sin-puesto-cb"> Sin puesto</label>
+        <div style="position:relative;display:inline-block">
           <input type="text" id="t-municipio-input" placeholder="🔍 Municipio..." autocomplete="off"
-            style="width:160px;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg2);color:var(--fg);font-size:12px;box-sizing:border-box">
-          <div id="t-muni-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;z-index:200;background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;max-height:220px;overflow-y:auto;min-width:180px;box-shadow:0 4px 14px rgba(0,0,0,.18)"></div>
+            style="width:145px;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg2);color:var(--fg);font-size:12px;box-sizing:border-box">
+          <div id="t-muni-dd" style="display:none;position:absolute;top:calc(100%+2px);left:0;z-index:300;background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;max-height:220px;overflow-y:auto;min-width:180px;box-shadow:0 4px 14px rgba(0,0,0,.18)"></div>
         </div>
-        <select id="t-puesto-sel" disabled style="opacity:0.55">
-          <option value="">Todos los puestos</option>
-        </select>
+        <div style="position:relative;display:inline-block">
+          <input type="text" id="t-comuna-input" placeholder="🔍 Comuna..." autocomplete="off" disabled
+            style="width:135px;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg2);color:var(--fg);font-size:12px;box-sizing:border-box;opacity:0.5">
+          <div id="t-comuna-dd" style="display:none;position:absolute;top:calc(100%+2px);left:0;z-index:300;background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;max-height:220px;overflow-y:auto;min-width:180px;box-shadow:0 4px 14px rgba(0,0,0,.18)"></div>
+        </div>
+        <div style="position:relative;display:inline-block">
+          <input type="text" id="t-puesto-input" placeholder="🔍 Puesto..." autocomplete="off" disabled
+            style="width:175px;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg2);color:var(--fg);font-size:12px;box-sizing:border-box;opacity:0.5">
+          <div id="t-puesto-dd" style="display:none;position:absolute;top:calc(100%+2px);right:0;z-index:300;background:var(--bg2);border:1px solid var(--bdr);border-radius:6px;max-height:220px;overflow-y:auto;min-width:220px;box-shadow:0 4px 14px rgba(0,0,0,.18)"></div>
+        </div>
         <button class="t-btn-cancel" data-action="t-clear-filters">Limpiar filtros</button>
       </div>
 
@@ -224,18 +232,15 @@ function _attachListeners() {
       const totalPages = Math.ceil(_tTotal / _T_LIMIT);
       if (_tPage < totalPages) _loadTestigos(_tPage + 1);
     } else if (action === 't-clear-filters') {
-      _tSearch = '';
-      _tSinPuesto = false;
-      _tMunicipioId = null;
-      _tPuestoId = null;
+      _tSearch = ''; _tSinPuesto = false; _tMunicipioId = null; _tComunaId = null; _tPuestoId = null;
+      _tComunasList = []; _tPuestosList = [];
       const searchEl = document.getElementById('t-search');
       const cbEl = document.getElementById('t-sin-puesto-cb');
-      const muniInput = document.getElementById('t-municipio-input');
-      const puestoSel = document.getElementById('t-puesto-sel');
       if (searchEl) searchEl.value = '';
       if (cbEl) cbEl.checked = false;
-      if (muniInput) muniInput.value = '';
-      if (puestoSel) { puestoSel.innerHTML = '<option value="">Todos los puestos</option>'; puestoSel.disabled = true; puestoSel.style.opacity = '0.55'; }
+      _resetCombo('t-municipio-input', null);
+      _resetCombo('t-comuna-input', false);
+      _resetCombo('t-puesto-input', false);
       _loadTestigos(1);
     } else if (action === 't-deselect-all') {
       _tSelectedIds.clear();
@@ -285,11 +290,6 @@ function _attachListeners() {
       return;
     }
 
-    if (e.target.id === 't-puesto-sel') {
-      _tPuestoId = e.target.value ? Number(e.target.value) : null;
-      _loadTestigos(1);
-      return;
-    }
   });
 
   // Search input with debounce
@@ -329,85 +329,95 @@ async function _loadMunicipios() {
     if (!cached) _setMunisCache(munis);
     _tMunicipiosList = munis.map(m => ({ id: m.id, name: m.name }));
     munis.forEach(m => { _tMunicipiosMap[m.id] = m.name; });
-    _initMuniCombobox();
-  } catch (err) {
-    console.error('_loadMunicipios failed:', err);
-  }
-}
-
-function _initMuniCombobox() {
-  const input = document.getElementById('t-municipio-input');
-  const dropdown = document.getElementById('t-muni-dropdown');
-  if (!input || !dropdown) return;
-
-  function renderDropdown(filter) {
-    const q = (filter || '').toLowerCase().trim();
-    const items = q
-      ? _tMunicipiosList.filter(m => m.name.toLowerCase().includes(q))
-      : _tMunicipiosList;
-    const allRow = `<div data-muni-id="" style="padding:7px 12px;font-size:12px;cursor:pointer;color:var(--t3)" class="t-muni-opt">Todos los municipios</div>`;
-    const rows = items.map(m =>
-      `<div data-muni-id="${m.id}" style="padding:7px 12px;font-size:12px;cursor:pointer;color:var(--fg)" class="t-muni-opt">${esc(m.name)}</div>`
-    ).join('');
-    dropdown.innerHTML = allRow + rows;
-  }
-
-  function showDropdown(filter) { renderDropdown(filter); dropdown.style.display = 'block'; }
-  function hideDropdown() { dropdown.style.display = 'none'; }
-
-  input.addEventListener('focus', () => showDropdown(input.value));
-  input.addEventListener('input', () => showDropdown(input.value));
-  input.addEventListener('blur', () => setTimeout(hideDropdown, 150));
-
-  dropdown.addEventListener('mousedown', e => {
-    const opt = e.target.closest('.t-muni-opt');
-    if (!opt) return;
-    const muniId = opt.dataset.muniId ? Number(opt.dataset.muniId) : null;
-    _tMunicipioId = muniId;
-    _tPuestoId = null;
-    input.value = muniId ? (_tMunicipiosMap[muniId] || '') : '';
-    hideDropdown();
-    // Reset puesto select
-    const puestoSel = document.getElementById('t-puesto-sel');
-    if (puestoSel) { puestoSel.innerHTML = '<option value="">Todos los puestos</option>'; puestoSel.disabled = true; puestoSel.style.opacity = '0.55'; }
-    if (muniId) _loadPuestosForFilter(muniId);
-    _loadTestigos(1);
-  });
-
-  // Highlight on hover
-  dropdown.addEventListener('mouseover', e => {
-    const opt = e.target.closest('.t-muni-opt');
-    if (opt) opt.style.background = 'var(--bg3, #f0f0f0)';
-  });
-  dropdown.addEventListener('mouseout', e => {
-    const opt = e.target.closest('.t-muni-opt');
-    if (opt) opt.style.background = '';
-  });
-}
-
-// ── Load puestos into filter select ───────────────────────────────────────
-async function _loadPuestosForFilter(municipioId) {
-  const puestoSel = document.getElementById('t-puesto-sel');
-  if (!puestoSel) return;
-  puestoSel.innerHTML = '<option value="">Cargando...</option>';
-  puestoSel.disabled = true;
-  puestoSel.style.opacity = '0.55';
-  try {
-    const puestos = _tPuestosCache[municipioId] || await window.api.get(`/puestos?municipioId=${municipioId}`);
-    _tPuestosCache[municipioId] = puestos;
-    puestoSel.innerHTML = '<option value="">Todos los puestos</option>';
-    puestos.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name;
-      puestoSel.appendChild(opt);
+    _attachCombobox('t-municipio-input', 't-muni-dd', () => _tMunicipiosList, 'Todos los municipios', id => {
+      _tMunicipioId = id; _tComunaId = null; _tPuestoId = null;
+      _tComunasList = []; _tPuestosList = [];
+      _resetCombo('t-comuna-input', !id); _resetCombo('t-puesto-input', false);
+      if (id) _loadComunasForFilter(id); else _resetCombo('t-puesto-input', false);
+      _loadTestigos(1);
     });
-    puestoSel.disabled = false;
-    puestoSel.style.opacity = '1';
-  } catch (err) {
-    console.error('_loadPuestosForFilter failed:', err);
-    puestoSel.innerHTML = '<option value="">Error cargando puestos</option>';
+  } catch (err) { console.error('_loadMunicipios failed:', err); }
+}
+
+// ── Generic searchable combobox ───────────────────────────────────────────
+function _attachCombobox(inputId, ddId, getList, allLabel, onSelect) {
+  const input = document.getElementById(inputId);
+  const dd = document.getElementById(ddId);
+  if (!input || !dd) return;
+
+  function render() {
+    const q = input.value.toLowerCase().trim();
+    const items = q ? getList().filter(it => it.name.toLowerCase().includes(q)) : getList();
+    dd.innerHTML = `<div data-cb-id="" style="padding:7px 12px;font-size:12px;cursor:pointer;color:var(--t3)" class="t-cb-opt">${allLabel}</div>`
+      + items.map(it => `<div data-cb-id="${it.id}" style="padding:7px 12px;font-size:12px;cursor:pointer;color:var(--fg)" class="t-cb-opt">${esc(it.name)}</div>`).join('');
   }
+
+  input.addEventListener('focus', () => { render(); dd.style.display = 'block'; });
+  input.addEventListener('input', () => { render(); dd.style.display = 'block'; });
+  input.addEventListener('blur', () => setTimeout(() => { dd.style.display = 'none'; }, 160));
+
+  dd.addEventListener('mousedown', e => {
+    const opt = e.target.closest('.t-cb-opt');
+    if (!opt) return;
+    const id = opt.dataset.cbId ? Number(opt.dataset.cbId) : null;
+    input.value = id ? (getList().find(it => it.id === id)?.name || '') : '';
+    dd.style.display = 'none';
+    onSelect(id);
+  });
+  dd.addEventListener('mouseover', e => { const o = e.target.closest('.t-cb-opt'); if (o) o.style.background = 'var(--bg3,#eee)'; });
+  dd.addEventListener('mouseout',  e => { const o = e.target.closest('.t-cb-opt'); if (o) o.style.background = ''; });
+}
+
+// Enable/disable a combobox input visually. pass enabled=null to just clear value without changing disabled
+function _resetCombo(inputId, enabled) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  el.value = '';
+  if (enabled !== null) { el.disabled = !enabled; el.style.opacity = enabled ? '1' : '0.5'; }
+}
+
+// ── Load comunas for filter combobox ──────────────────────────────────────
+async function _loadComunasForFilter(municipioId) {
+  _tComunasList = [];
+  _resetCombo('t-comuna-input', false);
+  _resetCombo('t-puesto-input', false);
+  try {
+    const comunas = _tComunasCache[municipioId] || await window.api.get(`/comunas?municipioId=${municipioId}`);
+    _tComunasCache[municipioId] = comunas;
+    _tComunasList = comunas.map(c => ({ id: c.id, name: c.name }));
+    if (_tComunasList.length) {
+      _resetCombo('t-comuna-input', true);
+      _attachCombobox('t-comuna-input', 't-comuna-dd', () => _tComunasList, 'Todas las comunas', id => {
+        _tComunaId = id; _tPuestoId = null; _tPuestosList = [];
+        _resetCombo('t-puesto-input', false);
+        _loadPuestosForFilter(municipioId, id || null);
+        _loadTestigos(1);
+      });
+    }
+    // Also load all puestos for this muni (no comuna filter yet)
+    _loadPuestosForFilter(municipioId, null);
+  } catch (err) { console.error('_loadComunasForFilter failed:', err); }
+}
+
+// ── Load puestos for filter combobox ──────────────────────────────────────
+async function _loadPuestosForFilter(municipioId, comunaId) {
+  _tPuestosList = [];
+  _resetCombo('t-puesto-input', false);
+  try {
+    const cacheKey = comunaId ? `${municipioId}:${comunaId}` : `${municipioId}`;
+    let puestos = _tPuestosCache[cacheKey];
+    if (!puestos) {
+      const url = comunaId ? `/puestos?municipioId=${municipioId}&comunaId=${comunaId}` : `/puestos?municipioId=${municipioId}`;
+      puestos = await window.api.get(url);
+      _tPuestosCache[cacheKey] = puestos;
+    }
+    _tPuestosList = puestos.map(p => ({ id: p.id, name: p.name }));
+    _resetCombo('t-puesto-input', true);
+    _attachCombobox('t-puesto-input', 't-puesto-dd', () => _tPuestosList, 'Todos los puestos', id => {
+      _tPuestoId = id;
+      _loadTestigos(1);
+    });
+  } catch (err) { console.error('_loadPuestosForFilter failed:', err); }
 }
 
 // ── Puesto picker modal ────────────────────────────────────────────────────
