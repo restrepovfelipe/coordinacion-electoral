@@ -1831,6 +1831,9 @@ function buildPrintHTML(tipo, muni, ck) {
   function sectionForComuna(n, comunaKey) {
     const s = gs(n); const puestos = RAW[n][comunaKey] || [];
     const sc = (s.comunas || {})[comunaKey] || {};
+    // Zone lookup (Medellín only)
+    const zonaDef = n === 'MEDELLIN' ? (MEDELLIN_ZONAS.find(z => z.comunas.includes(comunaKey)) || null) : null;
+    const sz = zonaDef ? ((s.zonas || {})[zonaDef.nombre] || {}) : null;
     const mov = s.movilidad?.[comunaKey] || {};
     const respsP = (mov.responsables || []);
     let puestosHTML = '';
@@ -1861,10 +1864,14 @@ function buildPrintHTML(tipo, muni, ck) {
       <table style="font-size:10px;border-collapse:collapse;width:100%;margin-top:4px"><tr style="background:#f0f0f0"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Tipo</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Placa</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Conductor</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Teléfono</th></tr>
       ${respsP.map(r => `<tr><td style="padding:3px 6px;border:1px solid #ddd">${r.tipo === 'moto' ? '🏍 Moto' : '🚗 Carro'}</td><td style="padding:3px 6px;border:1px solid #ddd;font-weight:600">${esc(r.placa)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.nombreConductor)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.telefonoConductor)}</td></tr>`).join('')}
       </table></div>` : '';
+    const coordInfo = `<div style="text-align:right;font-size:11px;line-height:1.6">
+        ${zonaDef && sz?.coord ? `<div style="color:#f5c842">Coord. zona: ${esc(sz.coord)}${sz.phone ? ' · ' + esc(sz.phone) : ''}</div>` : ''}
+        ${sc.coord ? `<div style="color:#aaa">Coord. comuna: ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</div>` : (zonaDef ? '' : `<div style="color:#555">Sin coordinador de comuna</div>`)}
+      </div>`;
     return `<div style="margin-bottom:24px;page-break-inside:avoid">
       <div style="background:#1a2030;color:#f5c842;padding:10px 14px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
         <b style="font-size:14px">${comunaKey}</b>
-        <span style="font-size:11px;color:#aaa">Coord. zona: ${esc(sc.coord) || '—'}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>
+        ${coordInfo}
       </div>${movHTML}<div style="margin-top:10px">${puestosHTML}</div></div>`;
   }
   if (tipo === 'all') {
