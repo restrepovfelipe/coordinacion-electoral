@@ -8,11 +8,13 @@ const _T_LIMIT = 50;
 let _tSearch = '';
 let _tSinPuesto = false;
 let _tMunicipioId = null;
+let _tPuestoId = null;
 let _tSelectedIds = new Set();
 let _tAllData = [];
 let _tTotal = 0;
 let _tSearchTimer = null;
 let _tMunicipiosMap = {}; // id -> name
+let _tPuestosCache = {}; // municipioId -> [{id, name}]
 
 // ── Open / Close ───────────────────────────────────────────────────────────
 function openTestigosPage() {
@@ -60,6 +62,9 @@ function _buildPanelHTML() {
         <select id="t-municipio-sel">
           <option value="">Todos los municipios</option>
         </select>
+        <select id="t-puesto-sel" disabled style="opacity:0.55">
+          <option value="">Todos los puestos</option>
+        </select>
         <button class="t-btn-cancel" data-action="t-clear-filters">Limpiar filtros</button>
       </div>
 
@@ -86,7 +91,8 @@ async function _loadTestigos(page) {
   let url = `/testigos?page=${page}&limit=${_T_LIMIT}`;
   if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
   if (_tSinPuesto) url += '&sinPuesto=true';
-  if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
+  if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
+  else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
 
   try {
     const result = await window.api.get(url);
@@ -218,12 +224,15 @@ function _attachListeners() {
       _tSearch = '';
       _tSinPuesto = false;
       _tMunicipioId = null;
+      _tPuestoId = null;
       const searchEl = document.getElementById('t-search');
       const cbEl = document.getElementById('t-sin-puesto-cb');
       const selEl = document.getElementById('t-municipio-sel');
+      const puestoSel = document.getElementById('t-puesto-sel');
       if (searchEl) searchEl.value = '';
       if (cbEl) cbEl.checked = false;
       if (selEl) selEl.value = '';
+      if (puestoSel) { puestoSel.innerHTML = '<option value="">Todos los puestos</option>'; puestoSel.disabled = true; puestoSel.style.opacity = '0.55'; }
       _loadTestigos(1);
     } else if (action === 't-deselect-all') {
       _tSelectedIds.clear();
@@ -275,6 +284,16 @@ function _attachListeners() {
 
     if (e.target.id === 't-municipio-sel') {
       _tMunicipioId = e.target.value ? Number(e.target.value) : null;
+      _tPuestoId = null; // reset puesto when municipio changes
+      const puestoSel = document.getElementById('t-puesto-sel');
+      if (puestoSel) { puestoSel.innerHTML = '<option value="">Todos los puestos</option>'; puestoSel.disabled = true; puestoSel.style.opacity = '0.55'; }
+      if (_tMunicipioId) _loadPuestosForFilter(_tMunicipioId);
+      _loadTestigos(1);
+      return;
+    }
+
+    if (e.target.id === 't-puesto-sel') {
+      _tPuestoId = e.target.value ? Number(e.target.value) : null;
       _loadTestigos(1);
       return;
     }
@@ -327,6 +346,31 @@ async function _loadMunicipios() {
     });
   } catch (err) {
     console.error('_loadMunicipios failed:', err);
+  }
+}
+
+// ── Load puestos into filter select ───────────────────────────────────────
+async function _loadPuestosForFilter(municipioId) {
+  const puestoSel = document.getElementById('t-puesto-sel');
+  if (!puestoSel) return;
+  puestoSel.innerHTML = '<option value="">Cargando...</option>';
+  puestoSel.disabled = true;
+  puestoSel.style.opacity = '0.55';
+  try {
+    const puestos = _tPuestosCache[municipioId] || await window.api.get(`/puestos?municipioId=${municipioId}`);
+    _tPuestosCache[municipioId] = puestos;
+    puestoSel.innerHTML = '<option value="">Todos los puestos</option>';
+    puestos.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      puestoSel.appendChild(opt);
+    });
+    puestoSel.disabled = false;
+    puestoSel.style.opacity = '1';
+  } catch (err) {
+    console.error('_loadPuestosForFilter failed:', err);
+    puestoSel.innerHTML = '<option value="">Error cargando puestos</option>';
   }
 }
 
