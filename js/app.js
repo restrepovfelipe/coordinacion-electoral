@@ -1858,8 +1858,8 @@ function buildPrintHTML(tipo, muni, ck) {
     });
     const movHTML = respsP.length ? `<div style="margin-top:8px;padding:8px;background:#fff8e6;border:1px solid #f5c842;border-radius:6px;font-size:11px">
       <b>Movilidad:</b>
-      <table style="font-size:10px;border-collapse:collapse;width:100%;margin-top:4px"><tr style="background:#f0f0f0"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Responsable</th><th style="padding:3px 6px;border:1px solid #ddd">Teléfono</th><th style="padding:3px 6px;border:1px solid #ddd">🏍</th><th style="padding:3px 6px;border:1px solid #ddd">🚗</th></tr>
-      ${respsP.map(r => `<tr><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.nombre)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.telefono)}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.motos || 0}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:center">${r.carros || 0}</td></tr>`).join('')}
+      <table style="font-size:10px;border-collapse:collapse;width:100%;margin-top:4px"><tr style="background:#f0f0f0"><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Tipo</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Placa</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Conductor</th><th style="padding:3px 6px;border:1px solid #ddd;text-align:left">Teléfono</th></tr>
+      ${respsP.map(r => `<tr><td style="padding:3px 6px;border:1px solid #ddd">${r.tipo === 'moto' ? '🏍 Moto' : '🚗 Carro'}</td><td style="padding:3px 6px;border:1px solid #ddd;font-weight:600">${esc(r.placa)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.nombreConductor)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(r.telefonoConductor)}</td></tr>`).join('')}
       </table></div>` : '';
     return `<div style="margin-bottom:24px;page-break-inside:avoid">
       <div style="background:#1a2030;color:#f5c842;padding:10px 14px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
