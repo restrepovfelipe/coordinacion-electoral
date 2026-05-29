@@ -942,7 +942,7 @@ function buildAllPuestosSection(n, ck, puestos, s) {
     <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-bottom:1px solid var(--b1)">
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);flex:1">${_ckLabel(n, ck)}</div>
       ${sc.coord ? `<span style="font-size:10px;color:var(--blue)">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : `<span style="font-size:10px;color:var(--t3);font-style:italic">Sin coordinador de zona</span>`}
-      ${_isReadOnly() ? '' : `<button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de zona">✎</button>`}
+      ${_isReadOnly() ? '' : `<button onclick="editCC('${n}','${ck.replace(/'/g, "\\'")}')" style="background:none;border:1px solid var(--b2);color:var(--t2);cursor:pointer;padding:2px 7px;font-size:11px;border-radius:4px;line-height:1.4" title="Editar coordinador de comuna">✎</button>`}
     </div>
     ${buildPT(n, puestos, ck)}
   </div>`;
@@ -1630,7 +1630,7 @@ async function saveM() {
   closeM();
 }
 function editMuni(n) { const s = gs(n); openM(`Coordinador — ${n === 'MEDELLIN' ? 'MEDELLÍN' : n}`, 'Coordinador principal', { type: 'muni', n }, { coord: s.coord, phone: s.phone }); }
-function editCC(n, ck) { const s = gs(n); const sc = (s.comunas || {})[ck] || {}; openM('Coordinador de zona', ck, { type: 'cc', n, ck }, { coord: sc.coord, phone: sc.phone }); }
+function editCC(n, ck) { const s = gs(n); const sc = (s.comunas || {})[ck] || {}; openM('Coordinador de comuna', ck, { type: 'cc', n, ck }, { coord: sc.coord, phone: sc.phone }); }
 function editZona(n, zonaNombre) { const s = gs(n); const sz = (s.zonas || {})[zonaNombre] || {}; openM('Coordinador de zona geográfica', zonaNombre, { type: 'zona', n, zonaNombre }, { coord: sz.coord, phone: sz.phone }); }
 function editP(n, k, ck) { if (ck !== undefined) { editPCard(n, k, ck); return; } const s = gs(n); const ps = (s.puestos || {})[k] || {}; openM('Puesto de votación', k.replace(/_/g, ' '), { type: 'p', n, k }, { coord: ps.coord, phone: ps.phone, tag: ps.tag || 'n', notes: ps.notes, showTag: true, showNotes: true }); }
 
