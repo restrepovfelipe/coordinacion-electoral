@@ -1818,6 +1818,34 @@ function exportDirectorioPDF() {
   win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
 }
 
+// Export only zone/commune coordinators (no puesto coords)
+function exportDirZonasComunasPDF() {
+  let sections = '';
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n);
+    const items = [];
+    // Municipal coordinator
+    if (s.coord) items.push({ rol: `Coordinador ${n === 'MEDELLIN' ? 'ciudad' : 'municipal'}`, nombre: s.coord, phone: s.phone || '', zona: '—' });
+    // Zone coordinators (Medellín only)
+    if (n === 'MEDELLIN') {
+      MEDELLIN_ZONAS.forEach(zona => {
+        const sz = (s.zonas || {})[zona.nombre] || {};
+        if (sz.coord) items.push({ rol: 'Coord. zona', nombre: sz.coord, phone: sz.phone || '', zona: zona.nombre });
+      });
+    }
+    // Commune coordinators
+    Object.keys(RAW[n]).sort().forEach(ck => {
+      const sc = (s.comunas || {})[ck] || {};
+      if (sc.coord) items.push({ rol: 'Coord. zona/comuna', nombre: sc.coord, phone: sc.phone || '', zona: ck });
+    });
+    if (items.length) sections += _dirSectionHTML(n === 'MEDELLIN' ? 'MEDELLÍN' : n, items);
+  });
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(_dirBuildHTML('Directorio de Coordinadores — Zonas y Comunas AMVA 2026', sections));
+  win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+}
+
 // Export coordinators directory for a single commune or municipality (called from modal per-section buttons)
 function exportDirectorioSeccionPDF(n, ck) {
   const items = _dirCoordRows(n, ck || null);
