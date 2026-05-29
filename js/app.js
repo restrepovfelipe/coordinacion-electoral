@@ -2066,10 +2066,43 @@ function exportRefrigPDFZona(n, zonaNombre) {
   const zona = MEDELLIN_ZONAS.find(z => z.nombre === zonaNombre); if (!zona) return;
   const s = gs(n);
   const comunasConDatos = zona.comunas.filter(ck => RAW[n]?.[ck]);
-  const totRefrig = comunasConDatos.reduce((sum, ck) => sum + _refrigCountComuna(n, ck).total, 0);
+  const counts = comunasConDatos.map(ck => ({ ck, rc: _refrigCountComuna(n, ck) }));
+  const totRefrig = counts.reduce((sum, { rc }) => sum + rc.total, 0);
+
+  // Summary table for the zone
+  const summaryTable = `
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#555;margin-bottom:6px">Resumen por comuna</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#f0f0f0">
+          <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">Comuna</th>
+          <th style="padding:6px 8px;border:1px solid #ddd;text-align:center">Testigos</th>
+          <th style="padding:6px 8px;border:1px solid #ddd;text-align:center">Coord. puestos</th>
+          <th style="padding:6px 8px;border:1px solid #ddd;text-align:center">Coord. comuna</th>
+          <th style="padding:6px 8px;border:1px solid #ddd;text-align:center;color:#f5a623">🍱 Total</th>
+        </tr></thead>
+        <tbody>
+          ${counts.map(({ ck, rc }, i) => `<tr style="background:${i % 2 === 0 ? '#fff' : '#fafafa'}">
+            <td style="padding:5px 8px;border:1px solid #ddd;font-size:11px">${esc(ck)}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${rc.testigos}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${rc.coordPuestos}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:center">${rc.coordComuna}</td>
+            <td style="padding:5px 8px;border:1px solid #ddd;text-align:center;font-weight:700;color:#f5a623">${rc.total}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr style="background:#fff3d6;font-weight:700">
+          <td style="padding:7px 8px;border:2px solid #f5a623;color:#c47a00">TOTAL ZONA</td>
+          <td style="padding:7px 8px;border:2px solid #f5a623;text-align:center">${counts.reduce((s,{rc})=>s+rc.testigos,0)}</td>
+          <td style="padding:7px 8px;border:2px solid #f5a623;text-align:center">${counts.reduce((s,{rc})=>s+rc.coordPuestos,0)}</td>
+          <td style="padding:7px 8px;border:2px solid #f5a623;text-align:center">${counts.reduce((s,{rc})=>s+rc.coordComuna,0)}</td>
+          <td style="padding:7px 8px;border:2px solid #f5a623;text-align:center;font-size:16px;color:#f5a623">${totRefrig}</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
+
   const header = `<div class="page-hdr"><h1>Refrigerios — ${esc(zonaNombre)}</h1>
-    <div class="sub">${comunasConDatos.length} comunas · Total refrigerios: ${totRefrig}</div></div>`;
-  const body = header + comunasConDatos.map(ck => _refrigPDFSection(n, ck, s)).join('');
+    <div class="sub">${comunasConDatos.length} comunas · Total refrigerios: <strong style="color:#f5c842">${totRefrig}</strong></div></div>`;
+  const body = header + summaryTable + comunasConDatos.map(ck => _refrigPDFSection(n, ck, s)).join('');
   _refrigOpenPrint('Refrigerios — ' + zonaNombre, body);
 }
 
