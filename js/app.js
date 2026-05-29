@@ -1982,20 +1982,54 @@ function _refrigPDFSection(n, ck, s) {
   const rc = _refrigCountComuna(n, ck);
   const rf = s.refrigerios?.[ck] || {};
   const sc = (s.comunas || {})[ck] || {};
+  const puestos = RAW[n]?.[ck] || [];
+
+  // Per-puesto breakdown
+  const puestoRows = puestos.map((p, i) => {
+    const testigos = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length;
+    const ps = (s.puestos || {})[pk(p)] || {};
+    const hasCoord = ps.coord ? 1 : 0;
+    const subtotal = testigos + hasCoord;
+    return `<tr style="background:${i % 2 === 0 ? '#fff' : '#fafafa'}">
+      <td style="padding:4px 7px;border:1px solid #e0e4ea;font-size:11px">${esc(p.puesto)}</td>
+      <td style="padding:4px 7px;border:1px solid #e0e4ea;text-align:center">${testigos}</td>
+      <td style="padding:4px 7px;border:1px solid #e0e4ea;text-align:center">${hasCoord ? '✓' : '—'}</td>
+      <td style="padding:4px 7px;border:1px solid #e0e4ea;text-align:center;font-weight:700;color:${subtotal > 0 ? '#f5a623' : '#aaa'}">${subtotal}</td>
+    </tr>`;
+  }).join('');
+
+  const puestosTable = puestos.length ? `
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">
+      <thead><tr style="background:#f0f0f0">
+        <th style="padding:5px 7px;border:1px solid #e0e4ea;text-align:left">Puesto de votación</th>
+        <th style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;white-space:nowrap">Testigos</th>
+        <th style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;white-space:nowrap">Coord. puesto</th>
+        <th style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;white-space:nowrap">🍱 Subtotal</th>
+      </tr></thead>
+      <tbody>${puestoRows}</tbody>
+      <tfoot><tr style="background:#fff8ec;font-weight:700">
+        <td style="padding:5px 7px;border:1px solid #e0e4ea">+ Coord. de comuna</td>
+        <td style="border:1px solid #e0e4ea"></td>
+        <td style="border:1px solid #e0e4ea"></td>
+        <td style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;color:#aaa">${rc.coordComuna ? '✓' : '—'}</td>
+      </tr>
+      <tr style="background:#fff3d6;font-weight:700">
+        <td style="padding:6px 7px;border:1px solid #f5a623;color:#c47a00">TOTAL REFRIGERIOS</td>
+        <td style="border:1px solid #f5a623"></td>
+        <td style="border:1px solid #f5a623"></td>
+        <td style="padding:6px 7px;border:1px solid #f5a623;text-align:center;font-size:15px;color:#f5a623">${rc.total}</td>
+      </tr></tfoot>
+    </table>` : '';
+
   return `
     <div class="sec-hdr">
       <span class="nm">${esc(ck)}</span>
       ${sc.coord ? `<span class="coord">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : ''}
     </div>
-    <div class="counts">
-      <div class="cnt"><div class="v">${rc.testigos}</div><div class="l">Testigos</div></div>
-      <div class="cnt"><div class="v">${rc.coordPuestos}</div><div class="l">Coord. puestos</div></div>
-      <div class="cnt"><div class="v">${rc.coordComuna}</div><div class="l">Coord. comuna</div></div>
-      <div class="cnt total"><div class="v">${rc.total}</div><div class="l">🍱 Total</div></div>
-    </div>
     ${rf.nombre
-      ? `<div class="enc"><div class="nm">🍱 ${esc(rf.nombre)}</div>${rf.telefono ? `<div class="ph">📞 ${esc(rf.telefono)}</div>` : ''}</div>`
-      : `<div class="no-enc">Sin encargado de refrigerios asignado</div>`}`;
+      ? `<div class="enc" style="margin-bottom:8px"><div class="nm">🍱 Encargado: ${esc(rf.nombre)}</div>${rf.telefono ? `<div class="ph">📞 ${esc(rf.telefono)}</div>` : ''}</div>`
+      : `<div class="no-enc">Sin encargado de refrigerios asignado</div>`}
+    ${puestosTable}`;
 }
 
 function _refrigOpenPrint(title, body) {
