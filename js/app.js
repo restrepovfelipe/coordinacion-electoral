@@ -1993,7 +1993,7 @@ function _refrigPDFSection(n, ck, s) {
     return `<tr style="background:${i % 2 === 0 ? '#fff' : '#fafafa'}">
       <td style="padding:4px 7px;border:1px solid #e0e4ea;font-size:11px">${esc(p.puesto)}</td>
       <td style="padding:4px 7px;border:1px solid #e0e4ea;text-align:center">${testigos}</td>
-      <td style="padding:4px 7px;border:1px solid #e0e4ea;text-align:center">${hasCoord ? '✓' : '—'}</td>
+      <td style="padding:4px 7px;border:1px solid #e0e4ea;text-align:center">${hasCoord ? '1' : '0'}</td>
       <td style="padding:4px 7px;border:1px solid #e0e4ea;text-align:center;font-weight:700;color:${subtotal > 0 ? '#f5a623' : '#aaa'}">${subtotal}</td>
     </tr>`;
   }).join('');
@@ -2011,7 +2011,7 @@ function _refrigPDFSection(n, ck, s) {
         <td style="padding:5px 7px;border:1px solid #e0e4ea">+ Coord. de comuna</td>
         <td style="border:1px solid #e0e4ea"></td>
         <td style="border:1px solid #e0e4ea"></td>
-        <td style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;color:#aaa">${rc.coordComuna ? '✓' : '—'}</td>
+        <td style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;color:#aaa">${rc.coordComuna ? '1' : '0'}</td>
       </tr>
       <tr style="background:#fff3d6;font-weight:700">
         <td style="padding:6px 7px;border:1px solid #f5a623;color:#c47a00">TOTAL REFRIGERIOS</td>
