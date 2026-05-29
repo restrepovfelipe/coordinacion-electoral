@@ -1179,6 +1179,22 @@ function _migrateMovResps(mov) {
   });
 }
 const _movEditMode = new Set();
+const _movSubTab = new Map(); // id → 'all' | 'moto' | 'carro'
+
+function _movTabBar(id, curTab, n, ck, mo, ca) {
+  const ckE = ck.replace(/'/g, "\\'");
+  const tabs = [
+    { key: 'all',   lbl: `Todos (${mo + ca})` },
+    { key: 'moto',  lbl: `🏍 Motos (${mo})` },
+    { key: 'carro', lbl: `🚗 Carros (${ca})` },
+  ];
+  return `<div style="display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--bdr);padding-bottom:6px;flex-wrap:wrap">
+    ${tabs.map(t => `<button onclick="setMovSubTab('${id}','${t.key}','${n}','${ckE}')"
+      style="padding:4px 11px;font-size:11px;border-radius:5px;border:1px solid var(--bdr);cursor:pointer;transition:all .15s;
+      background:${curTab === t.key ? 'var(--blue)' : 'var(--bg2)'};
+      color:${curTab === t.key ? '#fff' : 'var(--t2)'};font-weight:${curTab === t.key ? '700' : '400'}">${t.lbl}</button>`).join('')}
+  </div>`;
+}
 
 function renderMovPanel(n, ck, id) {
   const pane = document.getElementById(id + '-mov');
@@ -1192,12 +1208,14 @@ function renderMovPanel(n, ck, id) {
   const totalCarrosReg = resps.filter(r => r.tipo === 'carro').length;
   const motosNec = mov.motos_nec || 0; const carrosNec = mov.carros_nec || 0;
   const ckE = ck.replace(/'/g, "\\'");
+  const curTab = _movSubTab.get(id) || 'all';
   // Start in edit mode if explicitly set OR no vehicles yet
   const isEdit = _movEditMode.has(id) || resps.length === 0;
 
   if (!isEdit) {
     // ── VIEW MODE ──
-    const viewCards = resps.map((r, i) => {
+    const filteredView = curTab === 'all' ? resps : resps.filter(r => r.tipo === curTab);
+    const viewCards = filteredView.map((r, i) => {
       const tipoIcon = r.tipo === 'moto' ? '🏍' : '🚗';
       const tipoLabel = r.tipo === 'moto' ? 'Moto' : 'Carro';
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:var(--bg2);border-radius:7px;border:1px solid var(--bdr);flex-wrap:wrap">
@@ -1207,21 +1225,27 @@ function renderMovPanel(n, ck, id) {
         <span style="font-size:12px;color:var(--t1);flex:1;min-width:120px">👤 ${esc(r.nombreConductor || '—')}</span>
         ${r.telefonoConductor ? `<span style="font-size:12px;color:var(--t2)">${esc(r.telefonoConductor)}</span>${_waBtn(r.telefonoConductor)}` : ''}
       </div>`;
-    }).join('');
+    }).join('') || `<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin ${curTab === 'moto' ? 'motos' : curTab === 'carro' ? 'carros' : 'vehículos'} registrados</div>`;
     pane.innerHTML = `<div class="mov-panel">
       <div class="mov-totals-row">
         <div class="mov-total mo"><span class="lbl">🏍 Registradas:</span><span class="tot-val">${totalMotosReg}</span><span class="sep">/ necesarias:</span><span style="font-weight:600;color:var(--t1)">${motosNec}</span></div>
         <div class="mov-total ca"><span class="lbl">🚗 Registrados:</span><span class="tot-val">${totalCarrosReg}</span><span class="sep">/ necesarios:</span><span style="font-weight:600;color:var(--t1)">${carrosNec}</span></div>
       </div>
-      <div style="margin:8px 0">${viewCards}</div>
-      ${_isReadOnly() ? '' : `<button class="export-btn" onclick="editMov('${n}','${ckE}','${id}')">✏️ Editar</button>`}
+      ${_movTabBar(id, curTab, n, ck, totalMotosReg, totalCarrosReg)}
+      <div style="margin:4px 0 8px">${viewCards}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        ${_isReadOnly() ? '' : `<button class="export-btn" onclick="editMov('${n}','${ckE}','${id}')">✏️ Editar</button>`}
+        <button class="export-btn" style="background:var(--bg2);color:var(--t1);border:1px solid var(--bdr)" onclick="exportMovPDF('${n}','${ck.replace(/'/g, "\\'")}')">📄 Exportar PDF</button>
+      </div>
     </div>`;
     return;
   }
 
   // ── EDIT MODE ──
-  const respCards = resps.length
-    ? resps.map((r, i) => `
+  const indexedResps = resps.map((r, i) => ({ r, i }));
+  const filteredEdit = curTab === 'all' ? indexedResps : indexedResps.filter(({r}) => r.tipo === curTab);
+  const respCards = filteredEdit.length
+    ? filteredEdit.map(({ r, i }) => `
       <div class="resp-card" style="padding:10px 12px;margin-bottom:8px;background:var(--bg2);border-radius:8px;border:1px solid var(--bdr)">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span class="resp-num" style="font-weight:700;color:var(--t2);min-width:22px">#${i + 1}</span>
@@ -1248,7 +1272,9 @@ function renderMovPanel(n, ck, id) {
           <button class="del-btn" style="flex-shrink:0" onclick="delResp('${n}','${ckE}',${i},'${id}')">×</button>
         </div>
       </div>`).join('')
-    : '<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin vehículos registrados aún</div>';
+    : `<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin ${curTab === 'moto' ? 'motos' : curTab === 'carro' ? 'carros' : 'vehículos'} registrados aún</div>`;
+  const addLabel = curTab === 'moto' ? '+ Agregar moto' : curTab === 'carro' ? '+ Agregar carro' : '+ Agregar vehículo';
+  const addTipo  = curTab === 'all' ? 'moto' : curTab;
   pane.innerHTML = `<div class="mov-panel">
     <div class="mov-totals-row">
       <div class="mov-total mo">
@@ -1266,8 +1292,9 @@ function renderMovPanel(n, ck, id) {
           onchange="saveMovNec('${n}','${ckE}','carros_nec',this.value)">
       </div>
     </div>
+    ${_movTabBar(id, curTab, n, ck, totalMotosReg, totalCarrosReg)}
     <div class="resp-list" id="${id}-resp-list">${respCards}</div>
-    <button class="resp-add-btn" onclick="addResp('${n}','${ckE}','${id}')">+ Agregar vehículo</button>
+    <button class="resp-add-btn" onclick="addResp('${n}','${ckE}','${id}','${addTipo}')">${addLabel}</button>
     <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
       <button class="mv-save-all" onclick="saveMovAll('${n}','${ckE}','${id}')">💾 Guardar movilidad</button>
       ${resps.length > 0 ? `<button onclick="cancelMov('${n}','${ckE}','${id}')" style="padding:5px 12px;font-size:12px;border-radius:5px;border:1px solid var(--bdr);background:var(--bg2);color:var(--t2);cursor:pointer">✕ Cancelar</button>` : ''}
@@ -1277,6 +1304,69 @@ function renderMovPanel(n, ck, id) {
 
 function editMov(n, ck, id) { _movEditMode.add(id); renderMovPanel(n, ck, id); }
 function cancelMov(n, ck, id) { _movEditMode.delete(id); renderMovPanel(n, ck, id); }
+function setMovSubTab(id, tab, n, ck) { _movSubTab.set(id, tab); renderMovPanel(n, ck, id); }
+
+function exportMovPDF(n, ck) {
+  const s = gs(n);
+  const mov = s.movilidad?.[ck] || { responsables: [], motos_nec: 0, carros_nec: 0 };
+  _migrateMovResps(mov);
+  const resps = mov.responsables;
+  const motos = resps.filter(r => r.tipo === 'moto');
+  const carros = resps.filter(r => r.tipo === 'carro');
+  const sc = (s.comunas || {})[ck] || {};
+  const vehTable = (list, label) => {
+    if (!list.length) return `<p style="color:#999;font-style:italic;font-size:12px;margin:4px 0 12px">Sin ${label} registrados</p>`;
+    return `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px">
+      <thead><tr style="background:#f0f0f0">
+        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">#</th>
+        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">Placa</th>
+        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">Conductor</th>
+        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">Teléfono</th>
+      </tr></thead><tbody>
+      ${list.map((r, i) => `<tr style="background:${i % 2 === 0 ? '#fff' : '#fafafa'}">
+        <td style="padding:5px 8px;border:1px solid #ddd;color:#999">${i + 1}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd;font-weight:700;letter-spacing:.5px">${esc((r.placa || '').toUpperCase()) || '—'}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd">${esc(r.nombreConductor || '—')}</td>
+        <td style="padding:5px 8px;border:1px solid #ddd">${esc(r.telefonoConductor || '—')}</td>
+      </tr>`).join('')}
+      </tbody></table>`;
+  };
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Movilidad — ${esc(ck)}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:13px;margin:28px 32px;color:#222}
+      h2{font-size:14px;margin:20px 0 8px;color:#1a2030;border-left:4px solid #f5c842;padding-left:8px}
+      .hdr{background:#1a2030;color:#f5c842;padding:12px 16px;border-radius:7px;margin-bottom:18px}
+      .hdr h1{font-size:17px;margin:0 0 4px}
+      .hdr .sub{font-size:12px;color:#ccc}
+      .stats{display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+      .stat{background:#f5f7fa;border:1px solid #e0e4ea;border-radius:6px;padding:8px 14px;min-width:120px}
+      .stat .val{font-size:20px;font-weight:700;color:#1a2030}
+      .stat .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px}
+      .stat .nec{font-size:11px;color:#aaa;margin-top:1px}
+      @media print{body{margin:14px 18px}}
+    </style></head><body>
+    <div class="hdr">
+      <h1>Plan de Movilidad</h1>
+      <div class="sub">${esc(ck)}${sc.coord ? ` · Coord: ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}` : ''}</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="val">${motos.length}</div><div class="lbl">🏍 Motos registradas</div><div class="nec">/ ${mov.motos_nec || 0} necesarias</div></div>
+      <div class="stat"><div class="val">${carros.length}</div><div class="lbl">🚗 Carros registrados</div><div class="nec">/ ${mov.carros_nec || 0} necesarios</div></div>
+      <div class="stat"><div class="val">${motos.length + carros.length}</div><div class="lbl">Total vehículos</div></div>
+    </div>
+    <h2>🏍 Motos (${motos.length})</h2>
+    ${vehTable(motos, 'motos')}
+    <h2>🚗 Carros (${carros.length})</h2>
+    ${vehTable(carros, 'carros')}
+    <div style="font-size:10px;color:#aaa;margin-top:28px;border-top:1px solid #eee;padding-top:8px">
+      Coordinación Electoral · Defensores de la Patria · Generado el ${new Date().toLocaleDateString('es-CO', {day:'2-digit',month:'long',year:'numeric'})}
+    </div>
+  </body></html>`;
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html);
+  win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+}
 
 function updateResp(n, ck, idx, field, val, id) {
   const s = gs(n);
@@ -1291,10 +1381,11 @@ function updateResp(n, ck, idx, field, val, id) {
   // Refresh WA button on phone fields without full re-render
   if (field === 'telefonoConductor') renderMovPanel(n, ck, id);
 }
-async function addResp(n, ck, id) {
+async function addResp(n, ck, id, tipo) {
+  tipo = tipo || 'moto';
   const s = gs(n);
   if (!s.movilidad[ck].responsables) s.movilidad[ck].responsables = [];
-  s.movilidad[ck].responsables.push({ tipo: 'moto', placa: '', nombreConductor: '', telefonoConductor: '' });
+  s.movilidad[ck].responsables.push({ tipo, placa: '', nombreConductor: '', telefonoConductor: '' });
   saveLocalSt();
   await writeMuni(n);
   renderMovPanel(n, ck, id);
