@@ -1306,66 +1306,120 @@ function editMov(n, ck, id) { _movEditMode.add(id); renderMovPanel(n, ck, id); }
 function cancelMov(n, ck, id) { _movEditMode.delete(id); renderMovPanel(n, ck, id); }
 function setMovSubTab(id, tab, n, ck) { _movSubTab.set(id, tab); renderMovPanel(n, ck, id); }
 
-function exportMovPDF(n, ck) {
-  const s = gs(n);
+// ── Shared helpers ──────────────────────────────────────────────────
+const _MOV_PDF_CSS = `
+  body{font-family:Arial,sans-serif;font-size:12px;margin:24px 28px;color:#222}
+  .page-hdr{background:#1a2030;color:#f5c842;padding:10px 14px;border-radius:6px;margin-bottom:14px}
+  .page-hdr h1{font-size:16px;margin:0 0 3px}
+  .page-hdr .sub{font-size:11px;color:#ccc}
+  .sec-hdr{background:#1a2030;color:#f5c842;padding:7px 12px;border-radius:5px;margin:18px 0 8px;display:flex;justify-content:space-between;align-items:center;page-break-inside:avoid}
+  .sec-hdr .nm{font-size:13px;font-weight:700}
+  .sec-hdr .coord{font-size:10px;color:#ccc}
+  .stats{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  .stat{background:#f5f7fa;border:1px solid #e0e4ea;border-radius:5px;padding:6px 12px}
+  .stat .val{font-size:17px;font-weight:700;color:#1a2030}
+  .stat .lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px}
+  .stat .nec{font-size:10px;color:#aaa}
+  h3{font-size:12px;margin:12px 0 5px;color:#1a2030;border-left:3px solid #f5c842;padding-left:7px}
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px}
+  thead tr{background:#f0f0f0}
+  th{padding:5px 7px;border:1px solid #ddd;text-align:left;font-size:10px}
+  td{padding:4px 7px;border:1px solid #ddd}
+  .empty{color:#999;font-style:italic;font-size:11px;margin:2px 0 10px}
+  @media print{body{margin:12px 14px}.sec-hdr{page-break-before:auto}}`;
+
+function _movVehTable(list) {
+  if (!list.length) return '';
+  return `<table><thead><tr><th>#</th><th>Placa</th><th>Conductor</th><th>Teléfono</th></tr></thead><tbody>
+    ${list.map((r, i) => `<tr style="background:${i%2===0?'#fff':'#fafafa'}">
+      <td style="color:#aaa">${i+1}</td>
+      <td style="font-weight:700;letter-spacing:.4px">${esc((r.placa||'').toUpperCase())||'—'}</td>
+      <td>${esc(r.nombreConductor||'—')}</td>
+      <td>${esc(r.telefonoConductor||'—')}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function _movComunaSection(n, ck, s) {
   const mov = s.movilidad?.[ck] || { responsables: [], motos_nec: 0, carros_nec: 0 };
   _migrateMovResps(mov);
   const resps = mov.responsables;
   const motos = resps.filter(r => r.tipo === 'moto');
   const carros = resps.filter(r => r.tipo === 'carro');
   const sc = (s.comunas || {})[ck] || {};
-  const vehTable = (list, label) => {
-    if (!list.length) return `<p style="color:#999;font-style:italic;font-size:12px;margin:4px 0 12px">Sin ${label} registrados</p>`;
-    return `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px">
-      <thead><tr style="background:#f0f0f0">
-        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">#</th>
-        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">Placa</th>
-        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">Conductor</th>
-        <th style="padding:6px 8px;border:1px solid #ddd;text-align:left">Teléfono</th>
-      </tr></thead><tbody>
-      ${list.map((r, i) => `<tr style="background:${i % 2 === 0 ? '#fff' : '#fafafa'}">
-        <td style="padding:5px 8px;border:1px solid #ddd;color:#999">${i + 1}</td>
-        <td style="padding:5px 8px;border:1px solid #ddd;font-weight:700;letter-spacing:.5px">${esc((r.placa || '').toUpperCase()) || '—'}</td>
-        <td style="padding:5px 8px;border:1px solid #ddd">${esc(r.nombreConductor || '—')}</td>
-        <td style="padding:5px 8px;border:1px solid #ddd">${esc(r.telefonoConductor || '—')}</td>
-      </tr>`).join('')}
-      </tbody></table>`;
-  };
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Movilidad — ${esc(ck)}</title>
-    <style>
-      body{font-family:Arial,sans-serif;font-size:13px;margin:28px 32px;color:#222}
-      h2{font-size:14px;margin:20px 0 8px;color:#1a2030;border-left:4px solid #f5c842;padding-left:8px}
-      .hdr{background:#1a2030;color:#f5c842;padding:12px 16px;border-radius:7px;margin-bottom:18px}
-      .hdr h1{font-size:17px;margin:0 0 4px}
-      .hdr .sub{font-size:12px;color:#ccc}
-      .stats{display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap}
-      .stat{background:#f5f7fa;border:1px solid #e0e4ea;border-radius:6px;padding:8px 14px;min-width:120px}
-      .stat .val{font-size:20px;font-weight:700;color:#1a2030}
-      .stat .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px}
-      .stat .nec{font-size:11px;color:#aaa;margin-top:1px}
-      @media print{body{margin:14px 18px}}
-    </style></head><body>
-    <div class="hdr">
-      <h1>Plan de Movilidad</h1>
-      <div class="sub">${esc(ck)}${sc.coord ? ` · Coord: ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}` : ''}</div>
+  return `
+    <div class="sec-hdr">
+      <span class="nm">${esc(ck)}</span>
+      ${sc.coord ? `<span class="coord">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : ''}
     </div>
     <div class="stats">
-      <div class="stat"><div class="val">${motos.length}</div><div class="lbl">🏍 Motos registradas</div><div class="nec">/ ${mov.motos_nec || 0} necesarias</div></div>
-      <div class="stat"><div class="val">${carros.length}</div><div class="lbl">🚗 Carros registrados</div><div class="nec">/ ${mov.carros_nec || 0} necesarios</div></div>
-      <div class="stat"><div class="val">${motos.length + carros.length}</div><div class="lbl">Total vehículos</div></div>
+      <div class="stat"><div class="val">${motos.length}</div><div class="lbl">🏍 Motos</div><div class="nec">/ ${mov.motos_nec||0} nec.</div></div>
+      <div class="stat"><div class="val">${carros.length}</div><div class="lbl">🚗 Carros</div><div class="nec">/ ${mov.carros_nec||0} nec.</div></div>
+      <div class="stat"><div class="val">${motos.length+carros.length}</div><div class="lbl">Total</div></div>
     </div>
-    <h2>🏍 Motos (${motos.length})</h2>
-    ${vehTable(motos, 'motos')}
-    <h2>🚗 Carros (${carros.length})</h2>
-    ${vehTable(carros, 'carros')}
-    <div style="font-size:10px;color:#aaa;margin-top:28px;border-top:1px solid #eee;padding-top:8px">
-      Coordinación Electoral · Defensores de la Patria · Generado el ${new Date().toLocaleDateString('es-CO', {day:'2-digit',month:'long',year:'numeric'})}
-    </div>
-  </body></html>`;
+    <h3>🏍 Motos (${motos.length})</h3>
+    ${motos.length ? _movVehTable(motos) : '<p class="empty">Sin motos registradas</p>'}
+    <h3>🚗 Carros (${carros.length})</h3>
+    ${carros.length ? _movVehTable(carros) : '<p class="empty">Sin carros registrados</p>'}`;
+}
+
+function _movOpenPrint(title, body) {
+  const footer = `<div style="font-size:9px;color:#aaa;margin-top:20px;border-top:1px solid #eee;padding-top:6px">
+    Coordinación Electoral · Defensores de la Patria · ${new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'})}</div>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+    <style>${_MOV_PDF_CSS}</style></head><body>${body}${footer}</body></html>`;
   const win = window.open('', '_blank', 'width=900,height=700');
-  win.document.write(html);
-  win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+  win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+}
+
+// ── Per-commune (called from inline button inside panel) ─────────────
+function exportMovPDF(n, ck) {
+  const menu = document.getElementById('mov-pdf-menu'); if (menu) menu.classList.remove('show');
+  const s = gs(n);
+  const sc = (s.comunas || {})[ck] || {};
+  const header = `<div class="page-hdr"><h1>Plan de Movilidad</h1>
+    <div class="sub">${esc(ck)}${sc.coord ? ' · Coord: ' + esc(sc.coord) + (sc.phone ? ' · ' + esc(sc.phone) : '') : ''}</div></div>`;
+  _movOpenPrint('Movilidad — ' + ck, header + _movComunaSection(n, ck, s));
+}
+
+// ── Per-municipality ─────────────────────────────────────────────────
+function exportMovPDFMuni(n) {
+  const menu = document.getElementById('mov-pdf-menu'); if (menu) menu.classList.remove('show');
+  if (!RAW[n]) return;
+  const s = gs(n);
+  const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+  const header = `<div class="page-hdr"><h1>Plan de Movilidad — ${esc(label)}</h1>
+    <div class="sub">${Object.keys(RAW[n]).length} comunas / sectores</div></div>`;
+  const body = header + Object.keys(RAW[n]).sort().map(ck => _movComunaSection(n, ck, s)).join('');
+  _movOpenPrint('Movilidad — ' + label, body);
+}
+
+// ── Per-zona (Medellín only) ─────────────────────────────────────────
+function exportMovPDFZona(n, zonaNombre) {
+  const menu = document.getElementById('mov-pdf-menu'); if (menu) menu.classList.remove('show');
+  const zona = MEDELLIN_ZONAS.find(z => z.nombre === zonaNombre); if (!zona) return;
+  const s = gs(n);
+  const header = `<div class="page-hdr"><h1>Plan de Movilidad — ${esc(zonaNombre)}</h1>
+    <div class="sub">Zona de Medellín · ${zona.comunas.filter(ck => RAW[n]?.[ck]).length} comunas</div></div>`;
+  const body = header + zona.comunas.filter(ck => RAW[n]?.[ck]).map(ck => _movComunaSection(n, ck, s)).join('');
+  _movOpenPrint('Movilidad — ' + zonaNombre, body);
+}
+
+// ── All AMVA ─────────────────────────────────────────────────────────
+function exportMovPDFAll() {
+  const menu = document.getElementById('mov-pdf-menu'); if (menu) menu.classList.remove('show');
+  let body = `<div class="page-hdr"><h1>Plan de Movilidad — AMVA Completo</h1>
+    <div class="sub">${ALL_MUNIS.filter(n => RAW[n]).length} municipios</div></div>`;
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n);
+    const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+    body += `<div style="margin-top:24px;page-break-before:always">
+      <div style="font-size:15px;font-weight:700;color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:6px;margin-bottom:10px">${esc(label)}</div>
+      ${Object.keys(RAW[n]).sort().map(ck => _movComunaSection(n, ck, s)).join('')}
+    </div>`;
+  });
+  _movOpenPrint('Movilidad AMVA', body);
 }
 
 function updateResp(n, ck, idx, field, val, id) {
@@ -1762,6 +1816,7 @@ async function startApp() {
   loadDashboardStats();
   buildExportMenu();
   buildExcelMenu();
+  buildMovPDFMenu();
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
   if (typeof initProfileWidget === 'function' && window.CURRENT_USER) initProfileWidget(window.CURRENT_USER);
@@ -1777,10 +1832,12 @@ async function startApp() {
 // ═══ EXPORT PDF ═══
 function toggleExportMenu() { document.getElementById('export-menu').classList.toggle('show'); }
 function toggleExcelMenu() { document.getElementById('excel-menu').classList.toggle('show'); }
+function toggleMovPDFMenu() { document.getElementById('mov-pdf-menu').classList.toggle('show'); }
 document.addEventListener('click', function (e) {
   if (!e.target.closest('.export-wrap')) {
     document.getElementById('export-menu').classList.remove('show');
     document.getElementById('excel-menu').classList.remove('show');
+    const m = document.getElementById('mov-pdf-menu'); if (m) m.classList.remove('show');
   }
 });
 
@@ -1826,6 +1883,29 @@ function buildExcelMenu() {
     if (!valid.length) return;
     html += sep + lbl(region);
     valid.forEach(n => { html += `<div class="export-item" onclick="exportExcel('muni','${n}')">🏙️ ${n}</div>`; });
+  });
+  list.innerHTML = html;
+}
+
+function buildMovPDFMenu() {
+  const list = document.getElementById('mov-pdf-list'); if (!list) return;
+  const sep = `<div style="height:1px;background:var(--b1);margin:4px 0"></div>`;
+  const lbl = t => `<div style="font-size:9px;color:var(--t3);padding:3px 10px;text-transform:uppercase;letter-spacing:1px">${t}</div>`;
+  let html = lbl('Por zona — Medellín');
+  MEDELLIN_ZONAS.forEach(z => {
+    html += `<div class="export-item" onclick="exportMovPDFZona('MEDELLIN','${z.nombre.replace(/'/g, "\\'")}')">🗺 ${z.nombre}</div>`;
+  });
+  if (RAW['MEDELLIN']) {
+    html += sep + lbl('Por comuna — Medellín');
+    Object.keys(RAW['MEDELLIN']).sort().forEach(ck => {
+      html += `<div class="export-item" onclick="exportMovPDF('MEDELLIN','${ck.replace(/'/g, "\\'")}')">📑 ${ck}</div>`;
+    });
+  }
+  Object.entries(REGIONES).filter(([r]) => r !== 'AMVA').forEach(([region, munis]) => {
+    const valid = munis.filter(n => RAW[n]);
+    if (!valid.length) return;
+    html += sep + lbl(region);
+    valid.forEach(n => { html += `<div class="export-item" onclick="exportMovPDFMuni('${n}')">🏙️ ${n}</div>`; });
   });
   list.innerHTML = html;
 }

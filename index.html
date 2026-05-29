@@ -73,6 +73,15 @@
         <div id="excel-comuni-list"></div>
       </div>
     </div>
+    <div class="export-wrap">
+      <button class="export-btn" onclick="toggleMovPDFMenu()">🚗 Movilidad PDF ▾</button>
+      <div class="export-menu" id="mov-pdf-menu">
+        <div class="export-item" onclick="exportMovPDFAll()">📋 Movilidad completa AMVA</div>
+        <div class="export-item" onclick="exportMovPDFMuni('MEDELLIN')">🏙️ Movilidad completa Medellín</div>
+        <div style="height:1px;background:var(--b1);margin:4px 0"></div>
+        <div id="mov-pdf-list"></div>
+      </div>
+    </div>
     <button class="sb-toggle sb-toggle-mob" onclick="toggleSB()" title="Ocultar/mostrar municipios">✕</button>
     <button class="export-btn" onclick="openDirectorio()" style="white-space:nowrap">👥 Coordinadores</button>
     <button id="btn-testigos-page" class="export-btn dir-tab-btn hidden" onclick="window.location.href='/testigos.html'" style="white-space:nowrap">🧾 Testigos</button>
