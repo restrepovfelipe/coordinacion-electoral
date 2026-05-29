@@ -239,6 +239,19 @@ const ALL_MUNIS = Object.values(REGIONES).flat();
 let CLOSED_REGIONS = new Set(Object.keys(REGIONES));
 const OPEN_ITABS = {};
 
+// Fix puestos where total=0 but mujeres+hombres have real values
+(function _fixRawTotals() {
+  Object.values(RAW).forEach(comunas => {
+    Object.values(comunas).forEach(puestos => {
+      puestos.forEach(p => {
+        if (!p.total && ((p.mujeres || 0) + (p.hombres || 0)) > 0) {
+          p.total = (p.mujeres || 0) + (p.hombres || 0);
+        }
+      });
+    });
+  });
+})();
+
 function loadLocalSt() {
   try { return JSON.parse(localStorage.getItem('amva26v2') || '{}'); } catch (e) { return {}; }
 }
