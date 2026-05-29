@@ -1854,12 +1854,10 @@ async function startApp() {
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
   if (typeof initProfileWidget === 'function' && window.CURRENT_USER) initProfileWidget(window.CURRENT_USER);
-  // Show testigos and jurados page buttons for all authenticated roles
+  // Show testigos page button for all authenticated roles
   if (window.CURRENT_USER) {
     const _tBtn = document.getElementById('btn-testigos-page');
     if (_tBtn) _tBtn.classList.remove('hidden');
-    const _jBtn = document.getElementById('btn-jurados-page');
-    if (_jBtn) _jBtn.classList.remove('hidden');
   }
 }
 
