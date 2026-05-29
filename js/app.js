@@ -1837,6 +1837,7 @@ async function startApp() {
   buildExportMenu();
   buildExcelMenu();
   buildMovPDFMenu();
+  buildRefrigPDFMenu();
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
   if (typeof initProfileWidget === 'function' && window.CURRENT_USER) initProfileWidget(window.CURRENT_USER);
@@ -1853,11 +1854,13 @@ async function startApp() {
 function toggleExportMenu() { document.getElementById('export-menu').classList.toggle('show'); }
 function toggleExcelMenu() { document.getElementById('excel-menu').classList.toggle('show'); }
 function toggleMovPDFMenu() { document.getElementById('mov-pdf-menu').classList.toggle('show'); }
+function toggleRefrigPDFMenu() { document.getElementById('refrig-pdf-menu').classList.toggle('show'); }
 document.addEventListener('click', function (e) {
   if (!e.target.closest('.export-wrap')) {
     document.getElementById('export-menu').classList.remove('show');
     document.getElementById('excel-menu').classList.remove('show');
     const m = document.getElementById('mov-pdf-menu'); if (m) m.classList.remove('show');
+    const r = document.getElementById('refrig-pdf-menu'); if (r) r.classList.remove('show');
   }
 });
 
@@ -1928,6 +1931,129 @@ function buildMovPDFMenu() {
     valid.forEach(n => { html += `<div class="export-item" onclick="exportMovPDFMuni('${n}')">🏙️ ${n}</div>`; });
   });
   list.innerHTML = html;
+}
+
+function buildRefrigPDFMenu() {
+  const list = document.getElementById('refrig-pdf-list'); if (!list) return;
+  const sep = `<div style="height:1px;background:var(--b1);margin:4px 0"></div>`;
+  const lbl = t => `<div style="font-size:9px;color:var(--t3);padding:3px 10px;text-transform:uppercase;letter-spacing:1px">${t}</div>`;
+  let html = lbl('Por zona — Medellín');
+  MEDELLIN_ZONAS.forEach(z => {
+    html += `<div class="export-item" onclick="exportRefrigPDFZona('MEDELLIN','${z.nombre.replace(/'/g, "\\'")}')">🗺 ${z.nombre}</div>`;
+  });
+  if (RAW['MEDELLIN']) {
+    html += sep + lbl('Por comuna — Medellín');
+    Object.keys(RAW['MEDELLIN']).sort().forEach(ck => {
+      html += `<div class="export-item" onclick="exportRefrigPDFComuna('MEDELLIN','${ck.replace(/'/g, "\\'")}')">📑 ${ck}</div>`;
+    });
+  }
+  Object.entries(REGIONES).filter(([r]) => r !== 'AMVA').forEach(([region, munis]) => {
+    const valid = munis.filter(n => RAW[n]);
+    if (!valid.length) return;
+    html += sep + lbl(region);
+    valid.forEach(n => { html += `<div class="export-item" onclick="exportRefrigPDFMuni('${n}')">🏙️ ${n}</div>`; });
+  });
+  list.innerHTML = html;
+}
+
+// ── Refrigerios PDF CSS & helpers ────────────────────────────────────
+const _REFRIG_PDF_CSS = `
+  body{font-family:Arial,sans-serif;font-size:12px;margin:24px 28px;color:#222}
+  .page-hdr{background:#1a2030;color:#f5c842;padding:10px 14px;border-radius:6px;margin-bottom:14px}
+  .page-hdr h1{font-size:16px;margin:0 0 3px}
+  .page-hdr .sub{font-size:11px;color:#ccc}
+  .sec-hdr{background:#1a2030;color:#f5c842;padding:7px 12px;border-radius:5px;margin:18px 0 8px;display:flex;justify-content:space-between;align-items:center;page-break-inside:avoid}
+  .sec-hdr .nm{font-size:13px;font-weight:700}
+  .sec-hdr .coord{font-size:10px;color:#ccc}
+  .counts{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .cnt{background:#f5f7fa;border:1px solid #e0e4ea;border-radius:5px;padding:6px 12px;text-align:center;min-width:90px}
+  .cnt .v{font-size:17px;font-weight:700;color:#1a2030}
+  .cnt .l{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.4px}
+  .cnt.total{background:#fff8ec;border:2px solid #f5a623}
+  .cnt.total .v{color:#f5a623;font-size:20px}
+  .cnt.total .l{color:#f5a623;font-weight:600}
+  .enc{background:#f9f9f9;border:1px solid #ddd;border-radius:5px;padding:8px 12px;margin-bottom:4px;font-size:12px}
+  .enc .nm{font-weight:600;margin-bottom:2px}
+  .enc .ph{color:#666}
+  .no-enc{color:#bbb;font-style:italic;font-size:11px;margin-bottom:8px}
+  @media print{body{margin:12px 14px}}`;
+
+function _refrigPDFSection(n, ck, s) {
+  const rc = _refrigCountComuna(n, ck);
+  const rf = s.refrigerios?.[ck] || {};
+  const sc = (s.comunas || {})[ck] || {};
+  return `
+    <div class="sec-hdr">
+      <span class="nm">${esc(ck)}</span>
+      ${sc.coord ? `<span class="coord">👤 ${esc(sc.coord)}${sc.phone ? ' · ' + esc(sc.phone) : ''}</span>` : ''}
+    </div>
+    <div class="counts">
+      <div class="cnt"><div class="v">${rc.testigos}</div><div class="l">Testigos</div></div>
+      <div class="cnt"><div class="v">${rc.coordPuestos}</div><div class="l">Coord. puestos</div></div>
+      <div class="cnt"><div class="v">${rc.coordComuna}</div><div class="l">Coord. comuna</div></div>
+      <div class="cnt total"><div class="v">${rc.total}</div><div class="l">🍱 Total</div></div>
+    </div>
+    ${rf.nombre
+      ? `<div class="enc"><div class="nm">🍱 ${esc(rf.nombre)}</div>${rf.telefono ? `<div class="ph">📞 ${esc(rf.telefono)}</div>` : ''}</div>`
+      : `<div class="no-enc">Sin encargado de refrigerios asignado</div>`}`;
+}
+
+function _refrigOpenPrint(title, body) {
+  const footer = `<div style="font-size:9px;color:#aaa;margin-top:20px;border-top:1px solid #eee;padding-top:6px">
+    Coordinación Electoral · Defensores de la Patria · ${new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'})}</div>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+    <style>${_REFRIG_PDF_CSS}</style></head><body>${body}${footer}</body></html>`;
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
+}
+
+function exportRefrigPDFComuna(n, ck) {
+  const menu = document.getElementById('refrig-pdf-menu'); if (menu) menu.classList.remove('show');
+  const s = gs(n);
+  const sc = (s.comunas || {})[ck] || {};
+  const header = `<div class="page-hdr"><h1>Refrigerios — ${esc(ck)}</h1>
+    <div class="sub">${sc.coord ? 'Coord: ' + esc(sc.coord) + (sc.phone ? ' · ' + esc(sc.phone) : '') : 'Sin coordinador asignado'}</div></div>`;
+  _refrigOpenPrint('Refrigerios — ' + ck, header + _refrigPDFSection(n, ck, s));
+}
+
+function exportRefrigPDFMuni(n) {
+  const menu = document.getElementById('refrig-pdf-menu'); if (menu) menu.classList.remove('show');
+  if (!RAW[n]) return;
+  const s = gs(n);
+  const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+  const header = `<div class="page-hdr"><h1>Refrigerios — ${esc(label)}</h1>
+    <div class="sub">${Object.keys(RAW[n]).length} comunas / sectores</div></div>`;
+  const body = header + Object.keys(RAW[n]).sort().map(ck => _refrigPDFSection(n, ck, s)).join('');
+  _refrigOpenPrint('Refrigerios — ' + label, body);
+}
+
+function exportRefrigPDFZona(n, zonaNombre) {
+  const menu = document.getElementById('refrig-pdf-menu'); if (menu) menu.classList.remove('show');
+  const zona = MEDELLIN_ZONAS.find(z => z.nombre === zonaNombre); if (!zona) return;
+  const s = gs(n);
+  const comunasConDatos = zona.comunas.filter(ck => RAW[n]?.[ck]);
+  const totRefrig = comunasConDatos.reduce((sum, ck) => sum + _refrigCountComuna(n, ck).total, 0);
+  const header = `<div class="page-hdr"><h1>Refrigerios — ${esc(zonaNombre)}</h1>
+    <div class="sub">${comunasConDatos.length} comunas · Total refrigerios: ${totRefrig}</div></div>`;
+  const body = header + comunasConDatos.map(ck => _refrigPDFSection(n, ck, s)).join('');
+  _refrigOpenPrint('Refrigerios — ' + zonaNombre, body);
+}
+
+function exportRefrigPDFAll() {
+  const menu = document.getElementById('refrig-pdf-menu'); if (menu) menu.classList.remove('show');
+  let body = `<div class="page-hdr"><h1>Refrigerios — AMVA Completo</h1>
+    <div class="sub">${ALL_MUNIS.filter(n => RAW[n]).length} municipios</div></div>`;
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n);
+    const label = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+    const totRefrig = Object.keys(RAW[n]).reduce((sum, ck) => sum + _refrigCountComuna(n, ck).total, 0);
+    body += `<div style="margin-top:24px;page-break-before:always">
+      <div style="font-size:15px;font-weight:700;color:#1a2030;border-bottom:3px solid #f5c842;padding-bottom:6px;margin-bottom:10px">${esc(label)} <span style="font-size:12px;color:#f5a623;font-weight:600">· ${totRefrig} refrigerios</span></div>
+      ${Object.keys(RAW[n]).sort().map(ck => _refrigPDFSection(n, ck, s)).join('')}
+    </div>`;
+  });
+  _refrigOpenPrint('Refrigerios AMVA', body);
 }
 
 function exportExcel(tipo, muni, ck) {

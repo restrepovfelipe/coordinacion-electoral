@@ -82,6 +82,15 @@
         <div id="mov-pdf-list"></div>
       </div>
     </div>
+    <div class="export-wrap">
+      <button class="export-btn" onclick="toggleRefrigPDFMenu()">🍱 Refrigerios PDF ▾</button>
+      <div class="export-menu" id="refrig-pdf-menu">
+        <div class="export-item" onclick="exportRefrigPDFAll()">📋 Refrigerios completo AMVA</div>
+        <div class="export-item" onclick="exportRefrigPDFMuni('MEDELLIN')">🏙️ Refrigerios completo Medellín</div>
+        <div style="height:1px;background:var(--b1);margin:4px 0"></div>
+        <div id="refrig-pdf-list"></div>
+      </div>
+    </div>
     <button class="sb-toggle sb-toggle-mob" onclick="toggleSB()" title="Ocultar/mostrar municipios">✕</button>
     <button class="export-btn" onclick="openDirectorio()" style="white-space:nowrap">👥 Coordinadores</button>
     <button id="btn-testigos-page" class="export-btn dir-tab-btn hidden" onclick="window.location.href='/testigos.html'" style="white-space:nowrap">🧾 Testigos</button>
