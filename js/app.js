@@ -1794,7 +1794,7 @@ function _dirSectionHTML(label, items) {
       <tr style="background:#f0f0f0">
         <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Nombre</th>
         <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Rol</th>
-        <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Zona / Puesto</th>
+        <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Zona / Comuna</th>
         <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Teléfono</th>
       </tr>
       ${items.map(it => `<tr>
@@ -2920,20 +2920,56 @@ function renderDirAbogados() {
 }
 function exportDirAbogadosPDF() {
   const now = new Date().toLocaleString('es-CO'); let sections = '';
+  const _coordCell = (nombre, tel) => {
+    if (!nombre) return `<td style="padding:4px 8px;border:1px solid #ddd;color:#999">—</td>`;
+    return `<td style="padding:4px 8px;border:1px solid #ddd">${esc(nombre)}${tel ? `<br><span style="color:#555;font-size:10px">${esc(tel)}</span>` : ''}</td>`;
+  };
   ALL_MUNIS.forEach(n => {
     if (!RAW[n]) return;
-    const s = gs(n); let muniRows = '';
+    const s = gs(n);
+    const isMedellin = n === 'MEDELLIN';
+    let muniRows = '';
     Object.keys(RAW[n]).sort().forEach(ck => {
       const list = Array.isArray(s.abogados?.[ck]) ? s.abogados[ck]
                  : (s.abogados?.[ck]?.nombre ? [s.abogados[ck]] : []);
+      // Commune coordinator
+      const sc = (s.comunas || {})[ck] || {};
+      // Zone coordinator (Medellín only)
+      let coordZonaNombre = '', coordZonaTel = '';
+      if (isMedellin && typeof MEDELLIN_ZONAS !== 'undefined') {
+        const zona = MEDELLIN_ZONAS.find(z => z.comunas.includes(ck));
+        if (zona) {
+          const sz = (s.zonas || {})[zona.nombre] || {};
+          coordZonaNombre = sz.coord || '';
+          coordZonaTel = sz.phone || '';
+        }
+      }
       list.filter(ab => ab.nombre).forEach(ab => {
-        muniRows += `<tr><td style="padding:4px 8px;border:1px solid #ddd">${esc(ck)}</td><td style="padding:4px 8px;border:1px solid #ddd">${esc(ab.nombre)}</td><td style="padding:4px 8px;border:1px solid #ddd">${ab.telefono ? esc(ab.telefono) : '—'}</td></tr>`;
+        const zonaCell = isMedellin ? _coordCell(coordZonaNombre, coordZonaTel) : '';
+        muniRows += `<tr>
+          <td style="padding:4px 8px;border:1px solid #ddd">${esc(ck)}</td>
+          <td style="padding:4px 8px;border:1px solid #ddd">${esc(ab.nombre)}${ab.telefono ? `<br><span style="color:#555;font-size:10px">${esc(ab.telefono)}</span>` : ''}</td>
+          ${zonaCell}
+          ${_coordCell(sc.coord || '', sc.phone || '')}
+        </tr>`;
       });
     });
     if (!muniRows) return;
-    sections += `<div style="margin-bottom:20px;page-break-inside:avoid"><h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3><table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f0f0f0"><th style="padding:5px 8px;border:1px solid #ddd">Zona/Comuna</th><th style="padding:5px 8px;border:1px solid #ddd">Nombre</th><th style="padding:5px 8px;border:1px solid #ddd">Teléfono</th></tr>${muniRows}</table></div>`;
+    const zonaHeader = isMedellin ? `<th style="padding:5px 8px;border:1px solid #ddd;text-align:left">Coord. de Zona</th>` : '';
+    sections += `<div style="margin-bottom:20px;page-break-inside:avoid">
+      <h3 style="color:#1a2030;border-bottom:2px solid #f5c842;padding-bottom:4px;font-size:13px">${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        <tr style="background:#f0f0f0">
+          <th style="padding:5px 8px;border:1px solid #ddd;text-align:left">Zona/Comuna</th>
+          <th style="padding:5px 8px;border:1px solid #ddd;text-align:left">Abogado</th>
+          ${zonaHeader}
+          <th style="padding:5px 8px;border:1px solid #ddd;text-align:left">Coord. de Comuna</th>
+        </tr>
+        ${muniRows}
+      </table>
+    </div>`;
   });
-  const win = window.open('', '_blank', 'width=900,height=700');
+  const win = window.open('', '_blank', 'width=1000,height=700');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Abogados</title><style>body{font-family:Arial,sans-serif;padding:20px}@media print{body{padding:10px}}</style></head><body><h1 style="font-size:16px;color:#1a2030">Directorio de Abogados</h1><div style="font-size:11px;color:#666;margin-bottom:20px">Generado: ${now}</div>${sections||'<p>Sin abogados registrados.</p>'}</body></html>`);
   win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
 }
