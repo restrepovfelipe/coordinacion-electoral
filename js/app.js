@@ -548,6 +548,15 @@ function switchOTab(el, id) {
 }
 
 // ═══ STATS HELPER PER COMMUNE ═══
+function _refrigCountComuna(n, ck) {
+  const s = gs(n);
+  const puestos = RAW[n]?.[ck] || [];
+  const testigos = puestos.reduce((sum, p) => sum + ((s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length), 0);
+  const coordPuestos = puestos.filter(p => !!((s.puestos || {})[pk(p)]?.coord)).length;
+  const coordComuna = (s.comunas || {})[ck]?.coord ? 1 : 0;
+  return { testigos, coordPuestos, coordComuna, total: testigos + coordPuestos + coordComuna };
+}
+
 function _ccStats(n, ck) {
   const s = gs(n);
   const puestos = RAW[n][ck] || [];
@@ -576,13 +585,16 @@ function _refreshCCStats(n, ck) {
   const id = cid(n, ck);
   if (!document.getElementById(id)) return;
   const { testReg, mesasSinAsignar } = _ccStats(n, ck);
+  const rfCnt = _refrigCountComuna(n, ck);
   const tEl = document.getElementById(id + '-s-t');
   const tfEl = document.getElementById(id + '-s-tf');
+  const rfEl = document.getElementById(id + '-s-refrig');
   if (tEl) tEl.textContent = testReg;
   if (tfEl) {
     tfEl.querySelector('.v').textContent = mesasSinAsignar;
     tfEl.classList.toggle('cc-st-warn', mesasSinAsignar > 0);
   }
+  if (rfEl) rfEl.querySelector('.v').textContent = rfCnt.total;
   if (n === 'MEDELLIN') {
     const zona = (typeof MEDELLIN_ZONAS !== 'undefined' ? MEDELLIN_ZONAS : []).find(z => z.comunas.includes(ck));
     if (zona) _refreshZonaStats(n, zona.nombre);
@@ -594,20 +606,23 @@ function _refreshZonaStats(n, zonaNombre) {
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zonaNombre))).replace(/[^a-z0-9]/gi, '');
   const zona = (typeof MEDELLIN_ZONAS !== 'undefined' ? MEDELLIN_ZONAS : []).find(z => z.nombre === zonaNombre);
   if (!zona) return;
-  let totTestReg = 0, totTestFalt = 0;
+  let totTestReg = 0, totTestFalt = 0, totRefrig = 0;
   zona.comunas.forEach(ck => {
     if (!RAW[n][ck]) return;
     const st = _ccStats(n, ck);
     totTestReg += st.testReg;
     totTestFalt += st.mesasSinAsignar;
+    totRefrig += _refrigCountComuna(n, ck).total;
   });
   const tEl = document.getElementById(zid + '-s-t');
   const tfEl = document.getElementById(zid + '-s-tf');
+  const rfEl = document.getElementById(zid + '-s-refrig');
   if (tEl) tEl.textContent = totTestReg;
   if (tfEl) {
     tfEl.querySelector('.v').textContent = totTestFalt;
     tfEl.classList.toggle('cc-st-warn', totTestFalt > 0);
   }
+  if (rfEl) rfEl.querySelector('.v').textContent = totRefrig;
 }
 
 function _refreshMuniStats(n) {
@@ -654,6 +669,7 @@ function buildZonaCard(n, zona) {
   const s = gs(n); const sz = (s.zonas || {})[zona.nombre] || {};
   let totPuestos = 0, totMesas = 0, totCapacidad = 0;
   let totTestReg = 0, totMesasSinAsignar = 0, totMotos = 0, totCarros = 0;
+  let totRefrig = 0;
   zona.comunas.forEach(ck => {
     if (!RAW[n][ck]) return;
     const st = _ccStats(n, ck);
@@ -661,6 +677,7 @@ function buildZonaCard(n, zona) {
     totTestReg += st.testReg; totMesasSinAsignar += st.mesasSinAsignar;
     totCapacidad += st.capacidadCubrir;
     totMotos += st.totMotos; totCarros += st.totCarros;
+    totRefrig += _refrigCountComuna(n, ck).total;
   });
   const pct = _coveragePct(totCapacidad, totMesas);
   const zid = 'z_' + btoa(unescape(encodeURIComponent(zona.nombre))).replace(/[^a-z0-9]/gi, '');
@@ -684,6 +701,7 @@ function buildZonaCard(n, zona) {
       <div class="cc-st"><div class="v" id="${zid}-s-t">${totTestReg}</div><div class="l">Testigos</div></div>
       <div class="cc-st${totMesasSinAsignar > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totMesasSinAsignar}</div><div class="l">Mesas sin asignar</div></div>
       <div class="cc-st${pct > 100 ? ' cc-st-excedente' : ''}"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
+      <div class="cc-st" id="${zid}-s-refrig" style="border-left:2px solid #f5a623" title="Refrigerios necesarios = testigos + coord. puestos + coord. zona"><div class="v" style="color:#f5a623">${totRefrig}</div><div class="l">🍱 Refrig.</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${Math.min(pct, 100)}%"></div></div>
     <div class="zona-card-bd${isOpen ? ' op' : ''}" id="${zid}-bd"></div>`;
@@ -699,6 +717,7 @@ function buildCCCard(n, ck) {
   const id = cid(n, ck); const isOpen = OPEN_CC.has(n + ck);
   const card = document.createElement('div'); card.className = 'cc'; card.id = id;
   const { totPuestos, totMesas, testReg, mesasSinAsignar, pct } = _ccStats(n, ck);
+  const rfCnt = _refrigCountComuna(n, ck);
   card.innerHTML = `
     <div class="cc-hd" onclick="toggleCC('${n}','${ck.replace(/'/g, "\\'").replace(/\\/g, '\\\\')}')">
       <div>
@@ -718,6 +737,7 @@ function buildCCCard(n, ck) {
       <div class="cc-st"><div class="v" id="${id}-s-t">${testReg}</div><div class="l">Testigos</div></div>
       <div class="cc-st${mesasSinAsignar > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${mesasSinAsignar}</div><div class="l">Mesas sin asignar</div></div>
       <div class="cc-st${pct > 100 ? ' cc-st-excedente' : ''}"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
+      <div class="cc-st" id="${id}-s-refrig" style="border-left:2px solid #f5a623" title="Refrigerios = testigos + coord. puestos + coord. comuna"><div class="v" style="color:#f5a623">${rfCnt.total}</div><div class="l">🍱 Refrig.</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${Math.min(pct, 100)}%"></div></div>
     <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
@@ -2214,6 +2234,31 @@ function saveAbogado(n, ck, id) { saveAbogadoItem(n, ck, id, 0); }
 // ═══ REFRIGERIOS (punto 6) ═══
 const _refrigEditMode = new Set(); // panel IDs currently in edit mode
 
+function _refrigCountBox(n, ck) {
+  const rc = _refrigCountComuna(n, ck);
+  return `<div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:10px 14px;margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--t3);margin-bottom:8px">📊 Conteo de refrigerios</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">
+      <div style="text-align:center;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:7px 4px">
+        <div style="font-size:20px;font-weight:700;color:var(--blue)">${rc.testigos}</div>
+        <div style="font-size:10px;color:var(--t3)">Testigos</div>
+      </div>
+      <div style="text-align:center;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:7px 4px">
+        <div style="font-size:20px;font-weight:700;color:var(--blue)">${rc.coordPuestos}</div>
+        <div style="font-size:10px;color:var(--t3)">Coord. puestos</div>
+      </div>
+      <div style="text-align:center;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:7px 4px">
+        <div style="font-size:20px;font-weight:700;color:var(--blue)">${rc.coordComuna}</div>
+        <div style="font-size:10px;color:var(--t3)">Coord. comuna</div>
+      </div>
+      <div style="text-align:center;background:#f5a62318;border:2px solid #f5a623;border-radius:6px;padding:7px 4px">
+        <div style="font-size:22px;font-weight:700;color:#f5a623">${rc.total}</div>
+        <div style="font-size:10px;color:#f5a623;font-weight:600">Total 🍱</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderRefrigPanel(n, ck, id) {
   const pane = document.getElementById(id + '-refrig');
   const s = gs(n);
@@ -2227,7 +2272,8 @@ function renderRefrigPanel(n, ck, id) {
   if (!isEditing) {
     // ── Vista: mostrar datos guardados + botón Editar ──
     pane.innerHTML = `<div class="mov-panel">
-      <div style="font-size:11px;color:var(--t3);margin-bottom:12px">Encargado de refrigerios para esta zona/comuna</div>
+      ${_refrigCountBox(n, ck)}
+      <div style="font-size:11px;color:var(--t3);margin-bottom:8px">Encargado de refrigerios para esta zona/comuna</div>
       <div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px;margin-bottom:12px">
         <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:4px">🍱 ${esc(rf.nombre)}</div>
         ${rf.telefono ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2)">
@@ -2240,6 +2286,7 @@ function renderRefrigPanel(n, ck, id) {
   } else {
     // ── Edición: inputs + Guardar / Cancelar ──
     pane.innerHTML = `<div class="mov-panel">
+      ${_refrigCountBox(n, ck)}
       <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Encargado de refrigerios para esta zona/comuna</div>
       <div class="mof" style="margin-bottom:8px">
         <label style="font-size:10px;color:var(--t3)">NOMBRE</label>
