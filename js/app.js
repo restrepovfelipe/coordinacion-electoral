@@ -1837,7 +1837,7 @@ function exportDirZonasComunasPDF() {
     // Commune coordinators
     Object.keys(RAW[n]).sort().forEach(ck => {
       const sc = (s.comunas || {})[ck] || {};
-      if (sc.coord) items.push({ rol: 'Coord. zona/comuna', nombre: sc.coord, phone: sc.phone || '', zona: ck });
+      if (sc.coord) items.push({ rol: 'Coord. comuna', nombre: sc.coord, phone: sc.phone || '', zona: ck });
     });
     if (items.length) sections += _dirSectionHTML(n === 'MEDELLIN' ? 'MEDELLÍN' : n, items);
   });
