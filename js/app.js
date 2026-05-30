@@ -1213,6 +1213,7 @@ function _migrateMovResps(mov) {
 }
 const _movEditMode = new Set();
 const _movSubTab = new Map(); // id → 'all' | 'moto' | 'carro'
+const _movSavingSet = new Set(); // guard against concurrent saveMovAll calls
 
 function _movTabBar(id, curTab, n, ck, mo, ca) {
   const ckE = ck.replace(/'/g, "\\'");
@@ -1494,32 +1495,59 @@ function saveMovNec(n, ck, field, val) {
   writeDebounced(n, 500);
 }
 async function saveMovAll(n, ck, id) {
+  // Guard: prevent concurrent saves for the same commune (e.g. double-click)
+  const _saveKey = `${n}:${ck}`;
+  if (_movSavingSet.has(_saveKey)) return;
+  _movSavingSet.add(_saveKey);
+
+  // Disable save button while saving
+  const saveBtn = document.querySelector(`#${CSS.escape(id + '-pane-mov')} .mv-save-all`);
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Guardando...'; }
+
   const s = gs(n);
   saveLocalSt();
-  // Sync each vehicle to backend
-  if (window.api && window.CURRENT_USER) {
-    const ccIds = _puestoIdCache[n]?._ccIds;
-    const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
-    if (comunaId) {
-      const resps = s.movilidad[ck]?.responsables || [];
-      for (const r of resps) {
-        const payload = {
-          vehicleType: r.tipo || 'moto',
-          plate: r.placa || '',
-          driverName: r.nombreConductor || '',
-          driverPhone: r.telefonoConductor || undefined,
-        };
+  try {
+    if (window.api && window.CURRENT_USER) {
+      const ccIds = _puestoIdCache[n]?._ccIds;
+      const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
+      if (comunaId) {
+        // Work on a snapshot of the array to avoid races with loadMovilidadForMuni
+        const resps = s.movilidad[ck]?.responsables || [];
+        for (const r of resps) {
+          const payload = {
+            vehicleType: r.tipo || 'moto',
+            plate: r.placa || '',
+            driverName: r.nombreConductor || '',
+            driverPhone: r.telefonoConductor || undefined,
+          };
+          try {
+            if (r._backendId) {
+              await api.patch(`/movilidad/${r._backendId}`, payload);
+            } else {
+              const created = await api.post('/movilidad', { ...payload, scopeType: 'COMUNA', scopeId: comunaId });
+              r._backendId = created.id;
+            }
+          } catch(err) { console.warn('[mov] sync failed', err); }
+        }
+        saveLocalSt();
+        // Refresh from backend to ensure _backendIds are consistent and no stale entries exist
         try {
-          if (r._backendId) {
-            await api.patch(`/movilidad/${r._backendId}`, payload);
-          } else {
-            const created = await api.post('/movilidad', { ...payload, scopeType: 'COMUNA', scopeId: comunaId });
-            r._backendId = created.id;
+          const vehicles = await api.get(`/movilidad?scopeType=COMUNA&scopeId=${comunaId}`);
+          if (Array.isArray(vehicles) && vehicles.length > 0) {
+            s.movilidad[ck].responsables = vehicles.map(v => ({
+              tipo: v.vehicleType || 'moto',
+              placa: v.plate || '',
+              nombreConductor: v.driverName || '',
+              telefonoConductor: v.driverPhone || '',
+              _backendId: v.id,
+            }));
+            saveLocalSt();
           }
-        } catch(err) { console.warn('[mov] sync failed', err); }
+        } catch(e) { console.warn('[mov] post-save refresh failed', e); }
       }
-      saveLocalSt();
     }
+  } finally {
+    _movSavingSet.delete(_saveKey);
   }
   _movEditMode.delete(id);
   renderMovPanel(n, ck, id);
