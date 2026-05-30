@@ -1501,7 +1501,7 @@ async function saveMovAll(n, ck, id) {
   _movSavingSet.add(_saveKey);
 
   // Disable save button while saving
-  const saveBtn = document.querySelector(`#${CSS.escape(id + '-pane-mov')} .mv-save-all`);
+  const saveBtn = document.querySelector(`#${CSS.escape(id + '-mov')} .mv-save-all`);
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Guardando...'; }
 
   const s = gs(n);
