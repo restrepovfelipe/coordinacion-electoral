@@ -1492,7 +1492,37 @@ async function delResp(n, ck, idx, id) {
 function saveMovNec(n, ck, field, val) {
   const s = gs(n); if (!s.movilidad) s.movilidad = {}; if (!s.movilidad[ck]) s.movilidad[ck] = { responsables: [], motos_nec: 0, carros_nec: 0 };
   s.movilidad[ck][field] = parseInt(val) || 0; saveLocalSt();
-  writeDebounced(n, 500);
+  _saveMovMetaDebounced(n, ck);
+}
+
+// ─── META record helpers (persist motos_nec / carros_nec to backend) ───
+const _movMetaTimers = {};
+function _saveMovMetaDebounced(n, ck) {
+  const key = `${n}:${ck}`;
+  clearTimeout(_movMetaTimers[key]);
+  _movMetaTimers[key] = setTimeout(() => _saveMovMetaToBackend(n, ck), 1000);
+}
+async function _saveMovMetaToBackend(n, ck) {
+  if (!window.api || !window.CURRENT_USER) return;
+  const ccIds = _puestoIdCache[n]?._ccIds;
+  const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
+  if (!comunaId) return;
+  const mov = gs(n).movilidad?.[ck];
+  if (!mov) return;
+  const payload = {
+    vehicleType: '__meta__',
+    plate: '__nec__',
+    driverName: JSON.stringify({ motosNec: mov.motos_nec || 0, carrosNec: mov.carros_nec || 0 }),
+  };
+  try {
+    if (mov._metaBackendId) {
+      await api.patch(`/movilidad/${mov._metaBackendId}`, payload);
+    } else {
+      const created = await api.post('/movilidad', { ...payload, scopeType: 'COMUNA', scopeId: comunaId });
+      mov._metaBackendId = created.id;
+      saveLocalSt();
+    }
+  } catch(e) { console.warn('[mov] meta save failed', e); }
 }
 async function saveMovAll(n, ck, id) {
   // Guard: prevent concurrent saves for the same commune (e.g. double-click)
@@ -1529,18 +1559,14 @@ async function saveMovAll(n, ck, id) {
             }
           } catch(err) { console.warn('[mov] sync failed', err); }
         }
+        // Also save META record (motos_nec / carros_nec)
+        await _saveMovMetaToBackend(n, ck);
         saveLocalSt();
         // Refresh from backend to ensure _backendIds are consistent and no stale entries exist
         try {
-          const vehicles = await api.get(`/movilidad?scopeType=COMUNA&scopeId=${comunaId}`);
-          if (Array.isArray(vehicles) && vehicles.length > 0) {
-            s.movilidad[ck].responsables = vehicles.map(v => ({
-              tipo: v.vehicleType || 'moto',
-              placa: v.plate || '',
-              nombreConductor: v.driverName || '',
-              telefonoConductor: v.driverPhone || '',
-              _backendId: v.id,
-            }));
+          const allVehicles = await api.get(`/movilidad?scopeType=COMUNA&scopeId=${comunaId}`);
+          if (Array.isArray(allVehicles)) {
+            _applyMovilidadFromBackend(s, ck, allVehicles);
             saveLocalSt();
           }
         } catch(e) { console.warn('[mov] post-save refresh failed', e); }
@@ -1551,6 +1577,30 @@ async function saveMovAll(n, ck, id) {
   }
   _movEditMode.delete(id);
   renderMovPanel(n, ck, id);
+}
+
+// Shared helper: apply backend movilidad array to local state (handles META record)
+function _applyMovilidadFromBackend(s, ck, allVehicles) {
+  if (!s.movilidad[ck]) s.movilidad[ck] = { responsables: [], motos_nec: 0, carros_nec: 0 };
+  const metaRecord = allVehicles.find(v => v.vehicleType === '__meta__' && v.plate === '__nec__');
+  const vehicles = allVehicles.filter(v => !(v.vehicleType === '__meta__' && v.plate === '__nec__'));
+  if (metaRecord) {
+    try {
+      const nec = JSON.parse(metaRecord.driverName);
+      s.movilidad[ck].motos_nec = nec.motosNec || 0;
+      s.movilidad[ck].carros_nec = nec.carrosNec || 0;
+    } catch(e) {}
+    s.movilidad[ck]._metaBackendId = metaRecord.id;
+  }
+  if (vehicles.length > 0 || metaRecord) {
+    s.movilidad[ck].responsables = vehicles.map(v => ({
+      tipo: v.vehicleType || 'moto',
+      placa: v.plate || '',
+      nombreConductor: v.driverName || '',
+      telefonoConductor: v.driverPhone || '',
+      _backendId: v.id,
+    }));
+  }
 }
 
 // Load movilidad for a municipality from the backend so all users see the latest data.
@@ -1565,16 +1615,9 @@ async function loadMovilidadForMuni(n) {
     const comunaId = ccIds[ck] ?? ccIds[(ck || '').toUpperCase()];
     if (!comunaId) return;
     try {
-      const vehicles = await api.get(`/movilidad?scopeType=COMUNA&scopeId=${comunaId}`);
-      if (!Array.isArray(vehicles) || vehicles.length === 0) return;
-      if (!s.movilidad[ck]) s.movilidad[ck] = { responsables: [], motos_nec: s.movilidad[ck]?.motos_nec || 0, carros_nec: s.movilidad[ck]?.carros_nec || 0 };
-      s.movilidad[ck].responsables = vehicles.map(v => ({
-        tipo: v.vehicleType || 'moto',
-        placa: v.plate || '',
-        nombreConductor: v.driverName || '',
-        telefonoConductor: v.driverPhone || '',
-        _backendId: v.id,
-      }));
+      const allVehicles = await api.get(`/movilidad?scopeType=COMUNA&scopeId=${comunaId}`);
+      if (!Array.isArray(allVehicles) || allVehicles.length === 0) return;
+      _applyMovilidadFromBackend(s, ck, allVehicles);
       changed = true;
     } catch(e) {}
   });
