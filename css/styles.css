@@ -43,6 +43,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);display
 .sb-region-hd-right{display:flex;align-items:center;gap:4px;flex-shrink:0}
 .sb-region-nm{white-space:nowrap}
 .sb-region-coord{font-size:9px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.sb-region-phone{font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--t3);display:flex;align-items:center;gap:3px}
 .sb-region-ced{background:none;border:1px solid var(--b2);border-radius:3px;color:var(--t3);cursor:pointer;font-size:9px;padding:1px 4px;line-height:1;transition:all .12s}.sb-region-ced:hover{background:var(--bg3);color:var(--t1);border-color:var(--t3)}
 .sb-region-toggle{font-size:9px;opacity:.6}
 .sb-region-group{padding-left:4px}

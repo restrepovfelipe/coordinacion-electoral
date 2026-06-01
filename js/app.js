@@ -406,6 +406,7 @@ function buildSB() {
       <div class="sb-region-hd-left">
         <span class="sb-region-nm">${region}</span>
         ${sc.coord ? `<span class="sb-region-coord">👤 ${esc(sc.coord)}</span>` : ''}
+        ${sc.phone ? `<span class="sb-region-phone">${esc(sc.phone)}<a class="wa-btn" href="https://wa.me/57${sc.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a></span>` : ''}
       </div>
       <div class="sb-region-hd-right">
         ${editBtn}
