@@ -160,12 +160,14 @@ table.pt tr:hover td{background:rgba(26,109,191,.04)}
 .del-btn{background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;padding:0 3px;line-height:1;transition:color .12s}
 .del-btn:hover{color:var(--red)}
 /* Testigo confirmation badges */
-.tcb-group{display:inline-flex;align-items:center;gap:3px;flex-shrink:0}
-.tcb{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;font-size:12px;cursor:default;transition:transform .1s;text-decoration:none}
-.tcb-ok{background:#dcfce7;border:1px solid #86efac}
-.tcb-no{background:var(--bg2);border:1px dashed var(--b2);opacity:.6;filter:grayscale(1)}
-.tcb-send{background:#e0f2fe;border:1px solid #7dd3fc;cursor:pointer;text-decoration:none}
-.tcb-send:hover{background:#bae6fd;transform:scale(1.12)}
+.tcb-group{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;flex-wrap:wrap}
+.tcb-item{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:6px;font-size:11px;white-space:nowrap;cursor:default;text-decoration:none;transition:transform .1s}
+.tcb-item.tcb-ok{background:#dcfce7;border:1px solid #86efac;color:#166534}
+.tcb-item.tcb-no{background:var(--bg2);border:1px dashed var(--b2);color:var(--t3);opacity:.65;filter:grayscale(.7)}
+.tcb-icon{font-size:13px;line-height:1}
+.tcb-ts{font-size:10px;font-weight:500;line-height:1}
+.tcb-item.tcb-send{background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;cursor:pointer}
+.tcb-item.tcb-send:hover{background:#bae6fd;transform:scale(1.06)}
 .mov-panel{padding:14px 16px}
 .mov-totals-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--b1);border-radius:var(--r);padding:10px 14px;align-items:center}
 .mov-total{display:flex;align-items:center;gap:8px;font-size:11px}

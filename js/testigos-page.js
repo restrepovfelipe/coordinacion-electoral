@@ -133,11 +133,14 @@ function _renderTable() {
   const CONFIRM_BASE = 'https://coordinacion-electoral.vercel.app/testigo.html';
 
   function _confirmIcon(ts) {
-    if (!ts) return '<span style="color:var(--t3);font-size:12px">⏳</span>';
+    if (!ts) return '<span style="color:var(--t3);font-size:12px">—</span>';
     const d = new Date(ts);
-    const label = d.toLocaleDateString('es-CO', { day:'2-digit', month:'short' })
-      + ' ' + d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
-    return `<span style="color:#15803d;font-size:11px" title="${label}">✅</span>`;
+    const day = String(d.getDate()).padStart(2,'0');
+    const mon = String(d.getMonth()+1).padStart(2,'0');
+    const hr  = String(d.getHours()).padStart(2,'0');
+    const min = String(d.getMinutes()).padStart(2,'0');
+    const label = `${day}/${mon} ${hr}:${min}`;
+    return `<span style="display:inline-flex;align-items:center;gap:3px;background:#dcfce7;border:1px solid #86efac;border-radius:5px;padding:2px 6px;font-size:10px;color:#166534;white-space:nowrap">✅ ${label}</span>`;
   }
 
   const rows = _tAllData.map(t => {
