@@ -3125,7 +3125,7 @@ function _execPuestoSearch(query) {
       ${ps.notes ? `<div style="font-size:11px;color:var(--t2);background:var(--bg1);border-radius:4px;padding:5px 8px;margin-bottom:6px">📝 ${esc(ps.notes)}</div>` : ''}
       ${testigosHtml}
       <div style="margin-top:10px">
-        <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="closePuestoSearch();selectMuni('${n.replace(/'/g,"\\'")}')">Ir a ${muniLabel} →</button>
+        <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="closePuestoSearch();selMuni('${n.replace(/'/g,"\\'")}')">Ir a ${muniLabel} →</button>
       </div>
     </div>`;
   });
