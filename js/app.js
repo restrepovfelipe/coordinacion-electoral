@@ -1792,11 +1792,27 @@ function renderOV() {
     const rPct = _allMusisHaveDsStats
       ? (rTotM ? Math.round(rTestReg / rTotM * 100) : 0)
       : _coveragePct(rCapacidad, rTotM);
+    const sc = _subregionCoords[region] || {};
+    const _scEditBtn = !_isReadOnly()
+      ? `<button class="ebtn" onclick="editSubregionCoord('${region.replace(/'/g,"\\'")}')">✎ Editar</button>`
+      : '';
+    const _scCard = `
+      <div class="mh-coord" style="flex:1;min-width:180px;max-width:340px">
+        <div style="flex:1;min-width:0">
+          <div class="cl">Coordinador de subregión</div>
+          <div class="cv">${sc.coord ? esc(sc.coord) : '<span style="font-style:italic;color:var(--t3);font-weight:400">Sin asignar</span>'}</div>
+          ${sc.phone ? `<div class="cp">${esc(sc.phone)}<a class="wa-btn" href="https://wa.me/57${sc.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a></div>` : ''}
+        </div>
+        ${_scEditBtn}
+      </div>`;
     html += `
     <div style="margin-top:22px;margin-bottom:4px">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <div style="font-size:13px;font-weight:700;color:var(--fg)">${region} <span style="font-size:11px;font-weight:400;color:var(--t2)">· ${validMusis.length} municipios</span></div>
-        <button class="export-btn" style="font-size:11px;padding:5px 12px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${_scCard}
+          <button class="export-btn" style="font-size:11px;padding:5px 12px" onclick="openRegionMap('${region}')">🗺 Mapa</button>
+        </div>
       </div>
       <div class="stats" style="margin-bottom:10px">
         <div class="sc"><div class="sl">Puestos</div><div class="sv">${rTotP}</div></div>
