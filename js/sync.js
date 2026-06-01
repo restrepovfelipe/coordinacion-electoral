@@ -238,6 +238,7 @@ function handleRealtimeEvent(event) {
     const { testigoId, field } = event.payload || {};
     if (testigoId && field) {
       const now = new Date().toISOString();
+      const { undo, fields: undoFields } = event.payload || {};
       // 1. Update localStorage
       if (typeof ALL_MUNIS !== 'undefined' && typeof gs !== 'undefined' && typeof saveLocalSt !== 'undefined') {
         for (const n of ALL_MUNIS) {
@@ -247,7 +248,17 @@ function handleRealtimeEvent(event) {
           for (const ck of Object.keys(s.testigos)) {
             for (const pName of Object.keys(s.testigos[ck])) {
               const t = (s.testigos[ck][pName] || []).find(r => r._backendId === testigoId);
-              if (t) { t[field] = now; updated = true; break; }
+              if (t) {
+                if (undo && Array.isArray(undoFields)) {
+                  // Undo: clear one or more fields
+                  undoFields.forEach(f => { t[f] = null; });
+                } else if (field) {
+                  // Normal confirm: set field to now
+                  t[field] = now;
+                }
+                updated = true;
+                break;
+              }
             }
             if (updated) break;
           }

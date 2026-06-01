@@ -3,6 +3,19 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { ConfirmAction } from './dto/confirm-action.dto.js';
 
+// Fields cleared when each step is undone (cascade: undoing step N also clears later steps)
+const UNDO_CASCADE: Record<string, ('confirmadoAt' | 'acreditadoAt' | 'enPuestoAt')[]> = {
+  'undo-aceptado':   ['confirmadoAt', 'acreditadoAt', 'enPuestoAt'],
+  'undo-acreditado': ['acreditadoAt', 'enPuestoAt'],
+  'undo-enPuesto':   ['enPuestoAt'],
+};
+
+const CONFIRM_FIELD: Record<string, 'confirmadoAt' | 'acreditadoAt' | 'enPuestoAt'> = {
+  aceptado:   'confirmadoAt',
+  acreditado: 'acreditadoAt',
+  enPuesto:   'enPuestoAt',
+};
+
 @Injectable()
 export class ConfirmService {
   constructor(
@@ -26,14 +39,14 @@ export class ConfirmService {
     });
     if (!testigo) throw new NotFoundException('Enlace no válido');
     return {
-      id: testigo.id,
-      name: testigo.name,
-      mesaInicial: testigo.mesaInicial,
-      mesaFinal: testigo.mesaFinal,
+      id:            testigo.id,
+      name:          testigo.name,
+      mesaInicial:   testigo.mesaInicial,
+      mesaFinal:     testigo.mesaFinal,
       puesto: testigo.puesto
         ? {
-            name: testigo.puesto.name,
-            address: testigo.puesto.address,
+            name:      testigo.puesto.name,
+            address:   testigo.puesto.address,
             municipio: testigo.puesto.municipio?.name ?? '',
           }
         : null,
@@ -47,16 +60,39 @@ export class ConfirmService {
     const testigo = await this.prisma.testigo.findUnique({ where: { token } });
     if (!testigo) throw new NotFoundException('Enlace no válido');
 
-    const fieldMap: Record<ConfirmAction, 'confirmadoAt' | 'acreditadoAt' | 'enPuestoAt'> = {
-      [ConfirmAction.ACEPTADO]:   'confirmadoAt',
-      [ConfirmAction.ACREDITADO]: 'acreditadoAt',
-      [ConfirmAction.EN_PUESTO]:  'enPuestoAt',
-    };
-    const field = fieldMap[action];
+    const isUndo = action.startsWith('undo-');
+
+    if (isUndo) {
+      // Clear this field and all dependent later fields
+      const fields = UNDO_CASCADE[action];
+      if (!fields) throw new BadRequestException('Acción inválida');
+
+      const clearData: Record<string, null> = {};
+      fields.forEach(f => { clearData[f] = null; });
+
+      await this.prisma.testigo.update({ where: { token }, data: clearData });
+
+      if (testigo.puestoId) {
+        await this.realtime.notify({
+          type: 'testigo:confirmacion_changed',
+          puestoId: testigo.puestoId,
+          payload: {
+            testigoId: testigo.id,
+            action,
+            fields,   // array of cleared fields
+            undo: true,
+          },
+        });
+      }
+      return this.getByToken(token);
+    }
+
+    // Normal confirm
+    const field = CONFIRM_FIELD[action];
     if (!field) throw new BadRequestException('Acción inválida');
 
     if (testigo[field]) {
-      // Already confirmed — idempotent, return current state
+      // Already confirmed — idempotent
       return this.getByToken(token);
     }
 
@@ -65,12 +101,11 @@ export class ConfirmService {
       data: { [field]: new Date() },
     });
 
-    // Notify coordinators via SSE
     if (testigo.puestoId) {
       await this.realtime.notify({
         type: 'testigo:confirmacion_changed',
         puestoId: testigo.puestoId,
-        payload: { testigoId: testigo.id, action, field },
+        payload: { testigoId: testigo.id, action, field, undo: false },
       });
     }
 

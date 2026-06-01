@@ -14,28 +14,65 @@
   .logo-sub{font-size:11px;color:#666;margin-top:2px}
   .name{font-size:22px;font-weight:700;color:#1a1a2e;text-align:center;margin-bottom:4px}
   .greeting{font-size:13px;color:#666;text-align:center;margin-bottom:20px}
-  .puesto-card{background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:24px}
+
+  /* Puesto card */
+  .puesto-card{background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:20px}
   .puesto-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;margin-bottom:6px}
   .puesto-name{font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:3px}
   .puesto-addr{font-size:12px;color:#6b7280;margin-bottom:3px}
   .puesto-mesa{font-size:12px;color:#374151}
   .puesto-muni{font-size:11px;color:#9ca3af;margin-top:2px}
+
+  /* Steps */
   .steps{display:flex;flex-direction:column;gap:10px}
+
+  /* Pending */
   .step-btn{width:100%;padding:16px 18px;border-radius:12px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .18s;text-align:left}
-  .step-btn:disabled{cursor:default;opacity:1}
   .step-btn.pending{background:#f3f4f6;color:#374151;border:2px dashed #d1d5db}
-  .step-btn.pending:hover:not(:disabled){background:#e5e7eb;transform:translateY(-1px)}
-  .step-btn.pending:active:not(:disabled){transform:translateY(0)}
-  .step-btn.done{background:#f0fdf4;color:#166534;border:2px solid #86efac}
-  .step-btn.loading{background:#eff6ff;color:#1d4ed8;border:2px solid #93c5fd;opacity:.7;cursor:wait}
-  .step-icon{font-size:24px;flex-shrink:0}
+  .step-btn.pending:hover{background:#e5e7eb;transform:translateY(-1px)}
+  .step-btn.pending:active{transform:translateY(0)}
+
+  /* Loading */
+  .step-btn.loading{background:#eff6ff;color:#1d4ed8;border:2px solid #93c5fd;opacity:.7;cursor:wait;pointer-events:none}
+
+  /* Locked */
+  .step-locked{width:100%;padding:16px 18px;border-radius:12px;border:2px solid #f3f4f6;background:#fafafa;display:flex;align-items:center;gap:12px;opacity:.6}
+
+  /* Done */
+  .step-done{width:100%;padding:14px 18px;border-radius:12px;border:2px solid #86efac;background:#f0fdf4;display:flex;flex-direction:column;gap:8px}
+  .step-done-row{display:flex;align-items:center;gap:12px}
+  .step-done-meta{display:flex;align-items:center;justify-content:space-between;padding-left:44px}
+  .step-time{font-size:11px;color:#16a34a;font-weight:600}
+  .undo-btn{font-size:11px;color:#9ca3af;background:none;border:1px solid #e5e7eb;border-radius:5px;padding:3px 8px;cursor:pointer;transition:all .15s}
+  .undo-btn:hover{color:#dc2626;border-color:#fca5a5;background:#fef2f2}
+
+  .step-icon{font-size:22px;flex-shrink:0;width:32px;text-align:center}
   .step-text{flex:1}
   .step-title{font-size:14px;font-weight:600}
-  .step-time{font-size:11px;font-weight:400;margin-top:2px;color:#6b7280}
-  .step-seq{font-size:11px;color:#9ca3af;font-weight:400}
+  .step-sub{font-size:11px;font-weight:400;margin-top:2px;color:#6b7280}
+  .lock-icon{font-size:14px;color:#d1d5db;margin-left:auto}
+
+  /* Info messages */
+  .info-msg{border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.6}
+  .info-msg.yellow{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+  .info-msg.blue{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+  .info-msg.green{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-weight:500;text-align:center}
+
+  /* Confirm dialog */
+  .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:100;padding:0}
+  .dialog{background:#fff;border-radius:18px 18px 0 0;padding:24px 20px 36px;max-width:420px;width:100%;box-shadow:0 -4px 32px rgba(0,0,0,.18)}
+  .dialog-title{font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:6px}
+  .dialog-desc{font-size:13px;color:#6b7280;margin-bottom:20px;line-height:1.5}
+  .dialog-btns{display:flex;flex-direction:column;gap:8px}
+  .dialog-btns button{width:100%;padding:14px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+  .btn-undo-confirm{background:#fee2e2;color:#dc2626}
+  .btn-undo-confirm:hover{background:#fecaca}
+  .btn-cancel{background:#f3f4f6;color:#374151}
+  .btn-cancel:hover{background:#e5e7eb}
+
+  .divider{height:1px;background:#f3f4f6;margin:18px 0}
   .loader{text-align:center;padding:40px 0;color:#6b7280;font-size:14px}
-  .error-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:16px;text-align:center;color:#991b1b;font-size:14px}
-  .divider{height:1px;background:#f3f4f6;margin:20px 0}
+  .error-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:16px;text-align:center;color:#991b1b;font-size:14px;line-height:1.5}
   .footer{text-align:center;font-size:11px;color:#9ca3af;margin-top:20px}
 </style>
 </head>
@@ -49,10 +86,22 @@
   <div id="content"><div class="loader">⏳ Cargando…</div></div>
   <div class="footer">Elecciones Presidenciales · Segunda Vuelta 2026</div>
 </div>
+
+<!-- Undo confirmation sheet -->
+<div class="dialog-overlay" id="undo-overlay" style="display:none" onclick="if(event.target===this)closeUndoDialog()">
+  <div class="dialog">
+    <div class="dialog-title" id="undo-title">¿Desmarcar confirmación?</div>
+    <div class="dialog-desc" id="undo-desc">Esto borrará la confirmación. Podrás volver a confirmarla cuando quieras.</div>
+    <div class="dialog-btns">
+      <button class="btn-undo-confirm" id="undo-ok-btn">Sí, desmarcar</button>
+      <button class="btn-cancel" onclick="closeUndoDialog()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = 'https://backend-210392280319.us-central1.run.app/api';
-const params = new URLSearchParams(location.search);
-const TOKEN = params.get('t');
+const TOKEN = new URLSearchParams(location.search).get('t');
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -61,45 +110,127 @@ function fmtDate(iso) {
     + ' · ' + d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
 }
 
+// ── Undo dialog ──────────────────────────────────────
+function openUndoDialog(undoAction, stepLabel, cascade) {
+  const desc = cascade
+    ? `Esto también desmarcará los pasos siguientes que dependían de este. Podrás volver a confirmarlos cuando quieras.`
+    : `Podrás volver a confirmarlo cuando quieras.`;
+  document.getElementById('undo-title').textContent = `¿Desmarcar "${stepLabel}"?`;
+  document.getElementById('undo-desc').textContent  = desc;
+  document.getElementById('undo-ok-btn').onclick    = () => { closeUndoDialog(); doConfirm(undoAction, null); };
+  document.getElementById('undo-overlay').style.display = 'flex';
+}
+function closeUndoDialog() {
+  document.getElementById('undo-overlay').style.display = 'none';
+}
+
+// ── Render ───────────────────────────────────────────
 function render(t) {
   const mesa = t.mesaInicial && t.mesaFinal
     ? (t.mesaInicial === t.mesaFinal ? `Mesa ${t.mesaInicial}` : `Mesas ${t.mesaInicial} – ${t.mesaFinal}`)
     : (t.mesaInicial ? `Mesa ${t.mesaInicial}` : '');
-  const steps = [
-    { key:'confirmadoAt', action:'aceptado',   icon:'✅', title:'Acepto ser testigo electoral',  done: t.confirmadoAt },
-    { key:'acreditadoAt', action:'acreditado', icon:'🆔', title:'Recibí mi acreditación',          done: t.acreditadoAt },
-    { key:'enPuestoAt',   action:'enPuesto',   icon:'📍', title:'Ya llegué al puesto de votación', done: t.enPuestoAt },
-  ];
+
+  const s1 = !!t.confirmadoAt;
+  const s2 = !!t.acreditadoAt;
+  const s3 = !!t.enPuestoAt;
+
+  // Helper: confirmed step
+  function done(undoAction, icon, title, ts, hasCascade) {
+    return `<div class="step-done">
+      <div class="step-done-row">
+        <span class="step-icon">${icon}</span>
+        <span class="step-text"><div class="step-title">${title}</div></span>
+      </div>
+      <div class="step-done-meta">
+        <span class="step-time">✓ ${fmtDate(ts)}</span>
+        <button class="undo-btn" onclick="openUndoDialog('${undoAction}','${title}',${hasCascade})">↩ Deshacer</button>
+      </div>
+    </div>`;
+  }
+
+  // Helper: available step
+  function available(action, icon, title, sub) {
+    return `<button class="step-btn pending" onclick="doConfirm('${action}',this)">
+      <span class="step-icon">${icon}</span>
+      <span class="step-text">
+        <div class="step-title">${title}</div>
+        <div class="step-sub">${sub}</div>
+      </span>
+    </button>`;
+  }
+
+  // Helper: locked step
+  function locked(icon, title, reason) {
+    return `<div class="step-locked">
+      <span class="step-icon" style="opacity:.4">${icon}</span>
+      <span class="step-text">
+        <div class="step-title" style="color:#9ca3af">${title}</div>
+        <div class="step-sub">${reason}</div>
+      </span>
+      <span class="lock-icon">🔒</span>
+    </div>`;
+  }
+
+  // Step 1
+  const step1 = s1
+    ? done('undo-aceptado', '✅', 'Acepto ser testigo electoral', t.confirmadoAt, s2 || s3)
+    : available('aceptado', '✅', 'Acepto ser testigo electoral', 'Toca para confirmar tu participación');
+
+  const msg1 = s1 && !s2
+    ? `<div class="info-msg yellow">📬 <b>¡Gracias!</b> Próximamente recibirás tu acreditación como testigo electoral.<br>Cuando la tengas en mano, vuelve a este mismo enlace y confirma el <b>paso 2</b>.</div>`
+    : '';
+
+  // Step 2
+  const step2 = s2
+    ? done('undo-acreditado', '🆔', 'Recibí mi acreditación', t.acreditadoAt, s3)
+    : s1
+      ? available('acreditado', '🆔', 'Recibí mi acreditación', 'Toca cuando tengas tu acreditación en mano')
+      : locked('🆔', 'Recibí mi acreditación', 'Disponible después de aceptar en el paso 1');
+
+  const msg2 = s2 && !s3
+    ? `<div class="info-msg blue">📍 <b>¡Perfecto!</b> El día de las elecciones (<b>15 de junio de 2026</b>), cuando llegues a tu puesto de votación, vuelve a este enlace y confirma tu llegada en el <b>paso 3</b>.</div>`
+    : '';
+
+  // Step 3
+  const step3 = s3
+    ? done('undo-enPuesto', '📍', 'Ya llegué al puesto de votación', t.enPuestoAt, false)
+    : s2
+      ? available('enPuesto', '📍', 'Ya llegué al puesto de votación', 'Toca cuando estés en el puesto el día de las elecciones')
+      : locked('📍', 'Ya llegué al puesto de votación', 'Disponible después de confirmar tu acreditación');
+
+  const msgFinal = s3
+    ? `<div class="info-msg green">🎉 ¡Todo listo! Tu participación como testigo electoral está completamente registrada. ¡Mucho éxito el 15 de junio!</div>`
+    : '';
+
   document.getElementById('content').innerHTML = `
-    <div class="name">${t.name}</div>
+    <div class="name">${esc(t.name)}</div>
     <div class="greeting">Tu información como testigo electoral</div>
     ${t.puesto ? `
     <div class="puesto-card">
       <div class="puesto-label">Puesto de votación</div>
-      <div class="puesto-name">${t.puesto.name}</div>
-      <div class="puesto-addr">${t.puesto.address || ''}</div>
-      ${mesa ? `<div class="puesto-mesa">📋 ${mesa}</div>` : ''}
-      ${t.puesto.municipio ? `<div class="puesto-muni">${t.puesto.municipio}</div>` : ''}
+      <div class="puesto-name">${esc(t.puesto.name)}</div>
+      ${t.puesto.address ? `<div class="puesto-addr">${esc(t.puesto.address)}</div>` : ''}
+      ${mesa ? `<div class="puesto-mesa">📋 ${esc(mesa)}</div>` : ''}
+      ${t.puesto.municipio ? `<div class="puesto-muni">${esc(t.puesto.municipio)}</div>` : ''}
     </div>` : `<div class="puesto-card" style="text-align:center;color:#9ca3af;font-size:13px;font-style:italic">Puesto de votación pendiente de asignación</div>`}
     <div class="divider"></div>
     <div class="steps">
-      ${steps.map((s, i) => {
-        const isDone = !!s.done;
-        const cls = isDone ? 'done' : 'pending';
-        return `<button class="step-btn ${cls}" id="btn-${s.action}" ${isDone ? 'disabled' : ''} onclick="doConfirm('${s.action}', this)">
-          <span class="step-icon">${s.icon}</span>
-          <span class="step-text">
-            <div class="step-title">${s.title}</div>
-            ${isDone ? `<div class="step-time">✓ ${fmtDate(s.done)}</div>` : `<div class="step-seq">Toca para confirmar</div>`}
-          </span>
-        </button>`;
-      }).join('')}
+      ${step1}
+      ${msg1}
+      ${step2}
+      ${msg2}
+      ${step3}
+      ${msgFinal}
     </div>`;
 }
 
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── API calls ────────────────────────────────────────
 async function doConfirm(action, btn) {
-  btn.className = 'step-btn loading';
-  btn.disabled = true;
+  if (btn) { btn.className = 'step-btn loading'; btn.disabled = true; }
   try {
     const res = await fetch(`${API}/t/${TOKEN}`, {
       method: 'POST',
@@ -107,30 +238,28 @@ async function doConfirm(action, btn) {
       body: JSON.stringify({ action }),
     });
     if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    render(data);
+    render(await res.json());
   } catch(e) {
-    btn.className = 'step-btn pending';
-    btn.disabled = false;
-    alert('Error al confirmar. Por favor intenta de nuevo.');
+    if (btn) { btn.className = 'step-btn pending'; btn.disabled = false; }
+    alert('Error al procesar. Por favor intenta de nuevo.');
   }
 }
 
 async function load() {
   if (!TOKEN) {
-    document.getElementById('content').innerHTML = '<div class="error-box">⚠️ Enlace inválido. Solicita un nuevo enlace a tu coordinador.</div>';
+    document.getElementById('content').innerHTML = '<div class="error-box">⚠️ Enlace inválido.<br>Solicita un nuevo enlace a tu coordinador.</div>';
     return;
   }
   try {
     const res = await fetch(`${API}/t/${TOKEN}`);
     if (res.status === 404) {
-      document.getElementById('content').innerHTML = '<div class="error-box">⚠️ Este enlace no es válido o ya expiró. Contacta a tu coordinador.</div>';
+      document.getElementById('content').innerHTML = '<div class="error-box">⚠️ Este enlace no es válido o ya expiró.<br>Contacta a tu coordinador.</div>';
       return;
     }
     if (!res.ok) throw new Error();
     render(await res.json());
   } catch {
-    document.getElementById('content').innerHTML = '<div class="error-box">⚠️ No se pudo cargar la información. Revisa tu conexión e intenta de nuevo.</div>';
+    document.getElementById('content').innerHTML = '<div class="error-box">⚠️ No se pudo cargar la información.<br>Revisa tu conexión e intenta de nuevo.</div>';
   }
 }
 

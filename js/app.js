@@ -1121,7 +1121,17 @@ function _testigoConfirmBadges(r) {
     ? `<span class="tcb-item tcb-ok" title="${label}"><span class="tcb-icon">${emoji}</span><span class="tcb-ts">${_fmt(ts)}</span></span>`
     : `<span class="tcb-item tcb-no" title="${label}: pendiente"><span class="tcb-icon">${emoji}</span><span class="tcb-ts">—</span></span>`;
   const link = `https://coordinacion-electoral.vercel.app/testigo.html?t=${encodeURIComponent(r.token)}`;
-  const msg  = `Hola ${r.nombre}, usa este enlace para confirmar tu participación como testigo electoral:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+  // Contextual message depending on testigo's confirmation state
+  let msg;
+  if (!r.confirmadoAt) {
+    msg = `Hola ${r.nombre}, usa este enlace para confirmar tu participación como testigo electoral:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+  } else if (!r.acreditadoAt) {
+    msg = `Hola ${r.nombre}, ya está lista tu acreditación como testigo electoral. Confírmala en este enlace:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+  } else if (!r.enPuestoAt) {
+    msg = `Hola ${r.nombre}, el día de las elecciones (15 de junio de 2026) recuerda confirmar tu llegada al puesto de votación en este enlace:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+  } else {
+    msg = `Hola ${r.nombre}, ¡gracias por tu participación como testigo electoral! 🇨🇴 Abelardo de la Espriella agradece tu apoyo.`;
+  }
   const pBtn = r.telefono
     ? `<a class="tcb-item tcb-send" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}" target="_blank" title="Enviar enlace por WhatsApp"><span class="tcb-icon">📲</span></a>`
     : `<a class="tcb-item tcb-send" href="${esc(link)}" target="_blank" title="Abrir enlace de confirmación"><span class="tcb-icon">🔗</span></a>`;
