@@ -188,7 +188,7 @@ function render(t) {
       : locked('🆔', 'Recibí mi acreditación', 'Disponible después de aceptar en el paso 1');
 
   const msg2 = s2 && !s3
-    ? `<div class="info-msg blue">📍 <b>¡Perfecto!</b> El día de las elecciones (<b>15 de junio de 2026</b>), cuando llegues a tu puesto de votación, vuelve a este enlace y confirma tu llegada en el <b>paso 3</b>.</div>`
+    ? `<div class="info-msg blue">📍 <b>¡Perfecto!</b> El día de las elecciones (<b>21 de junio de 2026</b>), cuando llegues a tu puesto de votación, vuelve a este enlace y confirma tu llegada en el <b>paso 3</b>.</div>`
     : '';
 
   // Step 3
@@ -199,7 +199,7 @@ function render(t) {
       : locked('📍', 'Ya llegué al puesto de votación', 'Disponible después de confirmar tu acreditación');
 
   const msgFinal = s3
-    ? `<div class="info-msg green">🎉 ¡Todo listo! Tu participación como testigo electoral está completamente registrada. ¡Mucho éxito el 15 de junio!</div>`
+    ? `<div class="info-msg green">🎉 ¡Todo listo! Tu participación como testigo electoral está completamente registrada. ¡Mucho éxito el 21 de junio!</div>`
     : '';
 
   document.getElementById('content').innerHTML = `

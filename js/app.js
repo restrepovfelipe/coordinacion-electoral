@@ -1128,7 +1128,7 @@ function _testigoConfirmBadges(r) {
   } else if (!r.acreditadoAt) {
     msg = `Hola ${r.nombre}, ya está lista tu acreditación como testigo electoral. Confírmala en este enlace:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
   } else if (!r.enPuestoAt) {
-    msg = `Hola ${r.nombre}, el día de las elecciones (15 de junio de 2026) recuerda confirmar tu llegada al puesto de votación en este enlace:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+    msg = `Hola ${r.nombre}, el día de las elecciones (21 de junio de 2026) recuerda confirmar tu llegada al puesto de votación en este enlace:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
   } else {
     msg = `Hola ${r.nombre}, ¡gracias por tu participación como testigo electoral! 🇨🇴 Abelardo de la Espriella agradece tu apoyo.`;
   }
