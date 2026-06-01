@@ -233,6 +233,12 @@ function handleRealtimeEvent(event) {
     return;
   }
 
+  // testigo.create / testigo.update / testigo.delete — state is already managed locally;
+  // no re-render needed here (would scroll the page back to the top).
+  if (event.type === 'testigo.create' || event.type === 'testigo.update' || event.type === 'testigo.delete') {
+    return;
+  }
+
   if (event.type === 'testigo:confirmacion_changed') {
     // Update ONLY the affected testigo badge in the DOM — no full re-render, no scroll jump.
     const { testigoId, field } = event.payload || {};

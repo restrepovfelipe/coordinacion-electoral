@@ -1231,7 +1231,7 @@ function addTestigo(n, ck, pKey, id) {
         onkeydown="if(event.key==='Enter')saveNewTestigo('${n}','${ckEnc}','${pKey}','${id}','${formId}')">
       <input class="pi pi-sm" type="text" placeholder="Teléfono" id="${formId}-tel"
         onkeydown="if(event.key==='Enter')saveNewTestigo('${n}','${ckEnc}','${pKey}','${id}','${formId}')">
-      <button class="pc-save" style="white-space:nowrap" onclick="saveNewTestigo('${n}','${ckEnc}','${pKey}','${id}','${formId}')">💾 Guardar testigo</button>
+      <button type="button" class="pc-save" style="white-space:nowrap" onclick="saveNewTestigo('${n}','${ckEnc}','${pKey}','${id}','${formId}')">💾 Guardar testigo</button>
       <button class="del-btn" onclick="document.getElementById('${formId}').remove()">×</button>
     </div>`);
   document.getElementById(`${formId}-nombre`)?.focus();
