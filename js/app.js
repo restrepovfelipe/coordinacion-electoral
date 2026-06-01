@@ -3028,6 +3028,111 @@ function exportDirAbogadosPDF() {
   win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
 }
 
+// ═══ BUSCADOR DE PUESTOS ═══
+const _TAG_COLORS_SEARCH = { n: '#888', ok: '#22c55e', pr: '#f5c842', pe: '#fb923c', al: '#ef4444' };
+const _TAG_LABELS_SEARCH = { n: 'Sin estado', ok: '✓ Cubierto', pr: '★ Prioritario', pe: '⏳ Pendiente', al: '⚠ Alerta' };
+
+function openPuestoSearch() {
+  document.getElementById('puesto-search-modal').style.display = 'flex';
+  const inp = document.getElementById('puesto-search-input');
+  inp.value = '';
+  document.getElementById('puesto-search-results').innerHTML =
+    '<div style="color:var(--t3);text-align:center;padding:24px;font-size:13px">Empieza a escribir para buscar puestos de votación…</div>';
+  setTimeout(() => inp.focus(), 80);
+}
+function closePuestoSearch() {
+  document.getElementById('puesto-search-modal').style.display = 'none';
+}
+
+let _puestoSearchTimer = null;
+function doPuestoSearch(query) {
+  clearTimeout(_puestoSearchTimer);
+  _puestoSearchTimer = setTimeout(() => _execPuestoSearch(query), 200);
+}
+
+function _execPuestoSearch(query) {
+  const q = (query || '').trim().toLowerCase();
+  const el = document.getElementById('puesto-search-results');
+  if (q.length < 2) {
+    el.innerHTML = '<div style="color:var(--t3);text-align:center;padding:24px;font-size:13px">Escribe al menos 2 caracteres para buscar…</div>';
+    return;
+  }
+
+  const results = [];
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n);
+    Object.keys(RAW[n]).forEach(ck => {
+      RAW[n][ck].forEach(p => {
+        if (p.puesto.toLowerCase().includes(q)) {
+          const k = pk(p);
+          const ps = (s.puestos || {})[k] || {};
+          const testigoList = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre);
+          results.push({ n, ck, p, ps, testigoList });
+        }
+      });
+    });
+  });
+
+  if (!results.length) {
+    el.innerHTML = '<div style="color:var(--t3);text-align:center;padding:24px;font-size:13px">No se encontraron puestos con ese nombre.</div>';
+    return;
+  }
+
+  let html = `<div style="font-size:11px;color:var(--t3);margin-bottom:10px">${results.length} resultado${results.length !== 1 ? 's' : ''}</div>`;
+  results.forEach(({ n, ck, p, ps, testigoList }) => {
+    const tag = ps.tag || 'n';
+    const tagColor = _TAG_COLORS_SEARCH[tag];
+    const tagLabel = _TAG_LABELS_SEARCH[tag];
+    const muniLabel = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+
+    let zonaLabel = '';
+    if (n === 'MEDELLIN' && typeof MEDELLIN_ZONAS !== 'undefined') {
+      const zona = MEDELLIN_ZONAS.find(z => z.comunas.includes(ck));
+      if (zona) zonaLabel = ` › ${zona.nombre}`;
+    }
+
+    // Testigos table rows
+    let testigosHtml = '';
+    if (testigoList.length > 0) {
+      testigosHtml = `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px">
+        <tr style="background:var(--bg1)">
+          <th style="padding:4px 8px;text-align:left;border:1px solid var(--b1);color:var(--t2)">Testigo</th>
+          <th style="padding:4px 8px;text-align:left;border:1px solid var(--b1);color:var(--t2)">Cédula</th>
+          <th style="padding:4px 8px;text-align:left;border:1px solid var(--b1);color:var(--t2)">Mesa</th>
+          <th style="padding:4px 8px;text-align:left;border:1px solid var(--b1);color:var(--t2)">Teléfono</th>
+        </tr>
+        ${testigoList.map(t => `<tr>
+          <td style="padding:4px 8px;border:1px solid var(--b1)">${esc(t.nombre)}</td>
+          <td style="padding:4px 8px;border:1px solid var(--b1)">${esc(t.cedula || '—')}</td>
+          <td style="padding:4px 8px;border:1px solid var(--b1)">${t.mesa ? esc(String(t.mesa)) : '—'}</td>
+          <td style="padding:4px 8px;border:1px solid var(--b1)">${t.telefono ? `<a href="https://wa.me/57${(t.telefono+'').replace(/\D/g,'')}" target="_blank" style="color:#25d366">💬</a> ${esc(t.telefono)}` : '—'}</td>
+        </tr>`).join('')}
+      </table>`;
+    }
+
+    html += `<div style="border:1px solid var(--b1);border-radius:8px;padding:13px 15px;margin-bottom:10px;background:var(--bg2)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="background:${tagColor}22;color:${tagColor};border:1px solid ${tagColor}55;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;white-space:nowrap">${tagLabel}</span>
+        <span style="font-weight:700;font-size:14px;color:var(--t1)">${esc(p.puesto)}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--t3);white-space:nowrap">${p.total ? p.total.toLocaleString() + ' votantes' : ''} · ${p.mesas || 0} mesas</span>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:8px">📍 ${muniLabel}${zonaLabel} › ${esc(ck)}</div>
+      <div style="display:flex;gap:20px;font-size:12px;flex-wrap:wrap;margin-bottom:6px">
+        <div>👤 <strong>Coord.:</strong> ${ps.coord ? `${esc(ps.coord)}${ps.phone ? ` &nbsp;·&nbsp; <a href="https://wa.me/57${(ps.phone+'').replace(/\D/g,'')}" target="_blank" style="color:#25d366">💬</a> ${esc(ps.phone)}` : ''}` : '<span style="color:var(--t3)">Sin asignar</span>'}</div>
+        <div>🧾 <strong>Testigos:</strong> ${testigoList.length} / ${p.mesas || 0} mesas</div>
+      </div>
+      ${ps.notes ? `<div style="font-size:11px;color:var(--t2);background:var(--bg1);border-radius:4px;padding:5px 8px;margin-bottom:6px">📝 ${esc(ps.notes)}</div>` : ''}
+      ${testigosHtml}
+      <div style="margin-top:10px">
+        <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="closePuestoSearch();selectMuni('${n.replace(/'/g,"\\'")}')">Ir a ${muniLabel} →</button>
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
 // ═══ COORDENADAS MUNICIPIOS ═══
 const MUNI_COORDS = {
   // AMVA
