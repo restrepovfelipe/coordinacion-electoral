@@ -3125,12 +3125,53 @@ function _execPuestoSearch(query) {
       ${ps.notes ? `<div style="font-size:11px;color:var(--t2);background:var(--bg1);border-radius:4px;padding:5px 8px;margin-bottom:6px">📝 ${esc(ps.notes)}</div>` : ''}
       ${testigosHtml}
       <div style="margin-top:10px">
-        <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="closePuestoSearch();selMuni('${n.replace(/'/g,"\\'")}')">Ir a ${muniLabel} →</button>
+        <button class="export-btn" style="font-size:11px;padding:3px 10px"
+          data-nav-n="${esc(n)}" data-nav-ck="${esc(ck)}" data-nav-pk="${pk(p)}"
+          onclick="navToPuestoFromBtn(this)">📍 Ir al puesto →</button>
       </div>
     </div>`;
   });
 
   el.innerHTML = html;
+}
+
+function navToPuestoFromBtn(btn) {
+  navToPuesto(btn.dataset.navN, btn.dataset.navCk, btn.dataset.navPk);
+}
+
+function navToPuesto(n, ck, pKey) {
+  closePuestoSearch();
+
+  // Pre-open zone (Medellín) and commune so they render already expanded
+  if (n === 'MEDELLIN' && typeof MEDELLIN_ZONAS !== 'undefined') {
+    const zona = MEDELLIN_ZONAS.find(z => z.comunas.includes(ck));
+    if (zona) OPEN_Z.add(n + zona.nombre);
+  }
+  OPEN_CC.add(n + ck);
+
+  selMuni(n);
+
+  // After the DOM settles, open the puesto card and scroll+highlight it
+  setTimeout(() => {
+    const pcid = 'pc_' + pKey + '_' + btoa(unescape(encodeURIComponent(ck))).replace(/[^a-z0-9]/gi, '');
+    const pcEl = document.getElementById(pcid);
+    if (!pcEl) return;
+
+    // Open the puesto card body if not already open
+    if (!OPEN_PC.has(pcid)) {
+      OPEN_PC.add(pcid);
+      const body = document.getElementById(pcid + '-body');
+      if (body) body.classList.add('op');
+      const chev = pcEl.querySelector('.chev');
+      if (chev) chev.classList.add('op');
+    }
+
+    // Scroll to the card and highlight with a golden border
+    pcEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    pcEl.style.transition = 'box-shadow 0.3s';
+    pcEl.style.boxShadow = '0 0 0 3px #f5c842';
+    setTimeout(() => { pcEl.style.transition = 'box-shadow 0.8s'; pcEl.style.boxShadow = ''; }, 2500);
+  }, 500);
 }
 
 // ═══ COORDENADAS MUNICIPIOS ═══
