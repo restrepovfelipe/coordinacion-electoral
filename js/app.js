@@ -1036,6 +1036,10 @@ async function loadTestigosForComune(n, ck) {
         notas: t.notes || '',
         mesaInicial: t.mesaInicial ?? null,
         mesaFinal: t.mesaFinal ?? null,
+        token: t.token || null,
+        confirmadoAt: t.confirmadoAt || null,
+        acreditadoAt: t.acreditadoAt || null,
+        enPuestoAt: t.enPuestoAt || null,
       }));
     } catch (err) {
       console.error('loadTestigosForComune failed for', p.puesto, err?.status);
@@ -1103,6 +1107,21 @@ async function renderTestigosPanel(n, ck, id) {
 
 function getTestigos(n, ck, pName) { return (gs(n).testigos?.[ck]?.[pName]) || []; }
 
+function _testigoConfirmBadges(r) {
+  if (!r.token) return '';
+  const tip = (label, ts) => ts
+    ? `<span title="${label}: ${new Date(ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})} ${new Date(ts).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}" style="font-size:13px;cursor:default">✅</span>`
+    : `<span title="${label}: pendiente" style="font-size:13px;cursor:default;opacity:.35">⬜</span>`;
+  const link = `https://coordinacion-electoral.vercel.app/testigo.html?t=${encodeURIComponent(r.token)}`;
+  const pBtn = r.telefono
+    ? (() => {
+        const msg = `Hola ${r.nombre}, usa este enlace para confirmar tu participación como testigo electoral:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+        return `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}" target="_blank" title="Enviar enlace de confirmación por WhatsApp">📲</a>`;
+      })()
+    : `<a class="wa-btn" href="${esc(link)}" target="_blank" title="Copiar enlace de confirmación">🔗</a>`;
+  return `<span style="display:inline-flex;align-items:center;gap:2px">${tip('Aceptó',r.confirmadoAt)}${tip('Acreditado',r.acreditadoAt)}${tip('En puesto',r.enPuestoAt)}${pBtn}</span>`;
+}
+
 function buildTestRows(n, ck, pName, id, pKey) {
   const rows = getTestigos(n, ck, pName);
   if (!rows.length) return '<div style="font-size:10px;color:var(--t3);padding:2px 0">Sin testigos aún</div>';
@@ -1111,6 +1130,7 @@ function buildTestRows(n, ck, pName, id, pKey) {
       <span style="flex:2;font-size:12px;color:var(--t1)">${esc(r.nombre) || '—'}</span>
       <span style="font-size:12px;color:var(--t2)">${esc(r.telefono) || ''}</span>
       ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
+      ${_testigoConfirmBadges(r)}
     </div>`).join('');
   }
   return rows.map((r, i) => `<div class="test-row">
@@ -1119,6 +1139,7 @@ function buildTestRows(n, ck, pName, id, pKey) {
     <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${esc(r.telefono)}"
       onchange="updateTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'telefono',this.value)">
     ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
+    ${_testigoConfirmBadges(r)}
     <button class="del-btn" onclick="delTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'${id}')">×</button>
   </div>`).join('');
 }
