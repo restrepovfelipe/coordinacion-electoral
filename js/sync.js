@@ -233,6 +233,57 @@ function handleRealtimeEvent(event) {
     return;
   }
 
+  if (event.type === 'testigo:confirmacion_changed') {
+    // Update ONLY the affected testigo badge in the DOM — no full re-render, no scroll jump.
+    const { testigoId, field } = event.payload || {};
+    if (testigoId && field) {
+      const now = new Date().toISOString();
+      // 1. Update localStorage
+      if (typeof ALL_MUNIS !== 'undefined' && typeof gs !== 'undefined' && typeof saveLocalSt !== 'undefined') {
+        for (const n of ALL_MUNIS) {
+          const s = gs(n);
+          if (!s.testigos) continue;
+          let updated = false;
+          for (const ck of Object.keys(s.testigos)) {
+            for (const pName of Object.keys(s.testigos[ck])) {
+              const t = (s.testigos[ck][pName] || []).find(r => r._backendId === testigoId);
+              if (t) { t[field] = now; updated = true; break; }
+            }
+            if (updated) break;
+          }
+          if (updated) { saveLocalSt(); break; }
+        }
+      }
+      // 2. Update the badge in the visible DOM row (no page scroll)
+      const row = document.querySelector(`[data-testigo-id="${testigoId}"]`);
+      if (row) {
+        // Find the testigo object from localStorage to rebuild badges
+        let tObj = null;
+        if (typeof ALL_MUNIS !== 'undefined' && typeof gs !== 'undefined') {
+          outer: for (const n of ALL_MUNIS) {
+            const s = gs(n);
+            if (!s.testigos) continue;
+            for (const ck of Object.keys(s.testigos)) {
+              for (const pName of Object.keys(s.testigos[ck])) {
+                tObj = (s.testigos[ck][pName] || []).find(r => r._backendId === testigoId);
+                if (tObj) break outer;
+              }
+            }
+          }
+        }
+        if (tObj && typeof _testigoConfirmBadges === 'function') {
+          const existing = row.querySelector('.tcb-group');
+          const newBadge = document.createElement('span');
+          newBadge.innerHTML = _testigoConfirmBadges(tObj);
+          const badgeEl = newBadge.firstElementChild;
+          if (existing && badgeEl) existing.replaceWith(badgeEl);
+          else if (badgeEl) row.appendChild(badgeEl);
+        }
+      }
+    }
+    return; // ← No llamar rerenderIfNotEditing() — evita el salto de scroll
+  }
+
   // Re-render the current municipality view if it is open.
   rerenderIfNotEditing();
 }

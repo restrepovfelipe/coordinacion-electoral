@@ -1132,14 +1132,14 @@ function buildTestRows(n, ck, pName, id, pKey) {
   const rows = getTestigos(n, ck, pName);
   if (!rows.length) return '<div style="font-size:10px;color:var(--t3);padding:2px 0">Sin testigos aún</div>';
   if (_isReadOnly()) {
-    return rows.map(r => `<div class="test-row">
+    return rows.map(r => `<div class="test-row" data-testigo-id="${r._backendId || ''}">
       <span style="flex:2;font-size:12px;color:var(--t1)">${esc(r.nombre) || '—'}</span>
       <span style="font-size:12px;color:var(--t2)">${esc(r.telefono) || ''}</span>
       ${r.telefono ? `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>` : '<span class="wa-btn-ph"></span>'}
       ${_testigoConfirmBadges(r)}
     </div>`).join('');
   }
-  return rows.map((r, i) => `<div class="test-row">
+  return rows.map((r, i) => `<div class="test-row" data-testigo-id="${r._backendId || ''}">
     <input class="pi" style="flex:2" type="text" placeholder="Nombre" value="${esc(r.nombre)}"
       onchange="updateTestigo('${n}','${ck.replace(/'/g, "\\'")}','${pKey}',${i},'nombre',this.value)">
     <input class="pi pi-sm" type="text" placeholder="Teléfono" value="${esc(r.telefono)}"
