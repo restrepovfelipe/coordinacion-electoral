@@ -63,6 +63,7 @@ async function loadCoordsForSubregions() {
     } catch (e) {}
   }));
   buildSB(); // refresh sidebar with coordinator names
+  if (document.getElementById('ov-wrap')) renderOV(); // refresh overview cards
 }
 
 // ═══ TESTIGO COUNTS (real-time dashboard counters) ═══
@@ -1701,6 +1702,7 @@ async function saveM() {
       }
     }
     buildSB();
+    if (document.getElementById('ov-wrap')) renderOV();
     closeM();
     return;
   }
