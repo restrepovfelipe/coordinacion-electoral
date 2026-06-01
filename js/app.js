@@ -1197,41 +1197,78 @@ async function descargarPdfAsignacion(n, pNameEncoded) {
 }
 
 function addTestigo(n, ck, pKey, id) {
-  const s = gs(n); const pName = decodeURIComponent(pKey);
-  if (!s.testigos) s.testigos = {}; if (!s.testigos[ck]) s.testigos[ck] = {};
+  // Show an inline form — don't save anything until the user clicks "Guardar testigo"
+  const containerId = `${id}-test-${btoa(pKey).replace(/=/g, '')}`;
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  // Only one form at a time
+  if (el.querySelector('.new-test-form')) {
+    el.querySelector('.new-test-form input')?.focus();
+    return;
+  }
+  const formId = `ntf-${id}-${Date.now()}`;
+  const nEnc = encodeURIComponent(n), ckEnc = ck.replace(/'/g, "\\'"), pEnc = encodeURIComponent(pKey);
+  el.insertAdjacentHTML('beforeend', `
+    <div class="new-test-form test-row" id="${formId}" style="background:var(--bg2);border-radius:8px;padding:6px 8px;gap:6px;flex-wrap:wrap">
+      <input class="pi" style="flex:2;min-width:120px" type="text" placeholder="Nombre completo" id="${formId}-nombre"
+        onkeydown="if(event.key==='Enter')saveNewTestigo('${n}','${ckEnc}','${pKey}','${id}','${formId}')">
+      <input class="pi pi-sm" type="text" placeholder="Teléfono" id="${formId}-tel"
+        onkeydown="if(event.key==='Enter')saveNewTestigo('${n}','${ckEnc}','${pKey}','${id}','${formId}')">
+      <button class="pc-save" style="white-space:nowrap" onclick="saveNewTestigo('${n}','${ckEnc}','${pKey}','${id}','${formId}')">💾 Guardar testigo</button>
+      <button class="del-btn" onclick="document.getElementById('${formId}').remove()">×</button>
+    </div>`);
+  document.getElementById(`${formId}-nombre`)?.focus();
+}
+
+async function saveNewTestigo(n, ck, pKey, id, formId) {
+  const nombreEl = document.getElementById(`${formId}-nombre`);
+  const telEl    = document.getElementById(`${formId}-tel`);
+  if (!nombreEl) return;
+  const nombre   = nombreEl.value.trim();
+  const telefono = telEl ? telEl.value.trim() : '';
+  if (!nombre) { nombreEl.focus(); nombreEl.style.borderColor = '#f87171'; return; }
+
+  // Disable form while saving
+  const formEl = document.getElementById(formId);
+  if (formEl) formEl.querySelectorAll('button,input').forEach(e => e.disabled = true);
+
+  const pName = decodeURIComponent(pKey);
+  const s = gs(n);
+  if (!s.testigos) s.testigos = {};
+  if (!s.testigos[ck]) s.testigos[ck] = {};
   if (!s.testigos[ck][pName]) s.testigos[ck][pName] = [];
-  s.testigos[ck][pName].push({ nombre: '', telefono: '' }); saveLocalSt();
-  // Real API call — fire and forget with error logging
+
+  const newT = { nombre, telefono };
+  s.testigos[ck][pName].push(newT);
+  saveLocalSt();
+
+  // Remove form and show row optimistically
+  formEl?.remove();
+  const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
+  if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
+
+  // Save to backend and get token
   if (window.api && window.CURRENT_USER) {
-    const testigos = s.testigos[ck][pName];
-    const newT = testigos[testigos.length - 1];
-
-    // Try to find puesto backend ID from cache
-    const comunaPuestos = RAW[n] && RAW[n][ck] ? RAW[n][ck] : [];
-    const puestoEntry = comunaPuestos.find ? comunaPuestos.find(p => p.puesto === pName) : null;
-    const puestoRawName = puestoEntry ? puestoEntry.puesto : pName;
-    const puestoBackendId = getPuestoBackendId(n, puestoRawName);
-
+    const puestoBackendId = getPuestoBackendId(n, pName);
     if (puestoBackendId) {
-      api.post(`/puestos/${puestoBackendId}/testigos`, {
-        name: newT.nombre || '',
-        phone: newT.telefono || undefined,
-      }).then(created => {
-        // Store backend ID and magic-link token for future update/delete/confirmation
+      try {
+        const created = await api.post(`/puestos/${puestoBackendId}/testigos`, {
+          name: newT.nombre,
+          phone: newT.telefono || undefined,
+        });
         newT._backendId    = created.id;
         newT.token         = created.token        || null;
         newT.confirmadoAt  = created.confirmadoAt || null;
         newT.acreditadoAt  = created.acreditadoAt || null;
         newT.enPuestoAt    = created.enPuestoAt   || null;
         saveLocalSt();
-        // Re-render so 📲 button appears immediately
-        const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
+        // Re-render to show confirmation badges (📲)
         if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
-      }).catch(err => _onWriteError('testigo create failed', err));
+      } catch(err) {
+        _onWriteError('testigo create failed', err);
+      }
     }
   }
-  const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
-  if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
 }
 
 function updateTestigo(n, ck, pKey, idx, field, val) {
