@@ -72,9 +72,11 @@ model UserScope {
 }
 
 model Subregion {
-  id         Int         @id @default(autoincrement())
-  name       String      @unique
-  municipios Municipio[]
+  id                       Int         @id @default(autoincrement())
+  name                     String      @unique
+  municipios               Municipio[]
+  coordinadorAdHocNombre   String?
+  coordinadorAdHocTelefono String?
 }
 
 model Municipio {
@@ -129,6 +131,7 @@ model Puesto {
   mesas                    Int              @default(0)
   votantes                 Int              @default(0)
   tag                      String?
+  notas                    String?
   coordinadorAdHocNombre   String?
   coordinadorAdHocTelefono String?
   testigos                 Testigo[]

@@ -140,6 +140,7 @@ function handleRealtimeEvent(event) {
     const nombre    = event.payload?.nombre    ?? null;
     const telefono  = event.payload?.telefono  ?? null;
     const tag       = event.payload?.tag       ?? null;
+    const notas     = event.payload?.notas     ?? null;
 
     if (scopeId !== undefined && typeof gs !== 'undefined' && typeof saveLocalSt !== 'undefined') {
       if (scopeType === 'MUNICIPIO') {
@@ -180,6 +181,18 @@ function handleRealtimeEvent(event) {
             }
           }
         }
+      } else if (scopeType === 'SUBREGION') {
+        // Update in-memory subregion coordinator cache and rebuild sidebar.
+        // _subregionIdCache stores both original-case and UPPER-case keys; pick the one that
+        // is not all-uppercase to get the display name.
+        if (typeof _subregionIdCache !== 'undefined' && typeof _subregionCoords !== 'undefined') {
+          const matchedKey = Object.keys(_subregionIdCache)
+            .find(k => _subregionIdCache[k] === scopeId && k !== k.toUpperCase());
+          if (matchedKey) {
+            _subregionCoords[matchedKey] = { coord: nombre || '', phone: telefono || '' };
+            if (typeof buildSB === 'function') buildSB();
+          }
+        }
       } else if (scopeType === 'PUESTO') {
         // Find which municipality + puesto this belongs to
         if (typeof ALL_MUNIS !== 'undefined' && typeof RAW !== 'undefined' && typeof _puestoIdCache !== 'undefined') {
@@ -200,6 +213,7 @@ function handleRealtimeEvent(event) {
                   s.puestos[key].coord = nombre || '';
                   s.puestos[key].phone = telefono || '';
                   if (tag !== null) s.puestos[key].tag = tag;
+                  if (notas !== null) s.puestos[key].notes = notas;
                   saveLocalSt();
                   break;
                 }

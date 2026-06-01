@@ -9,13 +9,14 @@ import { RealtimeService } from '../realtime/realtime.service.js';
 import { UserWithScopes } from '../common/types/request-with-user.js';
 import { PatchAdhocDto } from './dto/patch-adhoc.dto.js';
 
-export type ScopeTypeLower = 'municipio' | 'zona' | 'comuna' | 'puesto';
+export type ScopeTypeLower = 'municipio' | 'zona' | 'comuna' | 'puesto' | 'subregion';
 
 const SCOPE_MAP: Record<ScopeTypeLower, ScopeType> = {
   municipio: ScopeType.MUNICIPIO,
   zona: ScopeType.ZONA,
   comuna: ScopeType.COMUNA,
   puesto: ScopeType.PUESTO,
+  subregion: ScopeType.SUBREGION,
 };
 
 export interface CoordinadorDisplay {
@@ -41,11 +42,18 @@ export class CoordinadorService {
 
   // Returns coordinator info for every puesto in a municipality in two queries.
   // Response: Array<{ puestoId, nombre, telefono }>  (only entries with a coordinator)
-  async puestosByMuni(municipioId: number): Promise<Array<{ puestoId: number; nombre: string; telefono: string | null; tag: string | null }>> {
-    // 1. Adhoc coordinators — single query
+  async puestosByMuni(municipioId: number): Promise<Array<{ puestoId: number; nombre: string; telefono: string | null; tag: string | null; notas: string | null }>> {
+    // 1. Adhoc coordinators — fetch any puesto with coordinator, tag (non-default), or notes set
     const puestosAdhoc = await this.prisma.puesto.findMany({
-      where: { municipioId, coordinadorAdHocNombre: { not: null } },
-      select: { id: true, coordinadorAdHocNombre: true, coordinadorAdHocTelefono: true, tag: true },
+      where: {
+        municipioId,
+        OR: [
+          { coordinadorAdHocNombre: { not: null } },
+          { notas: { not: null } },
+          { tag: { in: ['ok', 'pr', 'pe', 'al'] } },
+        ],
+      },
+      select: { id: true, coordinadorAdHocNombre: true, coordinadorAdHocTelefono: true, tag: true, notas: true },
     });
 
     // 2. User-based coordinators — get all puesto IDs first, then scope+user
@@ -64,16 +72,20 @@ export class CoordinadorService {
     });
 
     // Merge: user-coord takes priority over adhoc for the same puesto
-    const result = new Map<number, { puestoId: number; nombre: string; telefono: string | null; tag: string | null }>();
+    const result = new Map<number, { puestoId: number; nombre: string; telefono: string | null; tag: string | null; notas: string | null }>();
 
     for (const p of puestosAdhoc) {
-      if (p.coordinadorAdHocNombre) {
-        result.set(p.id, { puestoId: p.id, nombre: p.coordinadorAdHocNombre, telefono: p.coordinadorAdHocTelefono ?? null, tag: p.tag ?? null });
-      }
+      result.set(p.id, {
+        puestoId: p.id,
+        nombre: p.coordinadorAdHocNombre ?? '',
+        telefono: p.coordinadorAdHocTelefono ?? null,
+        tag: p.tag ?? null,
+        notas: p.notas ?? null,
+      });
     }
     for (const uc of userCoords) {
       if (uc.user.active && uc.user.displayName) {
-        result.set(uc.scopeId, { puestoId: uc.scopeId, nombre: uc.user.displayName, telefono: uc.user.phone ?? null, tag: null });
+        result.set(uc.scopeId, { puestoId: uc.scopeId, nombre: uc.user.displayName, telefono: uc.user.phone ?? null, tag: null, notas: null });
       }
     }
 
@@ -137,7 +149,7 @@ export class CoordinadorService {
     }
 
     const before = await this.getAdhocFields(scopeType, id);
-    await this.setAdhocFields(scopeType, id, dto.nombre ?? null, dto.telefono ?? null, dto.tag ?? null);
+    await this.setAdhocFields(scopeType, id, dto.nombre ?? null, dto.telefono ?? null, dto.tag ?? null, dto.notas ?? null);
     const after = await this.getAdhocFields(scopeType, id);
 
     await this.prisma.auditLog.create({
@@ -155,7 +167,7 @@ export class CoordinadorService {
       type: 'coordinador:adhoc_changed',
       scopeType: scopeType as string,
       scopeId: id,
-      payload: { scopeType, scopeId: id, nombre: dto.nombre ?? null, telefono: dto.telefono ?? null, tag: dto.tag ?? null },
+      payload: { scopeType, scopeId: id, nombre: dto.nombre ?? null, telefono: dto.telefono ?? null, tag: dto.tag ?? null, notas: dto.notas ?? null },
     });
 
     return this.display(scopeTypeRaw, id);
@@ -187,6 +199,9 @@ export class CoordinadorService {
       case ScopeType.PUESTO:
         row = await this.prisma.puesto.findUnique({ where: { id }, select });
         break;
+      case ScopeType.SUBREGION:
+        row = await this.prisma.subregion.findUnique({ where: { id }, select });
+        break;
       default:
         throw new NotFoundException(`scopeType ${scopeType} does not support ad-hoc coordinators`);
     }
@@ -201,13 +216,17 @@ export class CoordinadorService {
     nombre: string | null,
     telefono: string | null,
     tag: string | null = null,
+    notas: string | null = null,
   ): Promise<void> {
     const data: Record<string, string | null> = {
       coordinadorAdHocNombre: nombre,
       coordinadorAdHocTelefono: telefono,
     };
-    // tag only exists on Puesto
-    if (scopeType === ScopeType.PUESTO) data['tag'] = tag;
+    // tag and notas only exist on Puesto
+    if (scopeType === ScopeType.PUESTO) {
+      data['tag'] = tag;
+      data['notas'] = notas;
+    }
 
     switch (scopeType) {
       case ScopeType.MUNICIPIO:
@@ -221,6 +240,9 @@ export class CoordinadorService {
         break;
       case ScopeType.PUESTO:
         await this.prisma.puesto.update({ where: { id }, data });
+        break;
+      case ScopeType.SUBREGION:
+        await this.prisma.subregion.update({ where: { id }, data });
         break;
       default:
         throw new NotFoundException(`scopeType ${scopeType} does not support ad-hoc coordinators`);

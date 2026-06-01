@@ -483,10 +483,10 @@ async function loadCoordsForMuni(n) {
         }
       }
       if (!s.puestos) s.puestos = {};
-      for (const { puestoId, nombre, telefono, tag } of list) {
+      for (const { puestoId, nombre, telefono, tag, notas } of list) {
         const pkStr = idToPk[puestoId];
         if (!pkStr) continue;
-        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '', tag: tag || 'n' };
+        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '', tag: tag || 'n', notes: notas || '' };
         changed = true;
       }
     } catch(e) {}
@@ -1731,7 +1731,9 @@ async function saveM() {
     if (MCX.type === 'zona') await _loadZonaIds();
     const scopeId = _coordScopeId(MCX.type, MCX.n, MCX.ck, MCX.k, MCX.zonaNombre, MCX.region);
     if (scopeStr && scopeId) {
-      api.patch(`/coordinador/${scopeStr}/${scopeId}/adhoc`, { nombre: coord || null, telefono: phone || null })
+      const _patchPayload = { nombre: coord || null, telefono: phone || null };
+      if (MCX.type === 'p') { _patchPayload.tag = SEL_T || null; _patchPayload.notas = notes || null; }
+      api.patch(`/coordinador/${scopeStr}/${scopeId}/adhoc`, _patchPayload)
         .catch(err => { if (err?.status !== 409) _onWriteError('coord adhoc patch failed', err); });
     }
   }

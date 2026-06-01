@@ -15,4 +15,9 @@ export class PatchAdhocDto {
   @IsString()
   @MaxLength(20)
   tag?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notas?: string | null;
 }
