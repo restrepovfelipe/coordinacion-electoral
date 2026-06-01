@@ -22,6 +22,10 @@ function _onWriteError(label, err) {
 const _puestoIdCache = {};
 // Cache: zona name → backendId (loaded once via /api/zonas)
 const _zonaIdCache = {};
+// Cache: subregion name → backendId (loaded once via /api/subregiones)
+const _subregionIdCache = {};
+// Coordinator data per subregion: { [regionName]: { coord, phone } }
+const _subregionCoords = {};
 // Expose cache references on window for test instrumentation (mutation only)
 window._puestoIdCacheRef = _puestoIdCache;
 window._zonaIdCacheRef   = _zonaIdCache;
@@ -32,6 +36,33 @@ async function _loadZonaIds() {
     const zonas = await api.get('/zonas');
     for (const z of zonas) { _zonaIdCache[z.name] = z.id; _zonaIdCache[(z.name || '').toUpperCase()] = z.id; }
   } catch (err) { console.warn('[_loadZonaIds] failed', err?.status); }
+}
+async function _loadSubregionIds() {
+  if (Object.keys(_subregionIdCache).length > 0) return;
+  if (!window.api || !window.CURRENT_USER) return;
+  try {
+    const subs = await api.get('/subregiones');
+    for (const s of subs) {
+      _subregionIdCache[s.name] = s.id;
+      _subregionIdCache[(s.name || '').toUpperCase()] = s.id;
+    }
+  } catch (err) { console.warn('[_loadSubregionIds] failed', err?.status); }
+}
+async function loadCoordsForSubregions() {
+  if (!window.api || !window.CURRENT_USER) return;
+  await _loadSubregionIds();
+  const regions = Object.keys(REGIONES);
+  await Promise.all(regions.map(async region => {
+    const subId = _subregionIdCache[region] ?? _subregionIdCache[region.toUpperCase()];
+    if (!subId) return;
+    try {
+      const disp = await api.get(`/coordinador/subregion/${subId}/display`);
+      if (disp?.nombre) {
+        _subregionCoords[region] = { coord: disp.nombre || '', phone: disp.telefono || '' };
+      }
+    } catch (e) {}
+  }));
+  buildSB(); // refresh sidebar with coordinator names
 }
 
 // ═══ TESTIGO COUNTS (real-time dashboard counters) ═══
@@ -196,11 +227,12 @@ function getPuestoIdByPk(n, pkStr) {
 }
 
 // Resolve the backend integer ID for a coordinator scope from MCX context fields.
-function _coordScopeId(type, muniName, ck, k, zonaNombre) {
+function _coordScopeId(type, muniName, ck, k, zonaNombre, region) {
   if (type === 'muni') return _puestoIdCache[muniName]?._muniId ?? null;
   if (type === 'cc') { const ids = _puestoIdCache[muniName]?._ccIds; return ids ? (ids[ck] ?? ids[(ck || '').toUpperCase()] ?? null) : null; }
   if (type === 'p') return getPuestoBackendId(muniName, k);
   if (type === 'zona') return _zonaIdCache[zonaNombre] ?? _zonaIdCache[(zonaNombre || '').toUpperCase()] ?? null;
+  if (type === 'subregion') return _subregionIdCache[region] ?? _subregionIdCache[(region || '').toUpperCase()] ?? null;
   return null;
 }
 
@@ -366,7 +398,19 @@ function buildSB() {
     const isOpen = !CLOSED_REGIONS.has(region);
     const rh = document.createElement('div');
     rh.className = 'sb-region-header' + (isOpen ? ' open' : '');
-    rh.innerHTML = `<span>${region}</span><span class="sb-region-toggle">${isOpen ? '▾' : '▸'}</span>`;
+    const sc = _subregionCoords[region] || {};
+    const editBtn = !_isReadOnly()
+      ? `<button class="sb-region-ced" onclick="event.stopPropagation();editSubregionCoord('${region.replace(/'/g,"\\'")}')">✎</button>`
+      : '';
+    rh.innerHTML = `
+      <div class="sb-region-hd-left">
+        <span class="sb-region-nm">${region}</span>
+        ${sc.coord ? `<span class="sb-region-coord">👤 ${esc(sc.coord)}</span>` : ''}
+      </div>
+      <div class="sb-region-hd-right">
+        ${editBtn}
+        <span class="sb-region-toggle">${isOpen ? '▾' : '▸'}</span>
+      </div>`;
     rh.onclick = () => { if (CLOSED_REGIONS.has(region)) CLOSED_REGIONS.delete(region); else CLOSED_REGIONS.add(region); buildSB(); };
     list.appendChild(rh);
     const grp = document.createElement('div');
@@ -1645,6 +1689,20 @@ async function saveM() {
   const coord = document.getElementById('mi-c').value.trim();
   const phone = document.getElementById('mi-p').value.trim();
   const notes = document.getElementById('mi-n')?.value.trim() || '';
+  if (MCX.type === 'subregion') {
+    _subregionCoords[MCX.region] = { coord, phone };
+    if (window.api && window.CURRENT_USER) {
+      await _loadSubregionIds();
+      const subId = _subregionIdCache[MCX.region] ?? _subregionIdCache[(MCX.region || '').toUpperCase()];
+      if (subId) {
+        api.patch(`/coordinador/subregion/${subId}/adhoc`, { nombre: coord || null, telefono: phone || null })
+          .catch(err => { if (err?.status !== 409) _onWriteError('subregion coord patch failed', err); });
+      }
+    }
+    buildSB();
+    closeM();
+    return;
+  }
   const s = gs(MCX.n);
   if (MCX.type === 'muni') {
     s.coord = coord; s.phone = phone;
@@ -1670,7 +1728,7 @@ async function saveM() {
     const scopeStr = _scopeTypeMap[MCX.type];
     // For zona type, ensure _zonaIdCache is populated before looking up the ID
     if (MCX.type === 'zona') await _loadZonaIds();
-    const scopeId = _coordScopeId(MCX.type, MCX.n, MCX.ck, MCX.k, MCX.zonaNombre);
+    const scopeId = _coordScopeId(MCX.type, MCX.n, MCX.ck, MCX.k, MCX.zonaNombre, MCX.region);
     if (scopeStr && scopeId) {
       api.patch(`/coordinador/${scopeStr}/${scopeId}/adhoc`, { nombre: coord || null, telefono: phone || null })
         .catch(err => { if (err?.status !== 409) _onWriteError('coord adhoc patch failed', err); });
@@ -1703,6 +1761,7 @@ async function saveM() {
 function editMuni(n) { const s = gs(n); openM(`Coordinador — ${n === 'MEDELLIN' ? 'MEDELLÍN' : n}`, 'Coordinador principal', { type: 'muni', n }, { coord: s.coord, phone: s.phone }); }
 function editCC(n, ck) { const s = gs(n); const sc = (s.comunas || {})[ck] || {}; openM('Coordinador de comuna', ck, { type: 'cc', n, ck }, { coord: sc.coord, phone: sc.phone }); }
 function editZona(n, zonaNombre) { const s = gs(n); const sz = (s.zonas || {})[zonaNombre] || {}; openM('Coordinador de zona geográfica', zonaNombre, { type: 'zona', n, zonaNombre }, { coord: sz.coord, phone: sz.phone }); }
+function editSubregionCoord(region) { const sc = _subregionCoords[region] || {}; openM('Coordinador de subregión', region, { type: 'subregion', region }, { coord: sc.coord, phone: sc.phone }); }
 function editP(n, k, ck) { if (ck !== undefined) { editPCard(n, k, ck); return; } const s = gs(n); const ps = (s.puestos || {})[k] || {}; openM('Puesto de votación', k.replace(/_/g, ' '), { type: 'p', n, k }, { coord: ps.coord, phone: ps.phone, tag: ps.tag || 'n', notes: ps.notes, showTag: true, showNotes: true }); }
 
 // ═══ OVERVIEW ═══
@@ -1950,6 +2009,7 @@ async function startApp() {
   buildExcelMenu();
   buildMovPDFMenu();
   buildRefrigPDFMenu();
+  loadCoordsForSubregions(); // load subregion coordinators in background
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
   if (typeof initProfileWidget === 'function' && window.CURRENT_USER) initProfileWidget(window.CURRENT_USER);
