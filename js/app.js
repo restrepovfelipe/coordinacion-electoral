@@ -1218,9 +1218,16 @@ function addTestigo(n, ck, pKey, id) {
         name: newT.nombre || '',
         phone: newT.telefono || undefined,
       }).then(created => {
-        // Store backend ID on the testigo object for future update/delete
-        newT._backendId = created.id;
+        // Store backend ID and magic-link token for future update/delete/confirmation
+        newT._backendId    = created.id;
+        newT.token         = created.token        || null;
+        newT.confirmadoAt  = created.confirmadoAt || null;
+        newT.acreditadoAt  = created.acreditadoAt || null;
+        newT.enPuestoAt    = created.enPuestoAt   || null;
         saveLocalSt();
+        // Re-render so 📲 button appears immediately
+        const el = document.getElementById(`${id}-test-${btoa(pKey).replace(/=/g, '')}`);
+        if (el) el.innerHTML = buildTestRows(n, ck, pName, id, pKey);
       }).catch(err => _onWriteError('testigo create failed', err));
     }
   }
