@@ -1109,17 +1109,16 @@ function getTestigos(n, ck, pName) { return (gs(n).testigos?.[ck]?.[pName]) || [
 
 function _testigoConfirmBadges(r) {
   if (!r.token) return '';
-  const tip = (label, ts) => ts
-    ? `<span title="${label}: ${new Date(ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})} ${new Date(ts).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}" style="font-size:13px;cursor:default">✅</span>`
-    : `<span title="${label}: pendiente" style="font-size:13px;cursor:default;opacity:.35">⬜</span>`;
+  const _fmt = ts => new Date(ts).toLocaleDateString('es-CO',{day:'2-digit',month:'short'}) + ' ' + new Date(ts).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  const dot = (emoji, label, ts) => ts
+    ? `<span class="tcb tcb-ok" title="${label} ✅ ${_fmt(ts)}">${emoji}</span>`
+    : `<span class="tcb tcb-no" title="${label}: pendiente">${emoji}</span>`;
   const link = `https://coordinacion-electoral.vercel.app/testigo.html?t=${encodeURIComponent(r.token)}`;
+  const msg  = `Hola ${r.nombre}, usa este enlace para confirmar tu participación como testigo electoral:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
   const pBtn = r.telefono
-    ? (() => {
-        const msg = `Hola ${r.nombre}, usa este enlace para confirmar tu participación como testigo electoral:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
-        return `<a class="wa-btn" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}" target="_blank" title="Enviar enlace de confirmación por WhatsApp">📲</a>`;
-      })()
-    : `<a class="wa-btn" href="${esc(link)}" target="_blank" title="Copiar enlace de confirmación">🔗</a>`;
-  return `<span style="display:inline-flex;align-items:center;gap:2px">${tip('Aceptó',r.confirmadoAt)}${tip('Acreditado',r.acreditadoAt)}${tip('En puesto',r.enPuestoAt)}${pBtn}</span>`;
+    ? `<a class="tcb tcb-send" href="https://wa.me/57${r.telefono.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}" target="_blank" title="Enviar enlace por WhatsApp">📲</a>`
+    : `<a class="tcb tcb-send" href="${esc(link)}" target="_blank" title="Abrir enlace de confirmación">🔗</a>`;
+  return `<span class="tcb-group">${dot('✅','Aceptó',r.confirmadoAt)}${dot('🆔','Acreditado',r.acreditadoAt)}${dot('📍','En puesto',r.enPuestoAt)}${pBtn}</span>`;
 }
 
 function buildTestRows(n, ck, pName, id, pKey) {
