@@ -184,8 +184,12 @@ model Testigo {
   mesaFinal   Int?
   createdById Int?
   createdBy   User?    @relation(fields: [createdById], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  token           String    @unique @default(uuid())
+  confirmadoAt    DateTime?
+  acreditadoAt    DateTime?
+  enPuestoAt      DateTime?
 
   @@index([puestoId, id])
 }

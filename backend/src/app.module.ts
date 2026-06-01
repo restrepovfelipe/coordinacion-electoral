@@ -15,6 +15,7 @@ import { ResourcesModule } from './resources/resources.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AsignacionModule } from './asignacion/asignacion.module';
 import { CoordinadorModule } from './coordinador/coordinador.module.js';
+import { ConfirmModule } from './confirm/confirm.module.js';
 import { MetricsModule } from './metrics/metrics.module';
 import { MustChangePasswordInterceptor } from './common/interceptors/must-change-password.interceptor';
 import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
@@ -35,6 +36,7 @@ import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
     DashboardModule,
     AsignacionModule,
     CoordinadorModule,
+    ConfirmModule,
   ],
   controllers: [AppController],
   providers: [

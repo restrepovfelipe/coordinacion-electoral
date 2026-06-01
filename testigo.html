@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Confirmación · Testigo Electoral 2026</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:16px}
+  .card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.10);max-width:420px;width:100%;padding:28px 24px;margin-top:8px}
+  .logo{text-align:center;margin-bottom:20px}
+  .logo-flag{font-size:40px;margin-bottom:6px}
+  .logo-title{font-size:15px;font-weight:700;color:#1a1a2e}
+  .logo-sub{font-size:11px;color:#666;margin-top:2px}
+  .name{font-size:22px;font-weight:700;color:#1a1a2e;text-align:center;margin-bottom:4px}
+  .greeting{font-size:13px;color:#666;text-align:center;margin-bottom:20px}
+  .puesto-card{background:#f8f9fb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:24px}
+  .puesto-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9ca3af;margin-bottom:6px}
+  .puesto-name{font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:3px}
+  .puesto-addr{font-size:12px;color:#6b7280;margin-bottom:3px}
+  .puesto-mesa{font-size:12px;color:#374151}
+  .puesto-muni{font-size:11px;color:#9ca3af;margin-top:2px}
+  .steps{display:flex;flex-direction:column;gap:10px}
+  .step-btn{width:100%;padding:16px 18px;border-radius:12px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .18s;text-align:left}
+  .step-btn:disabled{cursor:default;opacity:1}
+  .step-btn.pending{background:#f3f4f6;color:#374151;border:2px dashed #d1d5db}
+  .step-btn.pending:hover:not(:disabled){background:#e5e7eb;transform:translateY(-1px)}
+  .step-btn.pending:active:not(:disabled){transform:translateY(0)}
+  .step-btn.done{background:#f0fdf4;color:#166534;border:2px solid #86efac}
+  .step-btn.loading{background:#eff6ff;color:#1d4ed8;border:2px solid #93c5fd;opacity:.7;cursor:wait}
+  .step-icon{font-size:24px;flex-shrink:0}
+  .step-text{flex:1}
+  .step-title{font-size:14px;font-weight:600}
+  .step-time{font-size:11px;font-weight:400;margin-top:2px;color:#6b7280}
+  .step-seq{font-size:11px;color:#9ca3af;font-weight:400}
+  .loader{text-align:center;padding:40px 0;color:#6b7280;font-size:14px}
+  .error-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:16px;text-align:center;color:#991b1b;font-size:14px}
+  .divider{height:1px;background:#f3f4f6;margin:20px 0}
+  .footer{text-align:center;font-size:11px;color:#9ca3af;margin-top:20px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-flag">🇨🇴</div>
+    <div class="logo-title">Coordinación Electoral</div>
+    <div class="logo-sub">Defensores de la Patria · Abelardo de la Espriella 2026</div>
+  </div>
+  <div id="content"><div class="loader">⏳ Cargando…</div></div>
+  <div class="footer">Elecciones Presidenciales · Segunda Vuelta 2026</div>
+</div>
+<script>
+const API = 'https://backend-210392280319.us-central1.run.app/api';
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get('t');
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-CO', { day:'2-digit', month:'short' })
+    + ' · ' + d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+}
+
+function render(t) {
+  const mesa = t.mesaInicial && t.mesaFinal
+    ? (t.mesaInicial === t.mesaFinal ? `Mesa ${t.mesaInicial}` : `Mesas ${t.mesaInicial} – ${t.mesaFinal}`)
+    : (t.mesaInicial ? `Mesa ${t.mesaInicial}` : '');
+  const steps = [
+    { key:'confirmadoAt', action:'aceptado',   icon:'✅', title:'Acepto ser testigo electoral',  done: t.confirmadoAt },
+    { key:'acreditadoAt', action:'acreditado', icon:'🆔', title:'Recibí mi acreditación',          done: t.acreditadoAt },
+    { key:'enPuestoAt',   action:'enPuesto',   icon:'📍', title:'Ya llegué al puesto de votación', done: t.enPuestoAt },
+  ];
+  document.getElementById('content').innerHTML = `
+    <div class="name">${t.name}</div>
+    <div class="greeting">Tu información como testigo electoral</div>
+    ${t.puesto ? `
+    <div class="puesto-card">
+      <div class="puesto-label">Puesto de votación</div>
+      <div class="puesto-name">${t.puesto.name}</div>
+      <div class="puesto-addr">${t.puesto.address || ''}</div>
+      ${mesa ? `<div class="puesto-mesa">📋 ${mesa}</div>` : ''}
+      ${t.puesto.municipio ? `<div class="puesto-muni">${t.puesto.municipio}</div>` : ''}
+    </div>` : `<div class="puesto-card" style="text-align:center;color:#9ca3af;font-size:13px;font-style:italic">Puesto de votación pendiente de asignación</div>`}
+    <div class="divider"></div>
+    <div class="steps">
+      ${steps.map((s, i) => {
+        const isDone = !!s.done;
+        const cls = isDone ? 'done' : 'pending';
+        return `<button class="step-btn ${cls}" id="btn-${s.action}" ${isDone ? 'disabled' : ''} onclick="doConfirm('${s.action}', this)">
+          <span class="step-icon">${s.icon}</span>
+          <span class="step-text">
+            <div class="step-title">${s.title}</div>
+            ${isDone ? `<div class="step-time">✓ ${fmtDate(s.done)}</div>` : `<div class="step-seq">Toca para confirmar</div>`}
+          </span>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+async function doConfirm(action, btn) {
+  btn.className = 'step-btn loading';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/t/${TOKEN}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    render(data);
+  } catch(e) {
+    btn.className = 'step-btn pending';
+    btn.disabled = false;
+    alert('Error al confirmar. Por favor intenta de nuevo.');
+  }
+}
+
+async function load() {
+  if (!TOKEN) {
+    document.getElementById('content').innerHTML = '<div class="error-box">⚠️ Enlace inválido. Solicita un nuevo enlace a tu coordinador.</div>';
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/t/${TOKEN}`);
+    if (res.status === 404) {
+      document.getElementById('content').innerHTML = '<div class="error-box">⚠️ Este enlace no es válido o ya expiró. Contacta a tu coordinador.</div>';
+      return;
+    }
+    if (!res.ok) throw new Error();
+    render(await res.json());
+  } catch {
+    document.getElementById('content').innerHTML = '<div class="error-box">⚠️ No se pudo cargar la información. Revisa tu conexión e intenta de nuevo.</div>';
+  }
+}
+
+load();
+</script>
+</body>
+</html>

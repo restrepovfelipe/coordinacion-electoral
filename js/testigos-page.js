@@ -53,6 +53,7 @@ function _buildPanelHTML() {
           <span class="t-counter" id="t-counter">—</span>
         </div>
         <div class="dir-hd-btns">
+          <button class="dir-pdf" data-action="t-send-pendientes">📲 Enviar a pendientes</button>
           <button class="dir-pdf" data-action="t-export-pdf">📄 Exportar PDF</button>
           <button class="dir-close" data-action="close-testigos-page">Cerrar ✕</button>
         </div>
@@ -129,6 +130,16 @@ function _renderTable() {
     return;
   }
 
+  const CONFIRM_BASE = 'https://coordinacion-electoral.vercel.app/testigo.html';
+
+  function _confirmIcon(ts) {
+    if (!ts) return '<span style="color:var(--t3);font-size:12px">⏳</span>';
+    const d = new Date(ts);
+    const label = d.toLocaleDateString('es-CO', { day:'2-digit', month:'short' })
+      + ' ' + d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+    return `<span style="color:#15803d;font-size:11px" title="${label}">✅</span>`;
+  }
+
   const rows = _tAllData.map(t => {
     const checked = _tSelectedIds.has(t.id) ? 'checked' : '';
     const statusBadge = `<span class="t-status t-status-${esc(t.status)}">${esc(t.status || '—')}</span>`;
@@ -142,6 +153,25 @@ function _renderTable() {
       ? `<a class="wa-btn" href="https://wa.me/57${esc(t.phone.replace(/\D/g,''))}" target="_blank" title="WhatsApp">💬</a> ${esc(t.phone)}`
       : '—';
 
+    // Confirmation status columns
+    const acepto     = _confirmIcon(t.confirmadoAt);
+    const acreditado = _confirmIcon(t.acreditadoAt);
+    const enPuesto   = _confirmIcon(t.enPuestoAt);
+
+    // WhatsApp magic link button (only if token available)
+    let waLinkBtn = '';
+    if (t.token) {
+      const link = `${CONFIRM_BASE}?t=${encodeURIComponent(t.token)}`;
+      const puestoNombre = t.puesto ? t.puesto.name : 'puesto sin asignar';
+      const municipioNombre = (t.puesto && t.puesto.municipioId && _tMunicipiosMap[t.puesto.municipioId]) || '';
+      const msg = `Hola ${t.name}, quedaste registrado(a) como testigo electoral en el puesto ${puestoNombre}${municipioNombre ? ' en ' + municipioNombre : ''}.\n\nUsa este enlace para confirmar tu participación:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+      const waPhone = t.phone ? t.phone.replace(/\D/g,'') : '';
+      const waHref = waPhone
+        ? `https://wa.me/57${waPhone}?text=${encodeURIComponent(msg)}`
+        : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      waLinkBtn = `<a href="${esc(waHref)}" target="_blank" class="tbtn" style="font-size:11px;padding:3px 8px;text-decoration:none;display:inline-block" title="Enviar enlace de confirmación por WhatsApp">📲</a>`;
+    }
+
     return `<tr>
       <td>${window.CURRENT_USER?.role === 'VIEWER' ? '' : `<input type="checkbox" class="t-row-cb" data-id="${t.id}" ${checked}>`}</td>
       <td style="color:var(--t3)">${t.id}</td>
@@ -149,9 +179,12 @@ function _renderTable() {
       <td>${esc(t.cedula || '—')}</td>
       <td style="white-space:nowrap">${phone}</td>
       <td>${statusBadge}</td>
+      <td style="text-align:center">${acepto}</td>
+      <td style="text-align:center">${acreditado}</td>
+      <td style="text-align:center">${enPuesto}</td>
       <td>${puesto}</td>
       <td>${municipioName}</td>
-      <td>${window.CURRENT_USER?.role === 'VIEWER' ? '' : `<button class="tbtn" data-action="edit-testigo" data-id="${t.id}" style="font-size:11px;padding:3px 10px">Editar</button>`}</td>
+      <td style="white-space:nowrap">${waLinkBtn}${window.CURRENT_USER?.role === 'VIEWER' ? '' : `<button class="tbtn" data-action="edit-testigo" data-id="${t.id}" style="font-size:11px;padding:3px 10px">Editar</button>`}</td>
     </tr>`;
   }).join('');
 
@@ -165,6 +198,9 @@ function _renderTable() {
           <th>Cédula</th>
           <th>Teléfono</th>
           <th>Estado</th>
+          <th title="Aceptó ser testigo">Aceptó</th>
+          <th title="Recibió acreditación">Acreditado</th>
+          <th title="Llegó al puesto">En puesto</th>
           <th>Puesto</th>
           <th>Municipio</th>
           <th>Acciones</th>
@@ -252,6 +288,8 @@ function _attachListeners() {
       _openEditModal(Number(btn.dataset.id));
     } else if (action === 't-export-pdf') {
       _exportPDF();
+    } else if (action === 't-send-pendientes') {
+      _openPendientesModal();
     }
   });
 
@@ -606,6 +644,96 @@ function _openEditModal(testigoId) {
       saveBtn.textContent = 'Guardar';
     }
   });
+}
+
+// ── Pendientes WhatsApp modal ──────────────────────────────────────────────
+async function _openPendientesModal() {
+  const CONFIRM_BASE = 'https://coordinacion-electoral.vercel.app/testigo.html';
+
+  // Remove any existing modal
+  const existing = _testigosPanel.querySelector('.t-pendientes-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 't-pendientes-overlay t-picker-overlay';
+  overlay.innerHTML = `
+    <div class="t-picker-box" style="max-width:560px;width:100%">
+      <h4>📲 Enviar enlaces a testigos pendientes</h4>
+      <p style="font-size:12px;color:var(--t3);margin:6px 0 14px">Testigos que aún no han confirmado aceptación y tienen teléfono registrado.</p>
+      <div id="t-pend-loading" style="text-align:center;padding:20px 0;color:var(--t3);font-size:13px">Cargando...</div>
+      <div id="t-pend-list" style="display:none;max-height:380px;overflow-y:auto;display:none;flex-direction:column;gap:8px"></div>
+      <div id="t-pend-empty" style="display:none;text-align:center;padding:20px 0;color:var(--t3);font-size:13px">No hay testigos pendientes con teléfono registrado.</div>
+      <div style="margin-top:14px;text-align:right">
+        <button class="t-btn-cancel" id="t-pend-close">Cerrar</button>
+      </div>
+    </div>
+  `;
+  _testigosPanel.appendChild(overlay);
+  overlay.querySelector('#t-pend-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  // Load ALL testigos without pagination to find pendientes
+  try {
+    let page = 1;
+    const limit = 200;
+    let all = [];
+    let total = Infinity;
+    while (all.length < total) {
+      let url = `/testigos?page=${page}&limit=${limit}`;
+      const result = await window.api.get(url);
+      const data = result.data || [];
+      total = result.total || 0;
+      all = all.concat(data);
+      if (data.length < limit) break;
+      page++;
+    }
+
+    // Filter: no confirmadoAt and has phone and has token
+    const pendientes = all.filter(t => !t.confirmadoAt && t.phone && t.token);
+
+    const loadingEl = overlay.querySelector('#t-pend-loading');
+    const listEl = overlay.querySelector('#t-pend-list');
+    const emptyEl = overlay.querySelector('#t-pend-empty');
+    if (loadingEl) loadingEl.style.display = 'none';
+
+    if (!pendientes.length) {
+      if (emptyEl) emptyEl.style.display = 'block';
+      return;
+    }
+
+    if (listEl) {
+      listEl.style.display = 'flex';
+
+      // Counter
+      const counter = document.createElement('div');
+      counter.style.cssText = 'font-size:12px;color:var(--t3);margin-bottom:6px';
+      counter.textContent = `${pendientes.length} testigo${pendientes.length === 1 ? '' : 's'} pendiente${pendientes.length === 1 ? '' : 's'}`;
+      listEl.appendChild(counter);
+
+      pendientes.forEach(t => {
+        const link = `${CONFIRM_BASE}?t=${encodeURIComponent(t.token)}`;
+        const puestoNombre = t.puesto ? t.puesto.name : 'puesto sin asignar';
+        const municipioNombre = (t.puesto && t.puesto.municipioId && _tMunicipiosMap[t.puesto.municipioId]) || '';
+        const msg = `Hola ${t.name}, quedaste registrado(a) como testigo electoral en el puesto ${puestoNombre}${municipioNombre ? ' en ' + municipioNombre : ''}.\n\nUsa este enlace para confirmar tu participación:\n${link}\n\nGracias por apoyar a Abelardo de la Espriella 🇨🇴`;
+        const waPhone = t.phone.replace(/\D/g,'');
+        const waHref = `https://wa.me/57${waPhone}?text=${encodeURIComponent(msg)}`;
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg2,#f8f9fb);border-radius:8px;gap:10px';
+        row.innerHTML = `
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.name)}</div>
+            <div style="font-size:11px;color:var(--t3)">${esc(t.phone)}${t.puesto ? ' · ' + esc(t.puesto.name) : ''}</div>
+          </div>
+          <a href="${esc(waHref)}" target="_blank" class="t-btn-primary" style="text-decoration:none;white-space:nowrap;font-size:12px;padding:6px 12px">💬 Enviar</a>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+  } catch (err) {
+    const loadingEl = overlay.querySelector('#t-pend-loading');
+    if (loadingEl) loadingEl.textContent = 'Error cargando testigos: ' + (err.message || '');
+  }
 }
 
 // ── PDF export ─────────────────────────────────────────────────────────────
