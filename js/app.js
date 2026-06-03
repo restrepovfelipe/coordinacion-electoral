@@ -551,6 +551,7 @@ function goHome() {
 
 // ═══ MUNI VIEW ═══
 function renderMuni(n) {
+  if (window.ResultadosVotacion) ResultadosVotacion.unmount();
   const comunas = RAW[n]; const s = gs(n); const ckeys = Object.keys(comunas).sort();
   let totP = 0, totM = 0, totV = 0;
   let totTestReg = 0, totMesasSinAsignar = 0, totCapacidad = 0;
@@ -3042,14 +3043,55 @@ async function loadComparendosForMuni(n) {
 const _maps = {};
 function renderMapPanel(n, ck, id) {
   const pane = document.getElementById(id + '-mapa');
+  if (!pane) return;
+  if (window.ResultadosVotacion) ResultadosVotacion.unmount();
+  pane.innerHTML =
+    '<div class="rv-tabbar">' +
+      '<button class="rv-tab on" data-rvctab="coord">🗺 Coordinación</button>' +
+      '<button class="rv-tab" data-rvctab="resultados">🗳 Resultados Votación</button>' +
+    '</div>' +
+    '<div class="rv-tabpane on" data-rvcpane="coord"><div id="' + id + '-coordmap"></div></div>' +
+    '<div class="rv-tabpane" data-rvcpane="resultados"><div id="' + id + '-rvmap" style="height:340px"></div></div>';
+  pane.querySelectorAll('.rv-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () { _switchComunaMapTab(pane, btn.dataset.rvctab, n, ck, id); });
+  });
+  _renderComunaCoordMap(n, ck, id);
+}
+// Escopa el mapa de Resultados al nivel de la comuna: en Medellín usa el código de
+// 2 dígitos con que empieza el nombre (p.ej. "01COMUNA 1 POPULAR" -> "01"); en otros
+// municipios cae al municipio completo.
+function _rvScopeForComuna(n, ck) {
+  if (n === 'MEDELLIN') {
+    const m = String(ck).match(/^(\d{2})/);
+    if (m) return { comunaCodigo: m[1] };
+    return { municipio: 'MEDELLIN' };
+  }
+  return { municipio: n };
+}
+function _switchComunaMapTab(pane, which, n, ck, id) {
+  pane.querySelectorAll('.rv-tab').forEach(function (b) { b.classList.toggle('on', b.dataset.rvctab === which); });
+  pane.querySelectorAll('.rv-tabpane').forEach(function (p) { p.classList.toggle('on', p.dataset.rvcpane === which); });
+  if (which === 'coord') {
+    const mapId = id + '-leafmap';
+    if (_maps[mapId]) setTimeout(function () { try { _maps[mapId].invalidateSize(); } catch (e) {} }, 60);
+  } else if (which === 'resultados') {
+    const rvPane = document.getElementById(id + '-rvmap');
+    if (rvPane && rvPane.querySelector('.leaflet-container')) { /* ya montado */ }
+    else if (window.ResultadosVotacion) { ResultadosVotacion.mount(id + '-rvmap', _rvScopeForComuna(n, ck)); }
+    else if (rvPane) { rvPane.innerHTML = '<div style="padding:20px;color:#b91c1c;font-size:13px">No se pudo cargar el mapa de Resultados Votación (módulo o Leaflet no disponible). Recarga con Ctrl+Shift+R.</div>'; }
+  }
+}
+function _renderComunaCoordMap(n, ck, id) {
+  const host = document.getElementById(id + '-coordmap');
+  if (!host) return;
   const puestos = RAW[n][ck] || [];
   const validPuestos = puestos.filter(p => p.lat && p.lon && p.lat !== 0);
   if (!validPuestos.length) {
-    pane.innerHTML = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--t3)">Sin coordenadas disponibles para esta zona</div>';
+    host.innerHTML = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--t3)">Sin coordenadas disponibles para esta zona</div>';
     return;
   }
   const mapId = id + '-leafmap';
-  pane.innerHTML = `<div id="${mapId}" style="height:320px;border-radius:0 0 6px 6px"></div>`;
+  host.innerHTML = `<div id="${mapId}" style="height:340px;border-radius:0 0 6px 6px"></div>`;
   setTimeout(() => {
     if (_maps[mapId]) { _maps[mapId].remove(); delete _maps[mapId]; }
     const s = gs(n);
@@ -3058,6 +3100,7 @@ function renderMapPanel(n, ck, id) {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap', maxZoom: 18
     }).addTo(map);
+    const _rvMarkers = [];
     validPuestos.forEach(p => {
       const ts = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length;
       const pct = _coveragePct(Math.min(ts, p.mesas || 0), p.mesas);
@@ -3065,9 +3108,20 @@ function renderMapPanel(n, ck, id) {
       const marker = L.circleMarker([p.lat, p.lon], {
         radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85
       }).addTo(map);
-      marker.bindPopup(`<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes · ${ts} testigo${ts !== 1 ? 's' : ''} · <b>Cobertura: ${pct}%</b></span>`);
+      const baseHtml = `<b style="font-size:12px">${p.puesto}</b><br><span style="font-size:11px;color:#666">${p.direccion || ''}</span><br><span style="font-size:10px">${p.mesas} mesas · ${(p.total||0).toLocaleString('es-CO')} votantes · ${ts} testigo${ts !== 1 ? 's' : ''} · <b>Cobertura: ${pct}%</b></span>`;
+      marker.bindPopup(baseHtml);
+      _rvMarkers.push({ marker, baseHtml, puesto: p.puesto });
     });
     map.fitBounds(validPuestos.map(p => [p.lat, p.lon]), { padding: [20, 20] });
+    // Enriquece cada popup con el resumen del resultado electoral (cruce por nombre municipio|puesto)
+    if (window.ResultadosVotacion && ResultadosVotacion.preload) {
+      ResultadosVotacion.preload().then(() => {
+        _rvMarkers.forEach(e => {
+          const rv = ResultadosVotacion.lookupPuesto(n, e.puesto);
+          if (rv) e.marker.setPopupContent(e.baseHtml + _rvPopupSummary(rv));
+        });
+      }).catch(() => {});
+    }
     const legend = L.control({ position: 'bottomright' });
     legend.onAdd = () => {
       const div = L.DomUtil.create('div', '');
@@ -3081,6 +3135,17 @@ function renderMapPanel(n, ck, id) {
     legend.addTo(map);
     _maps[mapId] = map;
   }, 50);
+}
+// Resumen compacto del resultado electoral para el popup del mapa de Coordinación
+function _rvPopupSummary(rv) {
+  const C = { verde: '#2e7d32', amarillo: '#f9a825', rojo: '#c62828', gris: '#9e9e9e' };
+  const lbl = rv.semaforo === 'verde' ? '🟢 1°' : rv.semaforo === 'amarillo' ? '🟡 2°'
+    : rv.semaforo === 'rojo' ? ('🔴 ' + (rv.rank ? rv.rank + '°' : '3°+')) : '⚪ sin datos';
+  const pct = rv.pct_abelardo != null ? (rv.pct_abelardo * 100).toFixed(1).replace('.', ',') + '%' : '—';
+  const dot = '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;background:' + (C[rv.semaforo] || C.gris) + '"></span>';
+  return '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #e5e7eb;font-size:11px">' +
+    '<b>🗳 Abelardo ' + dot + ' ' + lbl + ' · ' + pct + '</b><br>' +
+    '<span style="font-size:10px;color:#666">' + Number(rv.votos_abelardo || 0).toLocaleString('es-CO') + ' de ' + Number(rv.total_validos || 0).toLocaleString('es-CO') + ' válidos</span></div>';
 }
 
 // ═══ DIRECTORIO TESTIGOS (punto 3) ═══
@@ -3511,9 +3576,37 @@ function _muniCoverageStats(n) {
 // ═══ MAPA POR MUNICIPIO ═══
 let _muniLeafletMap = null;
 function renderMuniMap(n) {
-  const container = document.getElementById('ot-mapa-inner');
-  if (!container) return;
+  const host = document.getElementById('ot-mapa-inner');
+  if (!host) return;
   if (_muniLeafletMap) { try { _muniLeafletMap.remove(); } catch(e){} _muniLeafletMap = null; }
+  if (window.ResultadosVotacion) ResultadosVotacion.unmount();
+  host.innerHTML =
+    '<div class="rv-tabbar">' +
+      '<button class="rv-tab on" data-rvmtab="coord">🗺 Coordinación</button>' +
+      '<button class="rv-tab" data-rvmtab="resultados">🗳 Resultados Votación</button>' +
+    '</div>' +
+    '<div class="rv-tabpane on" data-rvmpane="coord"><div id="muni-coord-map" style="height:470px"></div></div>' +
+    '<div class="rv-tabpane" data-rvmpane="resultados"><div id="muni-rv-map" style="height:470px"></div></div>';
+  host.querySelectorAll('.rv-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () { _switchMuniMapTab(host, btn.dataset.rvmtab, n); });
+  });
+  _renderMuniCoordMap('muni-coord-map', n);
+}
+function _switchMuniMapTab(host, which, n) {
+  host.querySelectorAll('.rv-tab').forEach(function (b) { b.classList.toggle('on', b.dataset.rvmtab === which); });
+  host.querySelectorAll('.rv-tabpane').forEach(function (p) { p.classList.toggle('on', p.dataset.rvmpane === which); });
+  if (which === 'coord') {
+    if (_muniLeafletMap) setTimeout(function () { try { _muniLeafletMap.invalidateSize(); } catch (e) {} }, 60);
+  } else if (which === 'resultados') {
+    const pane = document.getElementById('muni-rv-map');
+    if (pane && pane.querySelector('.leaflet-container')) { /* ya montado */ }
+    else if (window.ResultadosVotacion) { ResultadosVotacion.mount('muni-rv-map', { municipio: n }); }
+    else if (pane) { pane.innerHTML = '<div style="padding:20px;color:#b91c1c;font-size:13px">No se pudo cargar el mapa de Resultados Votación (módulo o Leaflet no disponible). Recarga con Ctrl+Shift+R.</div>'; }
+  }
+}
+function _renderMuniCoordMap(containerId, n) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
   container.innerHTML = '';
 
   const s = gs(n);
@@ -3578,8 +3671,36 @@ let _regionLeafletMap = null;
 function openRegionMap(region) {
   document.getElementById('region-map-modal').style.display = 'flex';
   document.getElementById('region-map-title').textContent = '🗺 Mapa — ' + region;
-  const container = document.getElementById('region-map-container');
+  const host = document.getElementById('region-map-container');
   if (_regionLeafletMap) { try { _regionLeafletMap.remove(); } catch(e){} _regionLeafletMap = null; }
+  if (window.ResultadosVotacion) ResultadosVotacion.unmount();
+  host.innerHTML =
+    '<div class="rv-tabbar">' +
+      '<button class="rv-tab on" data-rvrtab="coord">🗺 Coordinación</button>' +
+      '<button class="rv-tab" data-rvrtab="resultados">🗳 Resultados Votación</button>' +
+    '</div>' +
+    '<div class="rv-tabpane on" data-rvrpane="coord"><div id="region-coord-map" style="height:470px"></div></div>' +
+    '<div class="rv-tabpane" data-rvrpane="resultados"><div id="region-rv-map" style="height:470px"></div></div>';
+  host.querySelectorAll('.rv-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () { _switchRegionMapTab(host, btn.dataset.rvrtab, region); });
+  });
+  _renderRegionCoordMap('region-coord-map', region);
+}
+function _switchRegionMapTab(host, which, region) {
+  host.querySelectorAll('.rv-tab').forEach(function (b) { b.classList.toggle('on', b.dataset.rvrtab === which); });
+  host.querySelectorAll('.rv-tabpane').forEach(function (p) { p.classList.toggle('on', p.dataset.rvrpane === which); });
+  if (which === 'coord') {
+    if (_regionLeafletMap) setTimeout(function () { try { _regionLeafletMap.invalidateSize(); } catch (e) {} }, 60);
+  } else if (which === 'resultados') {
+    const pane = document.getElementById('region-rv-map');
+    if (pane && pane.querySelector('.leaflet-container')) { /* ya montado */ }
+    else if (window.ResultadosVotacion) { ResultadosVotacion.mount('region-rv-map', {}); }
+    else if (pane) { pane.innerHTML = '<div style="padding:20px;color:#b91c1c;font-size:13px">No se pudo cargar el mapa de Resultados Votación (módulo o Leaflet no disponible). Recarga con Ctrl+Shift+R.</div>'; }
+  }
+}
+function _renderRegionCoordMap(containerId, region) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
   container.innerHTML = '';
 
   const munis = (REGIONES[region] || []).filter(n => RAW[n]);
@@ -3634,6 +3755,7 @@ function openRegionMap(region) {
 function closeRegionMap() {
   document.getElementById('region-map-modal').style.display = 'none';
   if (_regionLeafletMap) { try { _regionLeafletMap.remove(); } catch(e){} _regionLeafletMap = null; }
+  if (window.ResultadosVotacion) ResultadosVotacion.unmount();
 }
 
 // ═══ DELEGATED EVENT LISTENERS ═══
