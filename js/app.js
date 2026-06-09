@@ -2439,8 +2439,16 @@ function exportExcel(tipo, muni, ck) {
             TAG_LABELS[ps.tag || 'n'], ps.coord || '', ps.phone || '',
             testReg]);
 
-          testRows.forEach((r, i) => rowsTest.push([...(isMulti ? [label] : []),
-            comunaKey, p.puesto, i + 1, r.nombre || '', r.telefono || '']));
+          testRows.forEach((r, i) => {
+            const mesaRango = r.mesaInicial != null ? `${r.mesaInicial}${r.mesaFinal && r.mesaFinal !== r.mesaInicial ? '–' + r.mesaFinal : ''}` : '';
+            const _ts = ts => ts ? new Date(ts).toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+            rowsTest.push([...(isMulti ? [label] : []),
+              comunaKey, p.puesto, i + 1,
+              r.nombre || '', r.cedula || '', r.telefono || '',
+              mesaRango,
+              _ts(r.confirmadoAt), _ts(r.acreditadoAt), _ts(r.enPuestoAt),
+              r.notas || '']);
+          });
         }
       }
     }
@@ -2450,7 +2458,7 @@ function exportExcel(tipo, muni, ck) {
   function withHeaders({ rowsCoord, rowsTest, rowsMov, isMulti }) {
     const m = isMulti ? ['Municipio'] : [];
     rowsCoord.unshift([...m, 'Zona / Comuna', 'Coord. Zona', 'Tel. Zona', 'Puesto', 'Dirección', 'DIVIPOLE', 'Mesas', 'Votantes', 'Estado', 'Coord. Puesto', 'Tel. Puesto', 'Testigos Reg.']);
-    rowsTest.unshift([...m,  'Zona / Comuna', 'Puesto', '#', 'Nombre', 'Teléfono']);
+    rowsTest.unshift([...m,  'Zona / Comuna', 'Puesto', '#', 'Nombre', 'Cédula', 'Teléfono', 'Mesas asignadas', 'Confirmó', 'Acreditado', 'En puesto', 'Notas']);
     rowsMov.unshift([...m,   'Zona / Comuna', 'Coord. Zona', 'Tel. Zona', 'Carros Nec.', 'Motos Nec.', 'Responsable(s)', 'Tel. Responsable(s)']);
     return { rowsCoord, rowsTest, rowsMov };
   }
@@ -2474,7 +2482,7 @@ function exportExcel(tipo, muni, ck) {
       makeSheet(rowsCoord, [...M, 26, 24, 14, 32, 26, 12, 7, 10, 12, 24, 14, 10]), 'Coordinación');
     if (rowsTest.length > 1)
       XLSX.utils.book_append_sheet(wb,
-        makeSheet(rowsTest, [...M, 26, 32, 4, 28, 14]), 'Testigos');
+        makeSheet(rowsTest, [...M, 26, 32, 4, 28, 14, 14, 14, 16, 16, 16, 24]), 'Testigos');
     XLSX.utils.book_append_sheet(wb,
       makeSheet(rowsMov, [...M, 26, 24, 14, 12, 12, 30, 20]), 'Movilidad');
 
