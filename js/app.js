@@ -804,12 +804,12 @@ function buildCCCard(n, ck) {
       <div class="itabs">
         <div class="itab on" data-pane="${id}-puestos" onclick="switchIT(this,'${id}-puestos')">📋 Puestos (${puestos.length})</div>
         <div class="itab" data-pane="${id}-preg" onclick="switchIT(this,'${id}-preg');renderTestigosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🧾 Testigos</div>
+        <div class="itab" data-pane="${id}-vol" onclick="switchIT(this,'${id}-vol');renderVoluntariosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🙋 Voluntarios</div>
         <div class="itab" data-pane="${id}-mov" onclick="switchIT(this,'${id}-mov');renderMovPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🚗 Movilidad</div>
         <div class="itab" data-pane="${id}-abog" onclick="switchIT(this,'${id}-abog');renderAbogadoPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚖️ Abogado</div>
         <div class="itab" data-pane="${id}-refrig" onclick="switchIT(this,'${id}-refrig');renderRefrigPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🍱 Refrigerios</div>
         <div class="itab" data-pane="${id}-comp" onclick="switchIT(this,'${id}-comp');renderComparendosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚠️ Comparendos</div>
         <div class="itab" data-pane="${id}-mapa" onclick="switchIT(this,'${id}-mapa');renderMapPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🗺 Mapa</div>
-        <div class="itab" data-pane="${id}-vol" onclick="switchIT(this,'${id}-vol');renderVoluntariosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🙋 Voluntarios</div>
       </div>
       <div class="ipane on" id="${id}-puestos"><div style="padding:8px">${buildPT(n, puestos, ck)}</div></div>
       <div class="ipane" id="${id}-preg"></div>
