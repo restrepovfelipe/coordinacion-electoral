@@ -2168,7 +2168,8 @@ function buildExcelMenu() {
   const list = document.getElementById('excel-comuni-list'); if (!list) return;
   const sep = `<div style="height:1px;background:var(--b1);margin:4px 0"></div>`;
   const lbl = t => `<div style="font-size:9px;color:var(--t3);padding:3px 10px;text-transform:uppercase;letter-spacing:1px">${t}</div>`;
-  let html = lbl('Por zona — Medellín');
+  let html = `<div class="export-item" onclick="exportExcelTestigos()">🧾 Todos los testigos (completo)</div>${sep}`;
+  html += lbl('Por zona — Medellín');
   MEDELLIN_ZONAS.forEach(z => {
     html += `<div class="export-item" onclick="exportExcel('zona','MEDELLIN','${z.nombre.replace(/'/g, "\\'")}')">🗺 ${z.nombre}</div>`;
   });
@@ -2399,6 +2400,55 @@ function exportRefrigPDFAll() {
     </div>`;
   });
   _refrigOpenPrint('Refrigerios AMVA', body);
+}
+
+function exportExcelTestigos() {
+  document.getElementById('excel-menu').classList.remove('show');
+
+  const _ts = ts => ts ? new Date(ts).toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+
+  // Build reverse lookup: muni → subregion name
+  const muniSubregion = {};
+  Object.entries(REGIONES).forEach(([subregion, munis]) => munis.forEach(n => { muniSubregion[n] = subregion; }));
+
+  // Build reverse lookup: comunaKey → zona name (Medellín only)
+  const comunaZona = {};
+  MEDELLIN_ZONAS.forEach(z => z.comunas.forEach(ck => { comunaZona[ck] = z.nombre; }));
+
+  const rows = [['Subregión', 'Municipio', 'Zona', 'Zona / Comuna', 'Puesto', '#', 'Nombre', 'Cédula', 'Teléfono', 'Mesas asignadas', 'Confirmó', 'Acreditado', 'En puesto', 'Notas']];
+
+  // Iterate subregions in order
+  Object.entries(REGIONES).forEach(([subregion, munis]) => {
+    munis.forEach(n => {
+      if (!RAW[n]) return;
+      const s = gs(n);
+      const muniLabel = n === 'MEDELLIN' ? 'MEDELLÍN' : n;
+      Object.keys(RAW[n]).sort().forEach(ck => {
+        const puestos = RAW[n][ck] || [];
+        const zona = n === 'MEDELLIN' ? (comunaZona[ck] || '') : '';
+        puestos.forEach(p => {
+          const testRows = (s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre);
+          testRows.forEach((r, i) => {
+            const mesaRango = r.mesaInicial != null ? `${r.mesaInicial}${r.mesaFinal && r.mesaFinal !== r.mesaInicial ? '–' + r.mesaFinal : ''}` : '';
+            rows.push([subregion, muniLabel, zona, ck, p.puesto, i + 1,
+              r.nombre || '', r.cedula || '', r.telefono || '',
+              mesaRango, _ts(r.confirmadoAt), _ts(r.acreditadoAt), _ts(r.enPuestoAt), r.notas || '']);
+          });
+        });
+      });
+    });
+  });
+
+  if (rows.length <= 1) { alert('No hay testigos cargados aún. Abre los municipios para cargar sus datos.'); return; }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [16, 16, 22, 28, 32, 4, 28, 14, 14, 14, 16, 16, 16, 24].map(wch => ({ wch }));
+  ws['!views'] = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: rows[0].length - 1 } }) };
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Testigos');
+  XLSX.writeFile(wb, 'Testigos_Completo_2026.xlsx');
 }
 
 function exportExcel(tipo, muni, ck) {
