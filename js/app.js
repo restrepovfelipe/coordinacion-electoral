@@ -2182,6 +2182,7 @@ function buildExcelMenu() {
     const valid = munis.filter(n => RAW[n]);
     if (!valid.length) return;
     html += sep + lbl(region);
+    html += `<div class="export-item" onclick="exportExcel('subregion','${region.replace(/'/g, "\\'")}')">📦 Toda la subregión</div>`;
     valid.forEach(n => { html += `<div class="export-item" onclick="exportExcel('muni','${n}')">🏙️ ${n}</div>`; });
   });
   list.innerHTML = html;
@@ -2500,6 +2501,9 @@ function exportExcel(tipo, muni, ck) {
   } else if (tipo === 'zona') {
     const zona = MEDELLIN_ZONAS.find(z => z.nombre === ck);
     if (zona) build(['MEDELLIN'], zona.comunas, 'Comando_Medellin_' + ck.replace(/[^a-zA-Z0-9]/g, '_') + '_2026.xlsx');
+  } else if (tipo === 'subregion') {
+    const subMunis = (REGIONES[muni] || []).filter(n => RAW[n]);
+    if (subMunis.length) build(subMunis, null, 'Comando_' + muni.replace(/[^a-zA-Z0-9]/g, '_') + '_2026.xlsx');
   }
 }
 
