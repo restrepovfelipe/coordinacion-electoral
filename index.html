@@ -91,6 +91,7 @@
     <button class="sb-toggle sb-toggle-mob" onclick="toggleSB()" title="Ocultar/mostrar municipios">✕</button>
     <button class="export-btn" onclick="openDirectorio()" style="white-space:nowrap">👥 Coordinadores</button>
     <button id="btn-testigos-page" class="export-btn dir-tab-btn hidden" onclick="window.location.href='/testigos.html'" style="white-space:nowrap">🧾 Testigos</button>
+    <button id="btn-voluntarios-page" class="export-btn dir-tab-btn hidden" onclick="openVoluntariosGlobal()" style="white-space:nowrap">🙋 Voluntarios</button>
 
     <button class="export-btn dir-tab-btn" onclick="openDirAbogados()" style="white-space:nowrap">📋 Abogados</button>
     <button id="btn-users-admin" class="export-btn hidden" onclick="window.location.href='/usuarios.html'" style="white-space:nowrap">👥 Usuarios</button>
@@ -160,6 +161,16 @@
   </div>
 </div>
 
+
+<div class="dir-modal" id="dir-voluntarios-modal" style="display:none" onclick="if(event.target===this)closeVoluntariosGlobal()">
+  <div class="dir-box">
+    <div class="dir-hd">
+      <h2>🙋 Directorio de Voluntarios</h2>
+      <button class="dir-close" onclick="closeVoluntariosGlobal()">Cerrar ✕</button>
+    </div>
+    <div id="dir-voluntarios-content"><div style="padding:16px;color:var(--t3);font-size:12px">Cargando...</div></div>
+  </div>
+</div>
 
 <div class="dir-modal" id="dir-abogados-modal" style="display:none" onclick="if(event.target===this)closeDirAbogados()">
   <div class="dir-box">

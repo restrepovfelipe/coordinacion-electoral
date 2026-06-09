@@ -2118,10 +2118,12 @@ async function startApp() {
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
   if (typeof initProfileWidget === 'function' && window.CURRENT_USER) initProfileWidget(window.CURRENT_USER);
-  // Show testigos page button for all authenticated roles
+  // Show testigos and voluntarios page buttons for all authenticated roles
   if (window.CURRENT_USER) {
     const _tBtn = document.getElementById('btn-testigos-page');
     if (_tBtn) _tBtn.classList.remove('hidden');
+    const _vBtn = document.getElementById('btn-voluntarios-page');
+    if (_vBtn) _vBtn.classList.remove('hidden');
   }
 }
 
@@ -3364,6 +3366,70 @@ function exportDirTestigosPDF() {
 }
 
 // ═══ DIRECTORIO ABOGADOS (punto 3) ═══
+async function openVoluntariosGlobal() {
+  document.getElementById('dir-voluntarios-modal').style.display = 'flex';
+  // Fetch from backend for all loaded comunas
+  if (window.api) {
+    const el = document.getElementById('dir-voluntarios-content');
+    el.innerHTML = '<div style="padding:16px;color:var(--t3);font-size:12px">⏳ Cargando voluntarios...</div>';
+    try {
+      // Collect all known comunaIds across loaded municipios
+      const fetches = [];
+      ALL_MUNIS.forEach(n => {
+        const ccIds = _puestoIdCache[n]?._ccIds;
+        if (!ccIds) return;
+        Object.keys(RAW[n] || {}).forEach(ck => {
+          const comunaId = ccIds[ck] ?? ccIds[(ck || '').toUpperCase()];
+          if (comunaId) fetches.push({ n, ck, comunaId });
+        });
+      });
+      await Promise.all(fetches.map(async ({ n, ck, comunaId }) => {
+        try {
+          const result = await api.get(`/comunas/${comunaId}/voluntarios`);
+          const s = gs(n);
+          if (!s.voluntarios) s.voluntarios = {};
+          s.voluntarios[ck] = result.map(v => ({
+            _backendId: v.id, nombre: v.name, cedula: v.cedula || '',
+            telefono: v.phone || '', correo: v.correo || '',
+            rol: v.rol || '', estado: v.status || 'activo', notas: v.notes || '',
+          }));
+        } catch (_) {}
+      }));
+      saveLocalSt();
+    } catch (_) {}
+  }
+  renderVoluntariosGlobal();
+}
+function closeVoluntariosGlobal() { document.getElementById('dir-voluntarios-modal').style.display = 'none'; }
+function renderVoluntariosGlobal() {
+  const el = document.getElementById('dir-voluntarios-content');
+  let html = '';
+  ALL_MUNIS.forEach(n => {
+    if (!RAW[n]) return;
+    const s = gs(n); let muniHtml = '';
+    Object.keys(RAW[n]).sort().forEach(ck => {
+      const list = _volList(s, ck).filter(v => v.nombre);
+      list.forEach(v => {
+        const estadoBadge = `<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${v.estado==='activo'?'#d4edda':'#f8d7da'};color:${v.estado==='activo'?'#155724':'#721c24'}">${v.estado||'activo'}</span>`;
+        muniHtml += `<div class="dir-row" style="margin-bottom:6px">
+          <div>
+            <div class="dir-name">${esc(v.nombre)} ${estadoBadge}</div>
+            <div class="dir-role">🙋 Voluntario${v.rol ? ' · ' + esc(v.rol) : ''} · ${esc(ck)}</div>
+            ${v.cedula ? `<div style="font-size:11px;color:var(--t3)">CC: ${esc(v.cedula)}</div>` : ''}
+            ${v.correo ? `<div style="font-size:11px;color:var(--t3)">✉️ ${esc(v.correo)}</div>` : ''}
+          </div>
+          <div class="dir-phone">${v.telefono
+            ? `<a class="wa-btn" href="https://wa.me/57${v.telefono.replace(/\D/g,'')}" target="_blank">💬</a> ${esc(v.telefono)}`
+            : '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
+        </div>`;
+      });
+    });
+    if (!muniHtml) return;
+    html += `<div class="dir-section"><h3>${n === 'MEDELLIN' ? 'MEDELLÍN' : n}</h3>${muniHtml}</div>`;
+  });
+  el.innerHTML = html || '<div class="dir-empty">Sin voluntarios registrados aún.</div>';
+}
+
 function openDirAbogados() { document.getElementById('dir-abogados-modal').style.display = 'flex'; renderDirAbogados(); }
 function closeDirAbogados() { document.getElementById('dir-abogados-modal').style.display = 'none'; }
 function renderDirAbogados() {
