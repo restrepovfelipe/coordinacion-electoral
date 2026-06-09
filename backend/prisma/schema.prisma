@@ -49,6 +49,7 @@ model User {
   lastLoginAt         DateTime?
   scopes              UserScope[]
   testigosCreated     Testigo[]
+  voluntariosCreated  Voluntario[]
   abogadosCreated     Abogado[]
   movilidadCreated    Movilidad[]
   refrigeriosCreated  Refrigerio[]
@@ -95,15 +96,16 @@ model Municipio {
 }
 
 model Comuna {
-  id                       Int        @id @default(autoincrement())
+  id                       Int          @id @default(autoincrement())
   municipioId              Int
-  municipio                Municipio  @relation(fields: [municipioId], references: [id])
+  municipio                Municipio    @relation(fields: [municipioId], references: [id])
   name                     String
   zonaId                   Int?
-  zona                     Zona?      @relation(fields: [zonaId], references: [id])
+  zona                     Zona?        @relation(fields: [zonaId], references: [id])
   coordinadorAdHocNombre   String?
   coordinadorAdHocTelefono String?
   puestos                  Puesto[]
+  voluntarios              Voluntario[]
 
   @@unique([municipioId, name])
   @@index([zonaId])
@@ -273,6 +275,25 @@ model Comparendo {
   updatedAt   DateTime  @updatedAt
 
   @@index([scopeType, scopeId])
+}
+
+model Voluntario {
+  id          Int      @id @default(autoincrement())
+  comunaId    Int
+  comuna      Comuna   @relation(fields: [comunaId], references: [id])
+  name        String
+  cedula      String?
+  phone       String?
+  correo      String?
+  rol         String?
+  status      String   @default("activo")
+  notes       String?
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([comunaId])
 }
 
 model AuditLog {

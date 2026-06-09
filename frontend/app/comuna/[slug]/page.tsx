@@ -23,6 +23,13 @@ import { covColor } from '@/lib/map/markers'
 import { Tag, type Tone } from '@/components/Tag'
 import type { MarkerData } from '@/components/Map/MapInner'
 import { fetchComparendosByComuna, createComparendo, deleteComparendo } from '@/lib/api/comparendos'
+import {
+  useVoluntariosByComuna,
+  createVoluntario,
+  patchVoluntario,
+  deleteVoluntario,
+  type Voluntario,
+} from '@/lib/api/voluntarios'
 
 function ComparendoSection({ comunaId, canEdit }: { comunaId: number; canEdit: boolean }) {
   const qc = useQueryClient()
@@ -144,6 +151,201 @@ function ComparendoSection({ comunaId, canEdit }: { comunaId: number; canEdit: b
   )
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  activo: 'Activo',
+  inactivo: 'Inactivo',
+  pendiente: 'Pendiente',
+}
+
+function VoluntariosSection({ comunaId, canEdit }: { comunaId: number; canEdit: boolean }) {
+  const qc = useQueryClient()
+  const key = ['voluntarios', 'comuna', comunaId]
+
+  const { data: voluntarios = [], isLoading, isError } = useVoluntariosByComuna(comunaId)
+
+  const [name, setName] = useState('')
+  const [cedula, setCedula] = useState('')
+  const [phone, setPhone] = useState('')
+  const [correo, setCorreo] = useState('')
+  const [rol, setRol] = useState('')
+  const [notes, setNotes] = useState('')
+
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editData, setEditData] = useState<Partial<Voluntario>>({})
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      createVoluntario(comunaId, {
+        name: name.trim(),
+        cedula: cedula.trim() || undefined,
+        phone: phone.trim() || undefined,
+        correo: correo.trim() || undefined,
+        rol: rol.trim() || undefined,
+        notes: notes.trim() || undefined,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: key })
+      setName(''); setCedula(''); setPhone(''); setCorreo(''); setRol(''); setNotes('')
+    },
+  })
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Voluntario> }) =>
+      patchVoluntario(comunaId, id, data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: key })
+      setEditingId(null)
+    },
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => deleteVoluntario(comunaId, id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: key }),
+  })
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) return
+    createMut.mutate()
+  }
+
+  function startEdit(v: Voluntario) {
+    setEditingId(v.id)
+    setEditData({ name: v.name, cedula: v.cedula ?? '', phone: v.phone ?? '', correo: v.correo ?? '', rol: v.rol ?? '', status: v.status, notes: v.notes ?? '' })
+  }
+
+  return (
+    <div>
+      {canEdit && (
+        <form onSubmit={handleSubmit} className="flex flex-wrap gap-2 mb-4 items-end">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Nombre *</label>
+            <input
+              type="text"
+              className="input text-[13px] w-44"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Cédula</label>
+            <input type="text" className="input text-[13px] w-32" value={cedula} onChange={(e) => setCedula(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Teléfono</label>
+            <input type="text" className="input text-[13px] w-32" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Correo</label>
+            <input type="text" className="input text-[13px] w-44" value={correo} onChange={(e) => setCorreo(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Rol</label>
+            <input type="text" className="input text-[13px] w-32" value={rol} onChange={(e) => setRol(e.target.value)} placeholder="ej. logística" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] text-text-3">Notas</label>
+            <input type="text" className="input text-[13px] w-40" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+          <button type="submit" className="btn btn-sm" disabled={createMut.isPending}>
+            {createMut.isPending ? 'Guardando...' : 'Agregar'}
+          </button>
+        </form>
+      )}
+
+      {isLoading ? (
+        <p className="text-[12px] text-text-3">Cargando voluntarios...</p>
+      ) : isError ? (
+        <p className="text-[12px] text-danger-text">Error al cargar voluntarios.</p>
+      ) : voluntarios.length === 0 ? (
+        <p className="text-[12px] text-text-3">No hay voluntarios registrados.</p>
+      ) : (
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="px-3 py-2 text-[11px] font-semibold text-text-3">Nombre</th>
+              <th className="px-3 py-2 text-[11px] font-semibold text-text-3">Cédula</th>
+              <th className="px-3 py-2 text-[11px] font-semibold text-text-3">Teléfono</th>
+              <th className="px-3 py-2 text-[11px] font-semibold text-text-3">Correo</th>
+              <th className="px-3 py-2 text-[11px] font-semibold text-text-3">Rol</th>
+              <th className="px-3 py-2 text-[11px] font-semibold text-text-3">Estado</th>
+              <th className="px-3 py-2 text-[11px] font-semibold text-text-3">Notas</th>
+              {canEdit && <th className="px-3 py-2 text-[11px]" />}
+            </tr>
+          </thead>
+          <tbody>
+            {voluntarios.map((v) =>
+              editingId === v.id ? (
+                <tr key={v.id} className="border-b border-border/50 bg-surface-2">
+                  <td className="px-2 py-1"><input className="input text-[12px] w-36" value={editData.name ?? ''} onChange={(e) => setEditData((d) => ({ ...d, name: e.target.value }))} /></td>
+                  <td className="px-2 py-1"><input className="input text-[12px] w-28" value={editData.cedula ?? ''} onChange={(e) => setEditData((d) => ({ ...d, cedula: e.target.value }))} /></td>
+                  <td className="px-2 py-1"><input className="input text-[12px] w-28" value={editData.phone ?? ''} onChange={(e) => setEditData((d) => ({ ...d, phone: e.target.value }))} /></td>
+                  <td className="px-2 py-1"><input className="input text-[12px] w-36" value={editData.correo ?? ''} onChange={(e) => setEditData((d) => ({ ...d, correo: e.target.value }))} /></td>
+                  <td className="px-2 py-1"><input className="input text-[12px] w-24" value={editData.rol ?? ''} onChange={(e) => setEditData((d) => ({ ...d, rol: e.target.value }))} /></td>
+                  <td className="px-2 py-1">
+                    <select className="input text-[12px] w-28" value={editData.status ?? 'activo'} onChange={(e) => setEditData((d) => ({ ...d, status: e.target.value }))}>
+                      <option value="activo">Activo</option>
+                      <option value="inactivo">Inactivo</option>
+                      <option value="pendiente">Pendiente</option>
+                    </select>
+                  </td>
+                  <td className="px-2 py-1"><input className="input text-[12px] w-32" value={editData.notes ?? ''} onChange={(e) => setEditData((d) => ({ ...d, notes: e.target.value }))} /></td>
+                  <td className="px-2 py-1 flex gap-2">
+                    <button
+                      type="button"
+                      className="text-[12px] text-accent hover:underline"
+                      disabled={updateMut.isPending}
+                      onClick={() => updateMut.mutate({ id: v.id, data: editData })}
+                    >
+                      Guardar
+                    </button>
+                    <button type="button" className="text-[12px] text-text-3 hover:underline" onClick={() => setEditingId(null)}>
+                      Cancelar
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={v.id} className="border-b border-border/50 hover:bg-surface-2">
+                  <td className="px-3 py-2 text-[13px] font-medium">{v.name}</td>
+                  <td className="px-3 py-2 text-[12px] text-text-3">{v.cedula ?? '—'}</td>
+                  <td className="px-3 py-2 text-[12px] text-text-3">{v.phone ?? '—'}</td>
+                  <td className="px-3 py-2 text-[12px] text-text-3">{v.correo ?? '—'}</td>
+                  <td className="px-3 py-2 text-[12px] text-text-3">{v.rol ?? '—'}</td>
+                  <td className="px-3 py-2 text-[12px]">
+                    <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${
+                      v.status === 'activo' ? 'bg-ok-bg text-ok-text' :
+                      v.status === 'inactivo' ? 'bg-danger-bg text-danger-text' :
+                      'bg-warn-bg text-warn-text'
+                    }`}>
+                      {STATUS_LABELS[v.status] ?? v.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-[12px] text-text-3">{v.notes ?? '—'}</td>
+                  {canEdit && (
+                    <td className="px-3 py-2 flex gap-2">
+                      <button type="button" className="text-[12px] text-accent hover:underline" onClick={() => startEdit(v)}>
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[12px] text-danger-text hover:underline"
+                        onClick={() => { if (confirm(`¿Eliminar a ${v.name}?`)) deleteMut.mutate(v.id) }}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
 function toPuestoRowData(p: PrioPuesto): PuestoRowData {
   return {
     id: p.puestoId,
@@ -168,7 +370,7 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
   const { role } = useAuth()
   const isAdmin = role === 'SUPER_ADMIN' || role === 'REGIONAL_COORDINATOR'
 
-  const [tab, setTab] = useState<'resumen' | 'mapa' | 'priorizacion'>('resumen')
+  const [tab, setTab] = useState<'resumen' | 'mapa' | 'priorizacion' | 'voluntarios'>('resumen')
 
   const canManageComparendos = ['SUPER_ADMIN', 'REGIONAL_COORDINATOR', 'MUNICIPAL_COORDINATOR', 'ZONE_COORDINATOR', 'COMUNA_COORDINATOR'].includes(role ?? '')
 
@@ -295,7 +497,7 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
 
       {/* Tab row */}
       <div className="flex gap-1 border-b border-border mb-4">
-        {(['resumen', 'mapa', 'priorizacion'] as const).map((t) => (
+        {(['resumen', 'mapa', 'priorizacion', 'voluntarios'] as const).map((t) => (
           <button
             key={t}
             type="button"
@@ -304,7 +506,7 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
             }`}
             onClick={() => setTab(t)}
           >
-            {t === 'resumen' ? 'Resumen' : t === 'mapa' ? 'Mapa' : 'Priorización'}
+            {t === 'resumen' ? 'Resumen' : t === 'mapa' ? 'Mapa' : t === 'priorizacion' ? 'Priorización' : 'Voluntarios'}
           </button>
         ))}
       </div>
@@ -368,6 +570,10 @@ export default function ComunaPage({ params }: { params: Promise<{ slug: string 
             </tbody>
           </table>
         </div>
+      )}
+
+      {tab === 'voluntarios' && (
+        <VoluntariosSection comunaId={comuna.id} canEdit={canManageComparendos} />
       )}
 
       <div className="border-t border-border pt-4">
