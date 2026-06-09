@@ -809,6 +809,7 @@ function buildCCCard(n, ck) {
         <div class="itab" data-pane="${id}-refrig" onclick="switchIT(this,'${id}-refrig');renderRefrigPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🍱 Refrigerios</div>
         <div class="itab" data-pane="${id}-comp" onclick="switchIT(this,'${id}-comp');renderComparendosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">⚠️ Comparendos</div>
         <div class="itab" data-pane="${id}-mapa" onclick="switchIT(this,'${id}-mapa');renderMapPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🗺 Mapa</div>
+        <div class="itab" data-pane="${id}-vol" onclick="switchIT(this,'${id}-vol');renderVoluntariosPanel('${n}','${ck.replace(/'/g, "\\'")}','${id}')">🙋 Voluntarios</div>
       </div>
       <div class="ipane on" id="${id}-puestos"><div style="padding:8px">${buildPT(n, puestos, ck)}</div></div>
       <div class="ipane" id="${id}-preg"></div>
@@ -817,6 +818,7 @@ function buildCCCard(n, ck) {
       <div class="ipane" id="${id}-refrig"></div>
       <div class="ipane" id="${id}-comp"></div>
       <div class="ipane" id="${id}-mapa"></div>
+      <div class="ipane" id="${id}-vol"></div>
     </div>`;
   return card;
 }
@@ -829,7 +831,7 @@ function _restoreTabForCC(n, ck) {
   bd.querySelectorAll('.itab').forEach(t => t.classList.toggle('on', t.dataset.pane === savedPane));
   bd.querySelectorAll('.ipane').forEach(p => p.classList.toggle('on', p.id === savedPane));
   const suffix = savedPane.replace(id + '-', '');
-  const renders = { preg: () => renderTestigosPanel(n, ck, id), mov: () => renderMovPanel(n, ck, id), abog: () => renderAbogadoPanel(n, ck, id), refrig: () => renderRefrigPanel(n, ck, id), comp: () => renderComparendosPanel(n, ck, id), mapa: () => renderMapPanel(n, ck, id) };
+  const renders = { preg: () => renderTestigosPanel(n, ck, id), mov: () => renderMovPanel(n, ck, id), abog: () => renderAbogadoPanel(n, ck, id), refrig: () => renderRefrigPanel(n, ck, id), comp: () => renderComparendosPanel(n, ck, id), mapa: () => renderMapPanel(n, ck, id), vol: () => renderVoluntariosPanel(n, ck, id) };
   if (renders[suffix]) renders[suffix]();
 }
 function renderCCs(n) {
@@ -2696,6 +2698,172 @@ function editAbogado(n, ck, id) { editAbogadoItem(n, ck, id, 0); }
 function cancelAbogado(n, ck, id) { cancelAbogadoItem(n, ck, id, 0); }
 function updateAbogado(n, ck, field, val) { updateAbogadoItem(n, ck, 0, field, val); }
 function saveAbogado(n, ck, id) { saveAbogadoItem(n, ck, id, 0); }
+
+// ═══ VOLUNTARIOS ═══
+const _volEditMode = new Set();
+function _volList(s, ck) {
+  if (!s.voluntarios) s.voluntarios = {};
+  if (!s.voluntarios[ck]) s.voluntarios[ck] = [];
+  return s.voluntarios[ck];
+}
+
+async function renderVoluntariosPanel(n, ck, id) {
+  const pane = document.getElementById(id + '-vol');
+  if (!pane) return;
+
+  // Load from backend if available
+  const ccIds = _puestoIdCache[n]?._ccIds;
+  const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
+  if (comunaId && window.api) {
+    try {
+      const result = await api.get(`/comunas/${comunaId}/voluntarios`);
+      const s = gs(n);
+      if (!s.voluntarios) s.voluntarios = {};
+      s.voluntarios[ck] = result.map(v => ({
+        _backendId: v.id,
+        nombre: v.name,
+        cedula: v.cedula || '',
+        telefono: v.phone || '',
+        correo: v.correo || '',
+        rol: v.rol || '',
+        estado: v.status || 'activo',
+        notas: v.notes || '',
+      }));
+      saveLocalSt();
+    } catch (e) { /* usa datos locales si falla */ }
+  }
+
+  const s = gs(n);
+  const list = _volList(s, ck);
+  const ckE = ck.replace(/'/g, "\\'");
+
+  let html = `<div class="mov-panel">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:12px">Voluntarios de esta comuna</div>`;
+
+  list.forEach((v, i) => {
+    const isEditing = _volEditMode.has(`${id}:${i}`);
+    if (!isEditing) {
+      html += `<div style="background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:3px">🙋 ${esc(v.nombre)}${v.rol ? ` <span style="font-size:11px;color:var(--t3);font-weight:400">· ${esc(v.rol)}</span>` : ''}</div>
+            ${v.cedula ? `<div style="font-size:12px;color:var(--t3)">CC: ${esc(v.cedula)}</div>` : ''}
+            ${v.telefono ? `<div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2)">
+              📞 ${esc(v.telefono)}
+              <a class="wa-btn" href="https://wa.me/57${v.telefono.replace(/\D/g,'')}" target="_blank" title="WhatsApp">💬</a>
+            </div>` : ''}
+            ${v.correo ? `<div style="font-size:12px;color:var(--t3)">✉️ ${esc(v.correo)}</div>` : ''}
+            ${v.notas ? `<div style="font-size:11px;color:var(--t3);font-style:italic;margin-top:2px">${esc(v.notas)}</div>` : ''}
+            <div style="margin-top:4px"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${v.estado==='activo'?'#d4edda':'#f8d7da'};color:${v.estado==='activo'?'#155724':'#721c24'}">${v.estado || 'activo'}</span></div>
+          </div>
+          ${_isReadOnly() ? '' : `<div style="display:flex;gap:4px;flex-shrink:0">
+            <button class="export-btn" style="font-size:11px;padding:3px 8px" onclick="editVolItem('${n}','${ckE}','${id}',${i})">✏️</button>
+            <button class="export-btn" style="font-size:11px;padding:3px 8px;color:#e53" onclick="delVolItem('${n}','${ckE}','${id}',${i})">🗑️</button>
+          </div>`}
+        </div>
+      </div>`;
+    } else {
+      html += `<div style="background:var(--bg2);border:2px solid var(--accent,#f5c842);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="mof"><label style="font-size:10px;color:var(--t3)">NOMBRE *</label>
+            <input class="resp-name-inp" style="width:100%" type="text" placeholder="Nombre completo" value="${esc(v.nombre)}"
+              onchange="updateVolItem('${n}','${ckE}',${i},'nombre',this.value)"></div>
+          <div class="mof"><label style="font-size:10px;color:var(--t3)">CÉDULA</label>
+            <input class="resp-name-inp" style="width:100%" type="text" placeholder="123456789" value="${esc(v.cedula||'')}"
+              onchange="updateVolItem('${n}','${ckE}',${i},'cedula',this.value)"></div>
+          <div class="mof"><label style="font-size:10px;color:var(--t3)">TELÉFONO</label>
+            <input class="resp-phone-inp" style="width:100%" type="text" placeholder="300 000 0000" value="${esc(v.telefono||'')}"
+              onchange="updateVolItem('${n}','${ckE}',${i},'telefono',this.value)"></div>
+          <div class="mof"><label style="font-size:10px;color:var(--t3)">CORREO</label>
+            <input class="resp-name-inp" style="width:100%" type="text" placeholder="correo@ejemplo.com" value="${esc(v.correo||'')}"
+              onchange="updateVolItem('${n}','${ckE}',${i},'correo',this.value)"></div>
+          <div class="mof"><label style="font-size:10px;color:var(--t3)">ROL</label>
+            <input class="resp-name-inp" style="width:100%" type="text" placeholder="ej. logística" value="${esc(v.rol||'')}"
+              onchange="updateVolItem('${n}','${ckE}',${i},'rol',this.value)"></div>
+          <div class="mof"><label style="font-size:10px;color:var(--t3)">ESTADO</label>
+            <select class="resp-name-inp" style="width:100%" onchange="updateVolItem('${n}','${ckE}',${i},'estado',this.value)">
+              <option value="activo"${v.estado==='activo'?' selected':''}>Activo</option>
+              <option value="inactivo"${v.estado==='inactivo'?' selected':''}>Inactivo</option>
+              <option value="pendiente"${v.estado==='pendiente'?' selected':''}>Pendiente</option>
+            </select></div>
+        </div>
+        <div class="mof" style="margin-bottom:10px"><label style="font-size:10px;color:var(--t3)">NOTAS</label>
+          <input class="resp-name-inp" style="width:100%" type="text" placeholder="Notas adicionales" value="${esc(v.notas||'')}"
+            onchange="updateVolItem('${n}','${ckE}',${i},'notas',this.value)"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="mv-save-all" onclick="saveVolItem('${n}','${ckE}','${id}',${i})">💾 Guardar</button>
+          ${v.nombre ? `<button class="export-btn" style="font-size:12px" onclick="cancelVolItem('${n}','${ckE}','${id}',${i})">Cancelar</button>` : ''}
+        </div>
+      </div>`;
+    }
+  });
+
+  if (!_isReadOnly()) html += `<button class="export-btn" style="font-size:12px;margin-top:4px" onclick="addVolItem('${n}','${ckE}','${id}')">➕ Agregar voluntario</button>`;
+  html += '</div>';
+  pane.innerHTML = html;
+}
+
+function editVolItem(n, ck, id, i) { _volEditMode.add(`${id}:${i}`); renderVoluntariosPanel(n, ck, id); }
+function cancelVolItem(n, ck, id, i) {
+  const s = gs(n); const list = _volList(s, ck);
+  if (!list[i]?.nombre) list.splice(i, 1);
+  _volEditMode.delete(`${id}:${i}`); renderVoluntariosPanel(n, ck, id);
+}
+function addVolItem(n, ck, id) {
+  const s = gs(n); const list = _volList(s, ck);
+  list.push({ nombre: '', cedula: '', telefono: '', correo: '', rol: '', estado: 'activo', notas: '', _backendId: null });
+  _volEditMode.add(`${id}:${list.length - 1}`);
+  saveLocalSt(); renderVoluntariosPanel(n, ck, id);
+}
+function updateVolItem(n, ck, i, field, val) {
+  const s = gs(n); const list = _volList(s, ck);
+  if (list[i]) { list[i][field] = val; saveLocalSt(); }
+}
+async function delVolItem(n, ck, id, i) {
+  const s = gs(n); const list = _volList(s, ck);
+  if (!list[i]) return;
+  const v = list[i];
+  if (v._backendId && window.api && window.CURRENT_USER) {
+    const ccIds = _puestoIdCache[n]?._ccIds;
+    const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
+    if (comunaId) api.delete(`/comunas/${comunaId}/voluntarios/${v._backendId}`).catch(err => _onWriteError('voluntario delete failed', err));
+  }
+  list.splice(i, 1);
+  [..._volEditMode].filter(k => k.startsWith(`${id}:`)).forEach(k => _volEditMode.delete(k));
+  saveLocalSt(); renderVoluntariosPanel(n, ck, id);
+}
+async function saveVolItem(n, ck, id, i) {
+  const s = gs(n); const list = _volList(s, ck);
+  const v = list[i];
+  if (!v?.nombre) return;
+  saveLocalSt();
+  if (window.api && window.CURRENT_USER) {
+    const ccIds = _puestoIdCache[n]?._ccIds;
+    const comunaId = ccIds?.[ck] ?? ccIds?.[(ck || '').toUpperCase()];
+    if (comunaId) {
+      const payload = {
+        name: v.nombre,
+        cedula: v.cedula || undefined,
+        phone: v.telefono || undefined,
+        correo: v.correo || undefined,
+        rol: v.rol || undefined,
+        status: v.estado || 'activo',
+        notes: v.notas || undefined,
+      };
+      try {
+        if (v._backendId) {
+          await api.patch(`/comunas/${comunaId}/voluntarios/${v._backendId}`, payload);
+        } else {
+          const created = await api.post(`/comunas/${comunaId}/voluntarios`, payload);
+          v._backendId = created.id;
+          saveLocalSt();
+        }
+      } catch (err) { _onWriteError('voluntario save failed', err); }
+    }
+  }
+  _volEditMode.delete(`${id}:${i}`);
+  renderVoluntariosPanel(n, ck, id);
+}
 
 // ═══ REFRIGERIOS (punto 6) ═══
 const _refrigEditMode = new Set(); // panel IDs currently in edit mode
