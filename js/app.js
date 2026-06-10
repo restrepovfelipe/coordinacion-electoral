@@ -614,7 +614,8 @@ function _refrigCountComuna(n, ck) {
   const testigos = puestos.reduce((sum, p) => sum + ((s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length), 0);
   const coordPuestos = puestos.filter(p => !!((s.puestos || {})[pk(p)]?.coord)).length;
   const coordComuna = (s.comunas || {})[ck]?.coord ? 1 : 0;
-  return { testigos, coordPuestos, coordComuna, total: testigos + coordPuestos + coordComuna };
+  const voluntarios = (s.voluntarios?.[ck] || []).filter(v => v.nombre && v.estado !== 'inactivo').length;
+  return { testigos, coordPuestos, coordComuna, voluntarios, total: testigos + coordPuestos + coordComuna + voluntarios };
 }
 
 function _ccStats(n, ck) {
@@ -761,7 +762,7 @@ function buildZonaCard(n, zona) {
       <div class="cc-st"><div class="v" id="${zid}-s-t">${totTestReg}</div><div class="l">Testigos</div></div>
       <div class="cc-st${totMesasSinAsignar > 0 ? ' cc-st-warn' : ''}" id="${zid}-s-tf"><div class="v">${totMesasSinAsignar}</div><div class="l">Mesas sin asignar</div></div>
       <div class="cc-st${pct > 100 ? ' cc-st-excedente' : ''}"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
-      <div class="cc-st" id="${zid}-s-refrig" style="border-left:2px solid #f5a623" title="Refrigerios necesarios = testigos + coord. puestos + coord. zona"><div class="v" style="color:#f5a623">${totRefrig}</div><div class="l">🍱 Refrig.</div></div>
+      <div class="cc-st" id="${zid}-s-refrig" style="border-left:2px solid #f5a623" title="Refrigerios necesarios = testigos + voluntarios + coord. puestos + coord. zona"><div class="v" style="color:#f5a623">${totRefrig}</div><div class="l">🍱 Refrig.</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${Math.min(pct, 100)}%"></div></div>
     <div class="zona-card-bd${isOpen ? ' op' : ''}" id="${zid}-bd"></div>`;
@@ -797,7 +798,7 @@ function buildCCCard(n, ck) {
       <div class="cc-st"><div class="v" id="${id}-s-t">${testReg}</div><div class="l">Testigos</div></div>
       <div class="cc-st${mesasSinAsignar > 0 ? ' cc-st-warn' : ''}" id="${id}-s-tf"><div class="v">${mesasSinAsignar}</div><div class="l">Mesas sin asignar</div></div>
       <div class="cc-st${pct > 100 ? ' cc-st-excedente' : ''}"><div class="v">${pct}%</div><div class="l">Cobertura</div></div>
-      <div class="cc-st" id="${id}-s-refrig" style="border-left:2px solid #f5a623" title="Refrigerios = testigos + coord. puestos + coord. comuna"><div class="v" style="color:#f5a623">${rfCnt.total}</div><div class="l">🍱 Refrig.</div></div>
+      <div class="cc-st" id="${id}-s-refrig" style="border-left:2px solid #f5a623" title="Refrigerios = testigos + voluntarios + coord. puestos + coord. comuna"><div class="v" style="color:#f5a623">${rfCnt.total}</div><div class="l">🍱 Refrig.</div></div>
     </div>
     <div class="prog"><div class="prog-f" style="width:${Math.min(pct, 100)}%"></div></div>
     <div class="cc-bd${isOpen ? ' op' : ''}" id="${id}-bd">
@@ -2292,6 +2293,12 @@ function _refrigPDFSection(n, ck, s) {
         <td style="border:1px solid #e0e4ea"></td>
         <td style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;color:#aaa">${rc.coordComuna ? '1' : '0'}</td>
       </tr>
+      ${rc.voluntarios > 0 ? `<tr style="background:#fff8ec;font-weight:700">
+        <td style="padding:5px 7px;border:1px solid #e0e4ea">+ Voluntarios</td>
+        <td style="border:1px solid #e0e4ea"></td>
+        <td style="border:1px solid #e0e4ea"></td>
+        <td style="padding:5px 7px;border:1px solid #e0e4ea;text-align:center;color:#aaa">${rc.voluntarios}</td>
+      </tr>` : ''}
       <tr style="background:#fff3d6;font-weight:700">
         <td style="padding:6px 7px;border:1px solid #f5a623;color:#c47a00">TOTAL REFRIGERIOS</td>
         <td style="border:1px solid #f5a623"></td>
