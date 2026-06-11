@@ -136,6 +136,8 @@ model Puesto {
   notas                    String?
   coordinadorAdHocNombre   String?
   coordinadorAdHocTelefono String?
+  coordinadorAdHocNombre2  String?
+  coordinadorAdHocTelefono2 String?
   testigos                 Testigo[]
   jurados                  Jurado[]
   prioridad                PuestoPrioridad?

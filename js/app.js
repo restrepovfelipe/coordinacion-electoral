@@ -484,10 +484,10 @@ async function loadCoordsForMuni(n) {
         }
       }
       if (!s.puestos) s.puestos = {};
-      for (const { puestoId, nombre, telefono, tag, notas } of list) {
+      for (const { puestoId, nombre, telefono, nombre2, telefono2, tag, notas } of list) {
         const pkStr = idToPk[puestoId];
         if (!pkStr) continue;
-        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '', tag: tag || 'n', notes: notas || '' };
+        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '', coord2: nombre2 || '', phone2: telefono2 || '', tag: tag || 'n', notes: notas || '' };
         changed = true;
       }
     } catch(e) {}
@@ -613,9 +613,10 @@ function _refrigCountComuna(n, ck) {
   const puestos = RAW[n]?.[ck] || [];
   const testigos = puestos.reduce((sum, p) => sum + ((s.testigos?.[ck]?.[p.puesto] || []).filter(r => r.nombre).length), 0);
   const coordPuestos = puestos.filter(p => !!((s.puestos || {})[pk(p)]?.coord)).length;
+  const coordPuestos2 = puestos.filter(p => !!((s.puestos || {})[pk(p)]?.coord2)).length;
   const coordComuna = (s.comunas || {})[ck]?.coord ? 1 : 0;
   const voluntarios = (s.voluntarios?.[ck] || []).filter(v => v.nombre && v.estado !== 'inactivo').length;
-  return { testigos, coordPuestos, coordComuna, voluntarios, total: testigos + coordPuestos + coordComuna + voluntarios };
+  return { testigos, coordPuestos, coordPuestos2, coordComuna, voluntarios, total: testigos + coordPuestos + coordPuestos2 + coordComuna + voluntarios };
 }
 
 function _ccStats(n, ck) {
@@ -886,6 +887,9 @@ function buildPT(n, puestos, ckKey) {
     const coordPill = ps.coord
       ? `<span class="pc-pill coord" ${_isReadOnly() ? '' : `onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')"`}>👤 ${esc(ps.coord)}${ps.phone ? ' · ' + esc(ps.phone) : ''}</span>${ps.phone ? `<a class="wa-btn" href="https://wa.me/57${ps.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}`
       : (_isReadOnly() ? '' : `<span class="pc-pill nocoord" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')">+ Coord. puesto</span>`);
+    const coord2Pill = ps.coord2
+      ? `<span class="pc-pill coord" style="background:rgba(108,99,255,.12);border-color:rgba(108,99,255,.3)" ${_isReadOnly() ? '' : `onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}')"`}>👤 ${esc(ps.coord2)}${ps.phone2 ? ' · ' + esc(ps.phone2) : ''}</span>${ps.phone2 ? `<a class="wa-btn" href="https://wa.me/57${ps.phone2.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}`
+      : '';
     return `<div class="pc" id="${pcid}">
       <div class="pc-hd" onclick="togglePC('${pcid}')">
         <div class="pc-left">
@@ -896,6 +900,7 @@ function buildPT(n, puestos, ckKey) {
             <span class="pc-pill">${(p.total || 0).toLocaleString('es-CO')} v.</span>
             ${_isReadOnly() ? `<span class="${tg.cls} tbtn" style="cursor:default">${tg.lbl}</span>` : `<button class="${tg.cls} tbtn" onclick="event.stopPropagation();editPCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}');">${tg.lbl}</button>`}
             ${coordPill}
+            ${coord2Pill}
             ${testReg > 0 ? `<span class="pc-pill" style="color:var(--green);border-color:rgba(46,216,122,.3)">Test. ${testReg}</span>` : ''}
             ${map}
           </div>
@@ -924,6 +929,18 @@ function buildPT(n, puestos, ckKey) {
                 <option value="al" ${t === 'al' ? 'selected' : ''}>⚠ Alerta</option>
               </select>
               <button class="pc-save" onclick="savePCard('${n}','${k}','${ckKey.replace(/'/g, "\\'")}','${pcid}')">💾 Guardar</button>
+            `}
+          </div>
+        </div>
+        <div class="pc-section" style="margin-top:8px">
+          <div class="pc-section-title">Coordinador 2 (opcional)</div>
+          <div class="pc-coord-row">
+            ${_isReadOnly() ? `
+              <span style="font-size:13px;color:var(--t1)">${esc(ps.coord2) || '—'}</span>
+              ${ps.phone2 ? `<span style="font-size:12px;color:var(--t2)">&nbsp;· ${esc(ps.phone2)}</span>` : ''}
+            ` : `
+              <input class="pc-inp" type="text" placeholder="Nombre coordinador 2" value="${esc(ps.coord2)}" id="${pcid}-coord2">
+              <input class="pc-inp" type="text" placeholder="Teléfono 2" value="${esc(ps.phone2)}" id="${pcid}-phone2" style="max-width:150px">
             `}
           </div>
         </div>
@@ -958,13 +975,17 @@ async function savePCard(n, k, ck, pcid) {
   const coord = document.getElementById(pcid + '-coord').value.trim();
   const phone = document.getElementById(pcid + '-phone').value.trim();
   const tag = document.getElementById(pcid + '-tag').value;
-  s.puestos[k] = { ...((s.puestos[k]) || {}), coord, phone, tag };
+  const coord2El = document.getElementById(pcid + '-coord2');
+  const phone2El = document.getElementById(pcid + '-phone2');
+  const coord2 = coord2El ? coord2El.value.trim() : (s.puestos[k]?.coord2 || '');
+  const phone2 = phone2El ? phone2El.value.trim() : (s.puestos[k]?.phone2 || '');
+  s.puestos[k] = { ...((s.puestos[k]) || {}), coord, phone, tag, coord2, phone2 };
   saveLocalSt();
   await writeMuni(n);
   if (window.api && window.CURRENT_USER) {
-    const puestoId = getPuestoBackendId(n, k); // k is pk string, now stored in cache
+    const puestoId = getPuestoBackendId(n, k);
     if (puestoId) {
-      api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null, tag: tag || null })
+      api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null, tag: tag || null, nombre2: coord2 || null, telefono2: phone2 || null })
         .catch(err => { if (err?.status !== 409) _onWriteError('coord puesto adhoc patch failed', err); });
     }
   }
@@ -972,9 +993,11 @@ async function savePCard(n, k, ck, pcid) {
   const tagBtn = document.querySelector(`#${pcid} .tbtn`);
   if (tagBtn) { tagBtn.className = tg.cls + ' tbtn'; tagBtn.textContent = tg.lbl; }
   const coordPills = document.querySelectorAll(`#${pcid} .pc-pill.coord, #${pcid} .pc-pill.nocoord`);
-  coordPills.forEach(el => {
-    el.className = coord ? 'pc-pill coord' : 'pc-pill nocoord';
-    el.textContent = coord ? '👤 ' + coord + (phone ? ' · ' + phone : '') : '+ Coord. puesto';
+  coordPills.forEach((el, i) => {
+    if (i === 0) {
+      el.className = coord ? 'pc-pill coord' : 'pc-pill nocoord';
+      el.textContent = coord ? '👤 ' + coord + (phone ? ' · ' + phone : '') : '+ Coord. puesto';
+    }
   });
   const btn = document.querySelector(`#${pcid} .pc-save`);
   if (btn) { const orig = btn.textContent; btn.textContent = '✓ Guardado'; btn.style.background = 'var(--green)'; setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1800); }

@@ -20,4 +20,14 @@ export class PatchAdhocDto {
   @IsString()
   @MaxLength(1000)
   notas?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  nombre2?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  telefono2?: string | null;
 }
