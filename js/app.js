@@ -453,7 +453,7 @@ async function loadCoordsForMuni(n) {
     try {
       const disp = await api.get(`/coordinador/comuna/${comunaId}/display`);
       if (!s.comunas) s.comunas = {};
-      s.comunas[ck] = { coord: disp.nombre || '', phone: disp.telefono || '' };
+      s.comunas[ck] = { coord: disp.nombre || '', phone: disp.telefono || '', cedula: disp.cedula || '', correo: disp.correo || '' };
       changed = true;
     } catch(e) {}
   });
@@ -484,10 +484,10 @@ async function loadCoordsForMuni(n) {
         }
       }
       if (!s.puestos) s.puestos = {};
-      for (const { puestoId, nombre, telefono, nombre2, telefono2, tag, notas } of list) {
+      for (const { puestoId, nombre, telefono, cedula, correo, nombre2, telefono2, cedula2, correo2, tag, notas } of list) {
         const pkStr = idToPk[puestoId];
         if (!pkStr) continue;
-        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '', coord2: nombre2 || '', phone2: telefono2 || '', tag: tag || 'n', notes: notas || '' };
+        s.puestos[pkStr] = { ...(s.puestos[pkStr] || {}), coord: nombre || '', phone: telefono || '', cedula: cedula || '', correo: correo || '', coord2: nombre2 || '', phone2: telefono2 || '', cedula2: cedula2 || '', correo2: correo2 || '', tag: tag || 'n', notes: notas || '' };
         changed = true;
       }
     } catch(e) {}
@@ -917,10 +917,14 @@ function buildPT(n, puestos, ckKey) {
             ${_isReadOnly() ? `
               <span style="font-size:13px;color:var(--t1)">${esc(ps.coord) || '—'}</span>
               ${ps.phone ? `<span style="font-size:12px;color:var(--t2)">&nbsp;· ${esc(ps.phone)}</span>` : ''}
+              ${ps.cedula ? `<span style="font-size:12px;color:var(--t3)">&nbsp;CC: ${esc(ps.cedula)}</span>` : ''}
+              ${ps.correo ? `<span style="font-size:12px;color:var(--t3)">&nbsp;✉ ${esc(ps.correo)}</span>` : ''}
               <span class="${tg.cls}" style="cursor:default;margin-left:6px">${tg.lbl}</span>
             ` : `
               <input class="pc-inp" type="text" placeholder="Nombre coordinador" value="${esc(ps.coord)}" id="${pcid}-coord">
               <input class="pc-inp" type="text" placeholder="Teléfono" value="${esc(ps.phone)}" id="${pcid}-phone" style="max-width:150px">
+              <input class="pc-inp" type="text" placeholder="Cédula" value="${esc(ps.cedula)}" id="${pcid}-cedula" style="max-width:130px">
+              <input class="pc-inp" type="email" placeholder="Correo" value="${esc(ps.correo)}" id="${pcid}-correo" style="max-width:200px">
               <select class="pc-inp" id="${pcid}-tag" style="max-width:130px">
                 <option value="n" ${t === 'n' ? 'selected' : ''}>Sin estado</option>
                 <option value="ok" ${t === 'ok' ? 'selected' : ''}>✓ Cubierto</option>
@@ -938,9 +942,13 @@ function buildPT(n, puestos, ckKey) {
             ${_isReadOnly() ? `
               <span style="font-size:13px;color:var(--t1)">${esc(ps.coord2) || '—'}</span>
               ${ps.phone2 ? `<span style="font-size:12px;color:var(--t2)">&nbsp;· ${esc(ps.phone2)}</span>` : ''}
+              ${ps.cedula2 ? `<span style="font-size:12px;color:var(--t3)">&nbsp;CC: ${esc(ps.cedula2)}</span>` : ''}
+              ${ps.correo2 ? `<span style="font-size:12px;color:var(--t3)">&nbsp;✉ ${esc(ps.correo2)}</span>` : ''}
             ` : `
               <input class="pc-inp" type="text" placeholder="Nombre coordinador 2" value="${esc(ps.coord2)}" id="${pcid}-coord2">
               <input class="pc-inp" type="text" placeholder="Teléfono 2" value="${esc(ps.phone2)}" id="${pcid}-phone2" style="max-width:150px">
+              <input class="pc-inp" type="text" placeholder="Cédula 2" value="${esc(ps.cedula2)}" id="${pcid}-cedula2" style="max-width:130px">
+              <input class="pc-inp" type="email" placeholder="Correo 2" value="${esc(ps.correo2)}" id="${pcid}-correo2" style="max-width:200px">
             `}
           </div>
         </div>
@@ -975,17 +983,25 @@ async function savePCard(n, k, ck, pcid) {
   const coord = document.getElementById(pcid + '-coord').value.trim();
   const phone = document.getElementById(pcid + '-phone').value.trim();
   const tag = document.getElementById(pcid + '-tag').value;
+  const cedulaEl = document.getElementById(pcid + '-cedula');
+  const correoEl = document.getElementById(pcid + '-correo');
   const coord2El = document.getElementById(pcid + '-coord2');
   const phone2El = document.getElementById(pcid + '-phone2');
+  const cedula2El = document.getElementById(pcid + '-cedula2');
+  const correo2El = document.getElementById(pcid + '-correo2');
+  const cedula = cedulaEl ? cedulaEl.value.trim() : (s.puestos[k]?.cedula || '');
+  const correo = correoEl ? correoEl.value.trim() : (s.puestos[k]?.correo || '');
   const coord2 = coord2El ? coord2El.value.trim() : (s.puestos[k]?.coord2 || '');
   const phone2 = phone2El ? phone2El.value.trim() : (s.puestos[k]?.phone2 || '');
-  s.puestos[k] = { ...((s.puestos[k]) || {}), coord, phone, tag, coord2, phone2 };
+  const cedula2 = cedula2El ? cedula2El.value.trim() : (s.puestos[k]?.cedula2 || '');
+  const correo2 = correo2El ? correo2El.value.trim() : (s.puestos[k]?.correo2 || '');
+  s.puestos[k] = { ...((s.puestos[k]) || {}), coord, phone, cedula, correo, tag, coord2, phone2, cedula2, correo2 };
   saveLocalSt();
   await writeMuni(n);
   if (window.api && window.CURRENT_USER) {
     const puestoId = getPuestoBackendId(n, k);
     if (puestoId) {
-      api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null, tag: tag || null, nombre2: coord2 || null, telefono2: phone2 || null })
+      api.patch(`/coordinador/puesto/${puestoId}/adhoc`, { nombre: coord || null, telefono: phone || null, cedula: cedula || null, correo: correo || null, tag: tag || null, nombre2: coord2 || null, telefono2: phone2 || null, cedula2: cedula2 || null, correo2: correo2 || null })
         .catch(err => { if (err?.status !== 409) _onWriteError('coord puesto adhoc patch failed', err); });
     }
   }
@@ -1785,6 +1801,12 @@ function openM(title, sub, ctx, opts = {}) {
   MCX = ctx; SEL_T = opts.tag || 'n';
   document.getElementById('mo-t').textContent = title; document.getElementById('mo-s').textContent = sub;
   document.getElementById('mi-c').value = opts.coord || ''; document.getElementById('mi-p').value = opts.phone || '';
+  const ccBlock = document.getElementById('mf-cedula-correo');
+  if (ccBlock) {
+    ccBlock.style.display = opts.showCedulaCorreo ? '' : 'none';
+    document.getElementById('mi-cedula').value = opts.cedula || '';
+    document.getElementById('mi-correo').value = opts.correo || '';
+  }
   document.getElementById('mf-tag').style.display = opts.showTag ? '' : 'none';
   document.getElementById('mf-notes').style.display = opts.showNotes ? '' : 'none';
   if (opts.showNotes) document.getElementById('mi-n').value = opts.notes || '';
@@ -1820,7 +1842,9 @@ async function saveM() {
     saveLocalSt();
     await writeMuni(MCX.n);
   } else if (MCX.type === 'cc') {
-    if (!s.comunas) s.comunas = {}; s.comunas[MCX.ck] = { coord, phone };
+    const cedula = document.getElementById('mi-cedula')?.value.trim() || '';
+    const correo = document.getElementById('mi-correo')?.value.trim() || '';
+    if (!s.comunas) s.comunas = {}; s.comunas[MCX.ck] = { coord, phone, cedula, correo };
     saveLocalSt();
     await writeMuni(MCX.n);
   } else if (MCX.type === 'p') {
@@ -1842,6 +1866,10 @@ async function saveM() {
     const scopeId = _coordScopeId(MCX.type, MCX.n, MCX.ck, MCX.k, MCX.zonaNombre, MCX.region);
     if (scopeStr && scopeId) {
       const _patchPayload = { nombre: coord || null, telefono: phone || null };
+      if (MCX.type === 'cc') {
+        _patchPayload.cedula = document.getElementById('mi-cedula')?.value.trim() || null;
+        _patchPayload.correo = document.getElementById('mi-correo')?.value.trim() || null;
+      }
       if (MCX.type === 'p') { _patchPayload.tag = SEL_T || null; _patchPayload.notas = notes || null; }
       api.patch(`/coordinador/${scopeStr}/${scopeId}/adhoc`, _patchPayload)
         .catch(err => { if (err?.status !== 409) _onWriteError('coord adhoc patch failed', err); });
@@ -1872,7 +1900,7 @@ async function saveM() {
   closeM();
 }
 function editMuni(n) { const s = gs(n); openM(`Coordinador — ${n === 'MEDELLIN' ? 'MEDELLÍN' : n}`, 'Coordinador principal', { type: 'muni', n }, { coord: s.coord, phone: s.phone }); }
-function editCC(n, ck) { const s = gs(n); const sc = (s.comunas || {})[ck] || {}; openM('Coordinador de comuna', ck, { type: 'cc', n, ck }, { coord: sc.coord, phone: sc.phone }); }
+function editCC(n, ck) { const s = gs(n); const sc = (s.comunas || {})[ck] || {}; openM('Coordinador de comuna', ck, { type: 'cc', n, ck }, { coord: sc.coord, phone: sc.phone, cedula: sc.cedula, correo: sc.correo, showCedulaCorreo: true }); }
 function editZona(n, zonaNombre) { const s = gs(n); const sz = (s.zonas || {})[zonaNombre] || {}; openM('Coordinador de zona geográfica', zonaNombre, { type: 'zona', n, zonaNombre }, { coord: sz.coord, phone: sz.phone }); }
 function editSubregionCoord(region) { const sc = _subregionCoords[region] || {}; openM('Coordinador de subregión', region, { type: 'subregion', region }, { coord: sc.coord, phone: sc.phone }); }
 function editP(n, k, ck) { if (ck !== undefined) { editPCard(n, k, ck); return; } const s = gs(n); const ps = (s.puestos || {})[k] || {}; openM('Puesto de votación', k.replace(/_/g, ' '), { type: 'p', n, k }, { coord: ps.coord, phone: ps.phone, tag: ps.tag || 'n', notes: ps.notes, showTag: true, showNotes: true }); }

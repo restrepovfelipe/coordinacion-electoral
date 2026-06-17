@@ -23,6 +23,8 @@ export interface CoordinadorDisplay {
   source: 'user' | 'adhoc' | 'none';
   nombre: string | null;
   telefono: string | null;
+  cedula?: string | null;
+  correo?: string | null;
   userId?: number;
 }
 
@@ -42,7 +44,7 @@ export class CoordinadorService {
 
   // Returns coordinator info for every puesto in a municipality in two queries.
   // Response: Array<{ puestoId, nombre, telefono }>  (only entries with a coordinator)
-  async puestosByMuni(municipioId: number): Promise<Array<{ puestoId: number; nombre: string; telefono: string | null; nombre2: string | null; telefono2: string | null; tag: string | null; notas: string | null }>> {
+  async puestosByMuni(municipioId: number): Promise<Array<{ puestoId: number; nombre: string; telefono: string | null; cedula: string | null; correo: string | null; nombre2: string | null; telefono2: string | null; cedula2: string | null; correo2: string | null; tag: string | null; notas: string | null }>> {
     // 1. Adhoc coordinators — fetch any puesto with coordinator, tag (non-default), or notes set
     const puestosAdhoc = await this.prisma.puesto.findMany({
       where: {
@@ -53,7 +55,7 @@ export class CoordinadorService {
           { tag: { in: ['ok', 'pr', 'pe', 'al'] } },
         ],
       },
-      select: { id: true, coordinadorAdHocNombre: true, coordinadorAdHocTelefono: true, coordinadorAdHocNombre2: true, coordinadorAdHocTelefono2: true, tag: true, notas: true },
+      select: { id: true, coordinadorAdHocNombre: true, coordinadorAdHocTelefono: true, coordinadorAdHocCedula: true, coordinadorAdHocCorreo: true, coordinadorAdHocNombre2: true, coordinadorAdHocTelefono2: true, coordinadorAdHocCedula2: true, coordinadorAdHocCorreo2: true, tag: true, notas: true },
     });
 
     // 2. User-based coordinators — get all puesto IDs first, then scope+user
@@ -72,22 +74,26 @@ export class CoordinadorService {
     });
 
     // Merge: user-coord takes priority over adhoc for the same puesto
-    const result = new Map<number, { puestoId: number; nombre: string; telefono: string | null; nombre2: string | null; telefono2: string | null; tag: string | null; notas: string | null }>();
+    const result = new Map<number, { puestoId: number; nombre: string; telefono: string | null; cedula: string | null; correo: string | null; nombre2: string | null; telefono2: string | null; cedula2: string | null; correo2: string | null; tag: string | null; notas: string | null }>();
 
     for (const p of puestosAdhoc) {
       result.set(p.id, {
         puestoId: p.id,
         nombre: p.coordinadorAdHocNombre ?? '',
         telefono: p.coordinadorAdHocTelefono ?? null,
+        cedula: p.coordinadorAdHocCedula ?? null,
+        correo: p.coordinadorAdHocCorreo ?? null,
         nombre2: p.coordinadorAdHocNombre2 ?? null,
         telefono2: p.coordinadorAdHocTelefono2 ?? null,
+        cedula2: p.coordinadorAdHocCedula2 ?? null,
+        correo2: p.coordinadorAdHocCorreo2 ?? null,
         tag: p.tag ?? null,
         notas: p.notas ?? null,
       });
     }
     for (const uc of userCoords) {
       if (uc.user.active && uc.user.displayName) {
-        result.set(uc.scopeId, { puestoId: uc.scopeId, nombre: uc.user.displayName, telefono: uc.user.phone ?? null, nombre2: null, telefono2: null, tag: null, notas: null });
+        result.set(uc.scopeId, { puestoId: uc.scopeId, nombre: uc.user.displayName, telefono: uc.user.phone ?? null, cedula: null, correo: null, nombre2: null, telefono2: null, cedula2: null, correo2: null, tag: null, notas: null });
       }
     }
 
@@ -120,11 +126,13 @@ export class CoordinadorService {
 
     // Check for ad-hoc coordinator stored on the scope entity
     const adhocData = await this.getAdhocFields(scopeType, id);
-    if (adhocData.coordinadorAdHocNombre) {
+    if (adhocData['coordinadorAdHocNombre']) {
       return {
         source: 'adhoc',
-        nombre: adhocData.coordinadorAdHocNombre,
-        telefono: adhocData.coordinadorAdHocTelefono ?? null,
+        nombre: adhocData['coordinadorAdHocNombre'],
+        telefono: adhocData['coordinadorAdHocTelefono'] ?? null,
+        cedula: adhocData['coordinadorAdHocCedula'] ?? null,
+        correo: adhocData['coordinadorAdHocCorreo'] ?? null,
       };
     }
 
@@ -151,7 +159,7 @@ export class CoordinadorService {
     }
 
     const before = await this.getAdhocFields(scopeType, id);
-    await this.setAdhocFields(scopeType, id, dto.nombre ?? null, dto.telefono ?? null, dto.tag ?? null, dto.notas ?? null, dto.nombre2 ?? null, dto.telefono2 ?? null);
+    await this.setAdhocFields(scopeType, id, dto.nombre ?? null, dto.telefono ?? null, dto.tag ?? null, dto.notas ?? null, dto.nombre2 ?? null, dto.telefono2 ?? null, dto.cedula ?? null, dto.correo ?? null, dto.cedula2 ?? null, dto.correo2 ?? null);
     const after = await this.getAdhocFields(scopeType, id);
 
     await this.prisma.auditLog.create({
@@ -175,39 +183,28 @@ export class CoordinadorService {
     return this.display(scopeTypeRaw, id);
   }
 
-  private async getAdhocFields(
-    scopeType: ScopeType,
-    id: number,
-  ): Promise<{ coordinadorAdHocNombre: string | null; coordinadorAdHocTelefono: string | null; coordinadorAdHocNombre2?: string | null; coordinadorAdHocTelefono2?: string | null }> {
-    const select = {
-      coordinadorAdHocNombre: true,
-      coordinadorAdHocTelefono: true,
-    } as const;
+  private async getAdhocFields(scopeType: ScopeType, id: number): Promise<Record<string, string | null>> {
+    const selectBase = { coordinadorAdHocNombre: true, coordinadorAdHocTelefono: true } as const;
+    const selectComuna = { coordinadorAdHocNombre: true, coordinadorAdHocTelefono: true, coordinadorAdHocCedula: true, coordinadorAdHocCorreo: true } as const;
+    const selectPuesto = { coordinadorAdHocNombre: true, coordinadorAdHocTelefono: true, coordinadorAdHocCedula: true, coordinadorAdHocCorreo: true, coordinadorAdHocNombre2: true, coordinadorAdHocTelefono2: true, coordinadorAdHocCedula2: true, coordinadorAdHocCorreo2: true } as const;
 
-    const selectPuesto = {
-      coordinadorAdHocNombre: true,
-      coordinadorAdHocTelefono: true,
-      coordinadorAdHocNombre2: true,
-      coordinadorAdHocTelefono2: true,
-    } as const;
-
-    let row: { coordinadorAdHocNombre: string | null; coordinadorAdHocTelefono: string | null; coordinadorAdHocNombre2?: string | null; coordinadorAdHocTelefono2?: string | null } | null = null;
+    let row: Record<string, string | null> | null = null;
 
     switch (scopeType) {
       case ScopeType.MUNICIPIO:
-        row = await this.prisma.municipio.findUnique({ where: { id }, select });
+        row = await this.prisma.municipio.findUnique({ where: { id }, select: selectBase });
         break;
       case ScopeType.ZONA:
-        row = await this.prisma.zona.findUnique({ where: { id }, select });
+        row = await this.prisma.zona.findUnique({ where: { id }, select: selectBase });
         break;
       case ScopeType.COMUNA:
-        row = await this.prisma.comuna.findUnique({ where: { id }, select });
+        row = await this.prisma.comuna.findUnique({ where: { id }, select: selectComuna });
         break;
       case ScopeType.PUESTO:
         row = await this.prisma.puesto.findUnique({ where: { id }, select: selectPuesto });
         break;
       case ScopeType.SUBREGION:
-        row = await this.prisma.subregion.findUnique({ where: { id }, select });
+        row = await this.prisma.subregion.findUnique({ where: { id }, select: selectBase });
         break;
       default:
         throw new NotFoundException(`scopeType ${scopeType} does not support ad-hoc coordinators`);
@@ -226,17 +223,28 @@ export class CoordinadorService {
     notas: string | null = null,
     nombre2: string | null = null,
     telefono2: string | null = null,
+    cedula: string | null = null,
+    correo: string | null = null,
+    cedula2: string | null = null,
+    correo2: string | null = null,
   ): Promise<void> {
     const data: Record<string, string | null> = {
       coordinadorAdHocNombre: nombre,
       coordinadorAdHocTelefono: telefono,
     };
+    // cedula/correo exist on Puesto and Comuna
+    if (scopeType === ScopeType.PUESTO || scopeType === ScopeType.COMUNA) {
+      data['coordinadorAdHocCedula'] = cedula;
+      data['coordinadorAdHocCorreo'] = correo;
+    }
     // tag, notas, and coord2 only exist on Puesto
     if (scopeType === ScopeType.PUESTO) {
       data['tag'] = tag;
       data['notas'] = notas;
       data['coordinadorAdHocNombre2'] = nombre2;
       data['coordinadorAdHocTelefono2'] = telefono2;
+      data['coordinadorAdHocCedula2'] = cedula2;
+      data['coordinadorAdHocCorreo2'] = correo2;
     }
 
     switch (scopeType) {

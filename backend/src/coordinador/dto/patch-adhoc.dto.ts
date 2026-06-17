@@ -23,6 +23,16 @@ export class PatchAdhocDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(30)
+  cedula?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  correo?: string | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(200)
   nombre2?: string | null;
 
@@ -30,4 +40,14 @@ export class PatchAdhocDto {
   @IsString()
   @MaxLength(50)
   telefono2?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  cedula2?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  correo2?: string | null;
 }

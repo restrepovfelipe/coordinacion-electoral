@@ -104,6 +104,8 @@ model Comuna {
   zona                     Zona?        @relation(fields: [zonaId], references: [id])
   coordinadorAdHocNombre   String?
   coordinadorAdHocTelefono String?
+  coordinadorAdHocCedula   String?
+  coordinadorAdHocCorreo   String?
   puestos                  Puesto[]
   voluntarios              Voluntario[]
 
@@ -134,11 +136,15 @@ model Puesto {
   votantes                 Int              @default(0)
   tag                      String?
   notas                    String?
-  coordinadorAdHocNombre   String?
-  coordinadorAdHocTelefono String?
-  coordinadorAdHocNombre2  String?
+  coordinadorAdHocNombre    String?
+  coordinadorAdHocTelefono  String?
+  coordinadorAdHocCedula    String?
+  coordinadorAdHocCorreo    String?
+  coordinadorAdHocNombre2   String?
   coordinadorAdHocTelefono2 String?
-  testigos                 Testigo[]
+  coordinadorAdHocCedula2   String?
+  coordinadorAdHocCorreo2   String?
+  testigos                  Testigo[]
   jurados                  Jurado[]
   prioridad                PuestoPrioridad?
 
