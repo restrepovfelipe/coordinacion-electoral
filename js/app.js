@@ -2166,6 +2166,7 @@ async function startApp() {
   buildExcelMenu();
   buildMovPDFMenu();
   buildRefrigPDFMenu();
+  buildCoordFaltantesPDFMenu();
   loadCoordsForSubregions(); // load subregion coordinators in background
   startListener();
   if (typeof initInactivityDetection === 'function') initInactivityDetection();
@@ -2184,12 +2185,14 @@ function toggleExportMenu() { document.getElementById('export-menu').classList.t
 function toggleExcelMenu() { document.getElementById('excel-menu').classList.toggle('show'); }
 function toggleMovPDFMenu() { document.getElementById('mov-pdf-menu').classList.toggle('show'); }
 function toggleRefrigPDFMenu() { document.getElementById('refrig-pdf-menu').classList.toggle('show'); }
+function toggleCoordFaltantesPDFMenu() { document.getElementById('coord-faltantes-pdf-menu').classList.toggle('show'); }
 document.addEventListener('click', function (e) {
   if (!e.target.closest('.export-wrap')) {
     document.getElementById('export-menu').classList.remove('show');
     document.getElementById('excel-menu').classList.remove('show');
     const m = document.getElementById('mov-pdf-menu'); if (m) m.classList.remove('show');
     const r = document.getElementById('refrig-pdf-menu'); if (r) r.classList.remove('show');
+    const c = document.getElementById('coord-faltantes-pdf-menu'); if (c) c.classList.remove('show');
   }
 });
 
@@ -2285,6 +2288,118 @@ function buildRefrigPDFMenu() {
     valid.forEach(n => { html += `<div class="export-item" onclick="exportRefrigPDFMuni('${n}')">🏙️ ${n}</div>`; });
   });
   list.innerHTML = html;
+}
+
+// ═══ COORDINADORES FALTANTES PDF ═══
+function buildCoordFaltantesPDFMenu() {
+  const list = document.getElementById('coord-faltantes-pdf-list'); if (!list) return;
+  const sep = `<div style="height:1px;background:var(--b1);margin:4px 0"></div>`;
+  const lbl = t => `<div style="font-size:9px;color:var(--t3);padding:3px 10px;text-transform:uppercase;letter-spacing:1px">${t}</div>`;
+  let html = lbl('Por zona — Medellín');
+  MEDELLIN_ZONAS.forEach(z => {
+    html += `<div class="export-item" onclick="exportCoordFaltantesPDF('zona','MEDELLIN','${z.nombre.replace(/'/g, "\\'")}')">🗺 ${z.nombre}</div>`;
+  });
+  html += sep;
+  Object.entries(REGIONES).filter(([r]) => r !== 'AMVA').forEach(([region, munis]) => {
+    const valid = munis.filter(n => RAW[n]);
+    if (!valid.length) return;
+    html += lbl(region);
+    valid.forEach(n => { html += `<div class="export-item" onclick="exportCoordFaltantesPDF('muni','${n}')">🏙️ ${n}</div>`; });
+    html += sep;
+  });
+  list.innerHTML = html;
+}
+
+const _CF_CSS = `
+  body{font-family:Arial,sans-serif;font-size:11px;margin:20px 24px;color:#1a2030}
+  h1{font-size:17px;margin:0 0 2px;color:#1a2030}
+  .hdr{border-bottom:3px solid #e53935;padding-bottom:8px;margin-bottom:16px}
+  .hdr .meta{font-size:10px;color:#666;margin-top:3px}
+  .muni-title{background:#1a2030;color:#fff;font-size:13px;font-weight:700;padding:6px 10px;border-radius:4px;margin:16px 0 6px;page-break-inside:avoid}
+  .cc-title{color:#e53935;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #fce4e4;padding:4px 0 2px;margin:10px 0 4px}
+  table{width:100%;border-collapse:collapse;margin-bottom:8px}
+  th{background:#f5f5f5;font-size:10px;text-align:left;padding:4px 7px;border:1px solid #ddd;font-weight:600}
+  td{font-size:10px;padding:4px 7px;border:1px solid #eee;vertical-align:top}
+  tr:nth-child(even) td{background:#fafafa}
+  .badge{display:inline-block;background:#fce4e4;color:#c62828;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700}
+  .total{margin-top:14px;padding:8px 12px;background:#fff3f3;border:1px solid #f5c6c6;border-radius:5px;font-size:11px}
+  .total strong{color:#c62828;font-size:14px}
+  @media print{body{margin:10px 14px}.muni-title{page-break-before:auto}}
+`;
+
+function _coordFaltantesCollect(scope, n, extra) {
+  // Returns [{muni, comunas:[{ck, puestos:[{puesto,direccion,mesas}]}]}]
+  const results = [];
+
+  function addMuni(muniName) {
+    if (!RAW[muniName]) return;
+    const s = gs(muniName);
+    const comunasData = [];
+    const cks = scope === 'zona'
+      ? (MEDELLIN_ZONAS.find(z => z.nombre === extra)?.comunas || []).filter(ck => RAW[muniName]?.[ck])
+      : Object.keys(RAW[muniName]).sort();
+    cks.forEach(ck => {
+      const faltantes = (RAW[muniName][ck] || []).filter(p => {
+        const ps = (s.puestos || {})[pk(p)] || {};
+        return !ps.coord;
+      });
+      if (faltantes.length) comunasData.push({ ck, puestos: faltantes });
+    });
+    if (comunasData.length) results.push({ muni: muniName, comunas: comunasData });
+  }
+
+  if (scope === 'all') {
+    Object.keys(RAW).forEach(m => addMuni(m));
+  } else if (scope === 'zona') {
+    addMuni(n);
+  } else {
+    addMuni(n);
+  }
+  return results;
+}
+
+function exportCoordFaltantesPDF(scope, n, extra) {
+  const cf = document.getElementById('coord-faltantes-pdf-menu'); if (cf) cf.classList.remove('show');
+  const data = _coordFaltantesCollect(scope, n, extra);
+  const totalPuestos = data.reduce((s, m) => s + m.comunas.reduce((a, c) => a + c.puestos.length, 0), 0);
+  if (totalPuestos === 0) { alert('¡No hay puestos sin coordinador en este ámbito!'); return; }
+
+  const scopeLabel = scope === 'all' ? 'AMVA Completo'
+    : scope === 'zona' ? `Zona ${extra} — Medellín`
+    : (n === 'MEDELLIN' ? 'MEDELLÍN' : n);
+  const fecha = new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+  let body = `<div class="hdr">
+    <h1>🚨 Puestos sin coordinador — ${esc(scopeLabel)}</h1>
+    <div class="meta">Generado el ${fecha} · <strong>${totalPuestos}</strong> puestos pendientes de coordinador</div>
+  </div>`;
+
+  data.forEach(({ muni, comunas }) => {
+    const muniLabel = muni === 'MEDELLIN' ? 'MEDELLÍN' : muni;
+    const muniTotal = comunas.reduce((s, c) => s + c.puestos.length, 0);
+    body += `<div class="muni-title">${esc(muniLabel)} <span style="font-weight:400;font-size:11px;opacity:.8">(${muniTotal} puestos)</span></div>`;
+    comunas.forEach(({ ck, puestos }) => {
+      body += `<div class="cc-title">${esc(ck)} <span class="badge">${puestos.length}</span></div>`;
+      body += `<table><thead><tr><th>#</th><th>Puesto de votación</th><th>Dirección</th><th>Mesas</th></tr></thead><tbody>`;
+      puestos.forEach((p, i) => {
+        const divipole = `${String(p.dd).padStart(2,'0')}.${String(p.mm).padStart(3,'0')}.${String(p.zz).padStart(2,'0')}.${String(p.pp).padStart(2,'0')}`;
+        body += `<tr>
+          <td style="color:#999;width:24px">${i+1}</td>
+          <td><b>${esc(p.puesto)}</b><br><span style="color:#999;font-size:9px">${divipole}</span></td>
+          <td>${esc(p.direccion)}</td>
+          <td style="text-align:center">${p.mesas || 0}</td>
+        </tr>`;
+      });
+      body += `</tbody></table>`;
+    });
+  });
+
+  body += `<div class="total">Total puestos sin coordinador: <strong>${totalPuestos}</strong></div>`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sin Coordinador — ${esc(scopeLabel)}</title>
+    <style>${_CF_CSS}</style></head><body>${body}</body></html>`;
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(html); win.document.close(); win.focus(); setTimeout(() => win.print(), 600);
 }
 
 // ── Refrigerios PDF CSS & helpers ────────────────────────────────────
