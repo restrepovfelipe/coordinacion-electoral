@@ -2026,10 +2026,14 @@ function renderDirectorio() {
     Object.keys(RAW[n]).sort().forEach(ck => {
       const sc = (s.comunas || {})[ck] || {};
       const items = [];
-      if (sc.coord) items.push({ rol: 'Coord. zona/comuna', nombre: sc.coord, phone: sc.phone || '' });
+      if (sc.coord) items.push({ rol: 'Coord. zona/comuna', nombre: sc.coord, phone: sc.phone || '', sinCoord: false });
       RAW[n][ck].forEach(p => {
         const ps = (s.puestos || {})[pk(p)] || {};
-        if (ps.coord) items.push({ rol: 'Coord. puesto · ' + p.puesto, nombre: ps.coord, phone: ps.phone || '' });
+        if (ps.coord) {
+          items.push({ rol: 'Coord. puesto · ' + p.puesto, nombre: ps.coord, phone: ps.phone || '', sinCoord: false });
+        } else {
+          items.push({ rol: 'Coord. puesto · ' + p.puesto, nombre: null, phone: '', sinCoord: true });
+        }
       });
       if (!items.length) return;
       const ckE = ck.replace(/'/g, "\\'");
@@ -2038,10 +2042,16 @@ function renderDirectorio() {
           <h3 style="margin:0;font-size:13px">${esc(ck)}</h3>
           <button class="export-btn" style="font-size:11px;padding:3px 10px" onclick="exportDirectorioSeccionPDF('${n}','${ckE}')">📄 PDF</button>
         </div>
-        ${items.map(it => `<div class="dir-row">
-          <div><div class="dir-name">${esc(it.nombre)}</div><div class="dir-role">${esc(it.rol)}</div></div>
-          <div class="dir-phone">${it.phone ? esc(it.phone) : '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
-        </div>`).join('')}</div>`;
+        ${items.map(it => it.sinCoord
+          ? `<div class="dir-row" style="opacity:.55">
+              <div><div class="dir-name" style="color:var(--t3);font-style:italic">Sin coordinador</div><div class="dir-role">${esc(it.rol)}</div></div>
+              <div class="dir-phone" style="color:var(--t3)">—</div>
+            </div>`
+          : `<div class="dir-row">
+              <div><div class="dir-name">${esc(it.nombre)}</div><div class="dir-role">${esc(it.rol)}</div></div>
+              <div class="dir-phone">${it.phone ? esc(it.phone) : '<span style="color:var(--t3)">Sin teléfono</span>'}</div>
+            </div>`
+        ).join('')}</div>`;
     });
   });
   if (!html) html = '<div class="dir-empty">Aún no hay coordinadores registrados.</div>';
@@ -2057,7 +2067,7 @@ function _dirCoordRows(n, ckFilter) {
     if (sc.coord) items.push({ rol: 'Coord. zona/comuna', nombre: sc.coord, phone: sc.phone || '', zona: ck });
     RAW[n][ck].forEach(p => {
       const ps = (s.puestos || {})[pk(p)] || {};
-      if (ps.coord) items.push({ rol: 'Coord. puesto', nombre: ps.coord, phone: ps.phone || '', zona: p.puesto });
+      items.push({ rol: 'Coord. puesto', nombre: ps.coord || '(Sin coordinador)', phone: ps.phone || '', zona: p.puesto, sinCoord: !ps.coord });
     });
   });
   return items;
@@ -2084,7 +2094,7 @@ function _dirSectionHTML(label, items) {
         <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Zona / Comuna</th>
         <th style="padding:5px 8px;text-align:left;border:1px solid #ddd">Teléfono</th>
       </tr>
-      ${items.map(it => `<tr>
+      ${items.map(it => `<tr style="${it.sinCoord ? 'color:#aaa;font-style:italic' : ''}">
         <td style="padding:5px 8px;border:1px solid #ddd">${esc(it.nombre)}</td>
         <td style="padding:5px 8px;border:1px solid #ddd">${esc(it.rol)}</td>
         <td style="padding:5px 8px;border:1px solid #ddd">${esc(it.zona) || '—'}</td>
