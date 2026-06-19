@@ -745,66 +745,57 @@ async function _openPendientesModal() {
 
 // ── PDF export por comuna ──────────────────────────────────────────────────
 async function _exportPDFComuna() {
-  if (!_tComunaId && !_tMunicipioId) {
-    alert('Selecciona primero una comuna o municipio para exportar el PDF.');
+  if (!_tComunaId) {
+    alert('Selecciona primero una comuna en el filtro para exportar el PDF por comuna.');
     return;
   }
 
-  const comunaNombre = _tComunaId
-    ? (_tComunasList.find(c => c.id === _tComunaId)?.name || `Comuna ${_tComunaId}`)
-    : null;
-  const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || `Municipio ${_tMunicipioId}`) : null;
-  const tituloFiltro = comunaNombre ? `${muniNombre} — ${comunaNombre}` : muniNombre;
+  const comunaNombre = _tComunasList.find(c => c.id === _tComunaId)?.name || `Comuna ${_tComunaId}`;
+  const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || `Municipio ${_tMunicipioId}`) : '';
+  const tituloFiltro = muniNombre ? `${muniNombre} — ${comunaNombre}` : comunaNombre;
 
-  // Open the window immediately (must be synchronous relative to user click)
+  // Open window immediately (popup must be synchronous with user click)
   const win = window.open('', '_blank', 'width=950,height=750');
   if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cargando...</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">Cargando testigos...</body></html>`);
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cargando...</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">Cargando testigos de ${esc(tituloFiltro)}...</body></html>`);
 
-  // Fetch ALL testigos for this filter (no pagination cap)
-  let all = [];
-  try {
-    let page = 1;
-    const limit = 200;
-    let total = Infinity;
-    while (all.length < total) {
-      let url = `/testigos?page=${page}&limit=${limit}`;
-      if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
-      else if (_tComunaId) url += `&comunaId=${_tComunaId}`;
-      else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
-      if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
-      const result = await window.api.get(url);
-      const data = result.data || [];
-      total = result.total || 0;
-      all = all.concat(data);
-      if (data.length < limit) break;
-      page++;
+  // Get puestos for this commune from cache (loaded when user selected the commune)
+  const cacheKey = `${_tMunicipioId}:${_tComunaId}`;
+  let puestosComuna = _tPuestosCache[cacheKey];
+  if (!puestosComuna) {
+    try {
+      puestosComuna = await window.api.get(`/puestos?municipioId=${_tMunicipioId}&comunaId=${_tComunaId}`);
+      _tPuestosCache[cacheKey] = puestosComuna;
+    } catch (err) {
+      win.document.write(`<p style="color:red">Error cargando puestos: ${err.message || ''}</p>`);
+      return;
     }
+  }
+
+  if (!puestosComuna || !puestosComuna.length) {
+    win.document.write(`<p>No se encontraron puestos para esta comuna.</p>`);
+    return;
+  }
+
+  // Fetch testigos for each puesto in parallel (endpoint returns ALL, no pagination)
+  let grupos = [];
+  try {
+    const results = await Promise.all(
+      puestosComuna.map(p =>
+        window.api.get(`/puestos/${p.id}/testigos`).then(ts => ({ puesto: p, testigos: ts || [] }))
+      )
+    );
+    grupos = results.filter(g => g.testigos.length > 0);
   } catch (err) {
     win.document.write(`<p style="color:red">Error cargando testigos: ${err.message || ''}</p>`);
     return;
   }
 
-  if (!all.length) {
-    win.document.write(`<p>No hay testigos para exportar con los filtros actuales.</p>`);
-    return;
-  }
-
-  // Group by puesto
-  const byPuesto = {};
-  const puestoOrder = [];
-  for (const t of all) {
-    const pKey = t.puestoId || '__sin_puesto__';
-    const pName = t.puesto ? t.puesto.name : 'Sin puesto asignado';
-    if (!byPuesto[pKey]) { byPuesto[pKey] = { name: pName, testigos: [] }; puestoOrder.push(pKey); }
-    byPuesto[pKey].testigos.push(t);
-  }
-
+  const totalTestigos = grupos.reduce((s, g) => s + g.testigos.length, 0);
   const now = new Date().toLocaleString('es-CO');
 
-  const sections = puestoOrder.map(pk => {
-    const g = byPuesto[pk];
-    const rows = g.testigos.map((t, i) => `
+  const sections = grupos.map(({ puesto, testigos }) => {
+    const rows = testigos.map((t, i) => `
       <tr>
         <td style="text-align:center">${i + 1}</td>
         <td>${esc(t.name || '—')}</td>
@@ -816,7 +807,7 @@ async function _exportPDFComuna() {
     `).join('');
     return `
       <div class="puesto-block">
-        <div class="puesto-name">📍 ${esc(g.name)} <span class="puesto-count">(${g.testigos.length} testigo${g.testigos.length === 1 ? '' : 's'})</span></div>
+        <div class="puesto-name">📍 ${esc(puesto.name)} <span class="puesto-count">(${testigos.length} testigo${testigos.length === 1 ? '' : 's'})</span></div>
         <table>
           <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Correo</th><th>Estado</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -825,8 +816,12 @@ async function _exportPDFComuna() {
     `;
   }).join('');
 
+  const noTestigosMsg = grupos.length === 0
+    ? `<p style="color:#888;font-style:italic">No hay testigos registrados en ningún puesto de esta comuna.</p>`
+    : '';
+
   win.document.open();
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${tituloFiltro}</title>
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${esc(tituloFiltro)}</title>
     <style>
       body{font-family:Arial,sans-serif;padding:20px;font-size:12px;color:#111}
       h1{font-size:17px;margin-bottom:3px}
@@ -841,9 +836,9 @@ async function _exportPDFComuna() {
       @media print{body{padding:8px}.puesto-block{page-break-inside:avoid}}
     </style>
   </head><body>
-    <h1>🧾 Testigos por puesto — ${esc(tituloFiltro || 'AMVA')}</h1>
-    <div class="sub">Generado: ${now} | Total: ${all.length} testigos en ${puestoOrder.length} puesto${puestoOrder.length === 1 ? '' : 's'}</div>
-    ${sections}
+    <h1>🧾 Testigos por puesto — ${esc(tituloFiltro)}</h1>
+    <div class="sub">Generado: ${now} | Total: ${totalTestigos} testigos en ${grupos.length} puesto${grupos.length === 1 ? '' : 's'} con testigos (de ${puestosComuna.length} puestos en la comuna)</div>
+    ${noTestigosMsg}${sections}
   </body></html>`);
   win.document.close();
   win.focus();
