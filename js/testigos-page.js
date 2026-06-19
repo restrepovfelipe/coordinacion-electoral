@@ -809,10 +809,33 @@ function _toggleComunasPDFMenu() {
   menu.style.display = 'block';
 }
 
-function _buildComunaHTML(tituloFiltro, puestosComuna, grupos) {
+// Cache for puestos-by-muni coordinator data  { municipioId -> Map<puestoId, coord> }
+const _tCoordByPuestoCache = {};
+
+function _coordLine(nombre, telefono, label) {
+  if (!nombre) return '';
+  const tel = telefono ? ` · ${esc(telefono)}` : '';
+  return `<div class="coord-line"><span class="coord-label">${label}:</span> ${esc(nombre)}${tel}</div>`;
+}
+
+function _buildComunaHTML(tituloFiltro, puestosComuna, grupos, coords) {
+  // coords: { comunaCoord, zonaCoord, puestoCoords: Map<id,{nombre,telefono,nombre2,telefono2}> }
+  const { comunaCoord, zonaCoord, puestoCoords } = coords || {};
   const now = new Date().toLocaleString('es-CO');
   const totalTestigos = grupos.reduce((s, g) => s + g.testigos.length, 0);
+
+  const coordHeader = [
+    _coordLine(zonaCoord?.nombre, zonaCoord?.telefono, 'Coord. Zona'),
+    _coordLine(comunaCoord?.nombre, comunaCoord?.telefono, 'Coord. Comuna'),
+  ].filter(Boolean).join('');
+
   const sections = grupos.map(({ puesto, testigos }) => {
+    const pc = puestoCoords?.get(puesto.id);
+    const pCoordLines = [
+      _coordLine(pc?.nombre || null, pc?.telefono || null, 'Coord. 1'),
+      _coordLine(pc?.nombre2 || null, pc?.telefono2 || null, 'Coord. 2'),
+    ].filter(Boolean).join('');
+
     const rows = testigos.map((t, i) => `
       <tr>
         <td style="text-align:center">${i + 1}</td>
@@ -826,6 +849,7 @@ function _buildComunaHTML(tituloFiltro, puestosComuna, grupos) {
     return `
       <div class="puesto-block">
         <div class="puesto-name">📍 ${esc(puesto.name)} <span class="puesto-count">(${testigos.length} testigo${testigos.length === 1 ? '' : 's'})</span></div>
+        ${pCoordLines ? `<div class="puesto-coords">${pCoordLines}</div>` : ''}
         <table>
           <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Correo</th><th>Estado</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -833,13 +857,19 @@ function _buildComunaHTML(tituloFiltro, puestosComuna, grupos) {
       </div>
     `;
   }).join('');
+
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${esc(tituloFiltro)}</title>
     <style>
       body{font-family:Arial,sans-serif;padding:20px;font-size:12px;color:#111}
       h1{font-size:17px;margin-bottom:3px}
-      .sub{font-size:10px;color:#666;margin-bottom:18px}
+      .sub{font-size:10px;color:#666;margin-bottom:10px}
+      .coord-header{background:#eef2f9;border:1px solid #c5d0e8;border-radius:6px;padding:8px 12px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap}
+      .coord-line{font-size:11px;color:#1a3a6e}
+      .coord-label{font-weight:700}
       .puesto-block{margin-bottom:22px;page-break-inside:avoid}
-      .puesto-name{font-size:13px;font-weight:700;color:#1a3a6e;margin-bottom:6px;border-left:4px solid #1a3a6e;padding-left:8px}
+      .puesto-name{font-size:13px;font-weight:700;color:#1a3a6e;margin-bottom:4px;border-left:4px solid #1a3a6e;padding-left:8px}
+      .puesto-coords{margin:2px 0 6px 12px;display:flex;gap:16px;flex-wrap:wrap}
+      .puesto-coords .coord-line{font-size:10px;color:#444}
       .puesto-count{font-weight:400;font-size:11px;color:#555}
       table{width:100%;border-collapse:collapse;margin-bottom:4px}
       th{background:#e8edf5;padding:4px 7px;text-align:left;border:1px solid #ccc;font-size:10px;text-transform:uppercase;color:#1a3a6e}
@@ -850,24 +880,50 @@ function _buildComunaHTML(tituloFiltro, puestosComuna, grupos) {
   </head><body>
     <h1>🧾 Testigos por puesto — ${esc(tituloFiltro)}</h1>
     <div class="sub">Generado: ${now} | Total: ${totalTestigos} testigos en ${grupos.length} puesto${grupos.length === 1 ? '' : 's'} con testigos (de ${puestosComuna.length} en la comuna)</div>
+    ${coordHeader ? `<div class="coord-header">${coordHeader}</div>` : ''}
     ${grupos.length === 0 ? '<p style="color:#888;font-style:italic">No hay testigos registrados en ningún puesto de esta comuna.</p>' : sections}
   </body></html>`;
 }
 
-async function _fetchComunaGrupos(municipioId, comunaId) {
+async function _fetchComunaGrupos(municipioId, comunaId, zonaId) {
   const cacheKey = `${municipioId}:${comunaId}`;
   let puestosComuna = _tPuestosCache[cacheKey];
   if (!puestosComuna) {
     puestosComuna = await window.api.get(`/puestos?municipioId=${municipioId}&comunaId=${comunaId}`);
     _tPuestosCache[cacheKey] = puestosComuna;
   }
-  if (!puestosComuna || !puestosComuna.length) return { puestosComuna: [], grupos: [] };
-  const results = await Promise.all(
-    puestosComuna.map(p =>
-      window.api.get(`/puestos/${p.id}/testigos`).then(ts => ({ puesto: p, testigos: ts || [] }))
-    )
-  );
-  return { puestosComuna, grupos: results.filter(g => g.testigos.length > 0) };
+  if (!puestosComuna || !puestosComuna.length) return { puestosComuna: [], grupos: [], coords: {} };
+
+  // Fetch testigos + coordinator data in parallel
+  const [testigosResults, coordByPuesto, comunaCoord, zonaCoord] = await Promise.all([
+    Promise.all(
+      puestosComuna.map(p =>
+        window.api.get(`/puestos/${p.id}/testigos`).then(ts => ({ puesto: p, testigos: ts || [] }))
+      )
+    ),
+    // Puesto coordinators: fetch puestos-by-muni once and cache
+    (async () => {
+      if (!_tCoordByPuestoCache[municipioId]) {
+        const data = await window.api.get(`/coordinador/puestos-by-muni/${municipioId}`);
+        const map = new Map();
+        (data || []).forEach(d => map.set(d.puestoId, d));
+        _tCoordByPuestoCache[municipioId] = map;
+      }
+      return _tCoordByPuestoCache[municipioId];
+    })(),
+    window.api.get(`/coordinador/COMUNA/${comunaId}/display`).catch(() => null),
+    zonaId ? window.api.get(`/coordinador/ZONA/${zonaId}/display`).catch(() => null) : Promise.resolve(null),
+  ]);
+
+  return {
+    puestosComuna,
+    grupos: testigosResults.filter(g => g.testigos.length > 0),
+    coords: {
+      puestoCoords: coordByPuesto,
+      comunaCoord: comunaCoord?.nombre ? comunaCoord : null,
+      zonaCoord: zonaCoord?.nombre ? zonaCoord : null,
+    },
+  };
 }
 
 function _triggerHTMLDownload(html, filename) {
@@ -911,9 +967,9 @@ async function _downloadAllComunasPDF() {
   for (const comuna of comunas) {
     progEl.textContent = `⬇️ Descargando ${done + 1}/${comunas.length}: ${comuna.name}...`;
     try {
-      const { puestosComuna, grupos } = await _fetchComunaGrupos(_tMunicipioId, comuna.id);
+      const { puestosComuna, grupos, coords } = await _fetchComunaGrupos(_tMunicipioId, comuna.id, comuna.zonaId);
       const titulo = `${muniNombre} — ${comuna.name}`;
-      const html = _buildComunaHTML(titulo, puestosComuna, grupos);
+      const html = _buildComunaHTML(titulo, puestosComuna, grupos, coords);
       const filename = `testigos_${safeStr(muniNombre)}_${safeStr(comuna.name)}.html`;
       _triggerHTMLDownload(html, filename);
       await new Promise(r => setTimeout(r, 400)); // small delay between downloads
@@ -930,14 +986,15 @@ async function _downloadAllComunasPDF() {
 async function _exportPDFComunaById(comunaId, comunaNombre) {
   const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || '') : '';
   const tituloFiltro = muniNombre ? `${muniNombre} — ${comunaNombre}` : comunaNombre;
+  const zonaId = (_tComunasCache[_tMunicipioId] || []).find(c => c.id === comunaId)?.zonaId || null;
 
   const win = window.open('', '_blank', 'width=950,height=750');
   if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cargando...</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">Cargando testigos de ${esc(tituloFiltro)}...</body></html>`);
 
   try {
-    const { puestosComuna, grupos } = await _fetchComunaGrupos(_tMunicipioId, comunaId);
-    const html = _buildComunaHTML(tituloFiltro, puestosComuna, grupos);
+    const { puestosComuna, grupos, coords } = await _fetchComunaGrupos(_tMunicipioId, comunaId, zonaId);
+    const html = _buildComunaHTML(tituloFiltro, puestosComuna, grupos, coords);
     win.document.open();
     win.document.write(html);
     win.document.close();
