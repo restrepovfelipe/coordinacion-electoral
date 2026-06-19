@@ -57,7 +57,7 @@ function _buildPanelHTML() {
           <button class="dir-pdf" data-action="t-export-pdf-comuna">🏘️ PDF por comuna</button>
           <div style="position:relative;display:inline-block">
             <button class="dir-pdf" data-action="t-toggle-comunas-menu">📦 PDF comunas ▾</button>
-            <div id="t-comunas-pdf-menu" style="display:none;position:absolute;top:calc(100%+4px);right:0;z-index:400;background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;min-width:220px;max-height:340px;overflow-y:auto;box-shadow:0 4px 18px rgba(0,0,0,.18);padding:4px 0">
+            <div id="t-comunas-pdf-menu" style="display:none;position:absolute;top:calc(100%+4px);right:0;z-index:400;background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;min-width:240px;max-height:360px;overflow-y:auto;box-shadow:0 4px 18px rgba(0,0,0,.18);padding:4px 0">
               <div id="t-comunas-pdf-list" style="padding:6px 10px;font-size:11px;color:var(--t3)">Selecciona un municipio primero</div>
             </div>
           </div>
@@ -303,6 +303,9 @@ function _attachListeners() {
       _exportPDFComuna();
     } else if (action === 't-toggle-comunas-menu') {
       _toggleComunasPDFMenu();
+    } else if (action === 't-download-all-comunas') {
+      document.getElementById('t-comunas-pdf-menu').style.display = 'none';
+      _downloadAllComunasPDF();
     } else if (action === 't-export-pdf-comuna-item') {
       const comunaId = Number(btn.dataset.comunaId);
       const comunaNombre = btn.dataset.comunaNombre || '';
@@ -788,10 +791,17 @@ function _toggleComunasPDFMenu() {
   }
 
   const muniNombre = _tMunicipiosMap[_tMunicipioId] || `Municipio ${_tMunicipioId}`;
-  list.innerHTML = `<div style="padding:6px 12px 4px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">${esc(muniNombre)}</div>`
+  list.innerHTML =
+    `<div data-action="t-download-all-comunas"
+        style="padding:9px 14px;font-size:12px;cursor:pointer;color:#fff;background:#1a3a6e;font-weight:600;border-radius:4px;margin:6px 8px 2px;text-align:center"
+        onmouseover="this.style.background='#122a55'" onmouseout="this.style.background='#1a3a6e'">
+        ⬇️ Descargar todas las comunas
+      </div>
+      <div style="height:1px;background:var(--bdr);margin:6px 0 2px"></div>
+      <div style="padding:4px 12px 2px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">${esc(muniNombre)}</div>`
     + comunas.map(c => `
       <div data-action="t-export-pdf-comuna-item" data-comuna-id="${c.id}" data-comuna-nombre="${esc(c.name)}"
-        style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--fg);transition:background .12s"
+        style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--fg)"
         onmouseover="this.style.background='var(--bg3,#eee)'" onmouseout="this.style.background=''">
         🏘️ ${esc(c.name)}
       </div>
@@ -799,48 +809,9 @@ function _toggleComunasPDFMenu() {
   menu.style.display = 'block';
 }
 
-async function _exportPDFComunaById(comunaId, comunaNombre) {
-  const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || '') : '';
-  const tituloFiltro = muniNombre ? `${muniNombre} — ${comunaNombre}` : comunaNombre;
-
-  const win = window.open('', '_blank', 'width=950,height=750');
-  if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cargando...</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">Cargando testigos de ${esc(tituloFiltro)}...</body></html>`);
-
-  // Get puestos for this commune
-  const cacheKey = `${_tMunicipioId}:${comunaId}`;
-  let puestosComuna = _tPuestosCache[cacheKey];
-  if (!puestosComuna) {
-    try {
-      puestosComuna = await window.api.get(`/puestos?municipioId=${_tMunicipioId}&comunaId=${comunaId}`);
-      _tPuestosCache[cacheKey] = puestosComuna;
-    } catch (err) {
-      win.document.write(`<p style="color:red">Error cargando puestos: ${err.message || ''}</p>`);
-      return;
-    }
-  }
-
-  if (!puestosComuna || !puestosComuna.length) {
-    win.document.write(`<p>No se encontraron puestos para esta comuna.</p>`);
-    return;
-  }
-
-  let grupos = [];
-  try {
-    const results = await Promise.all(
-      puestosComuna.map(p =>
-        window.api.get(`/puestos/${p.id}/testigos`).then(ts => ({ puesto: p, testigos: ts || [] }))
-      )
-    );
-    grupos = results.filter(g => g.testigos.length > 0);
-  } catch (err) {
-    win.document.write(`<p style="color:red">Error cargando testigos: ${err.message || ''}</p>`);
-    return;
-  }
-
-  const totalTestigos = grupos.reduce((s, g) => s + g.testigos.length, 0);
+function _buildComunaHTML(tituloFiltro, puestosComuna, grupos) {
   const now = new Date().toLocaleString('es-CO');
-
+  const totalTestigos = grupos.reduce((s, g) => s + g.testigos.length, 0);
   const sections = grupos.map(({ puesto, testigos }) => {
     const rows = testigos.map((t, i) => `
       <tr>
@@ -862,9 +833,7 @@ async function _exportPDFComunaById(comunaId, comunaNombre) {
       </div>
     `;
   }).join('');
-
-  win.document.open();
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${esc(tituloFiltro)}</title>
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${esc(tituloFiltro)}</title>
     <style>
       body{font-family:Arial,sans-serif;padding:20px;font-size:12px;color:#111}
       h1{font-size:17px;margin-bottom:3px}
@@ -882,10 +851,101 @@ async function _exportPDFComunaById(comunaId, comunaNombre) {
     <h1>🧾 Testigos por puesto — ${esc(tituloFiltro)}</h1>
     <div class="sub">Generado: ${now} | Total: ${totalTestigos} testigos en ${grupos.length} puesto${grupos.length === 1 ? '' : 's'} con testigos (de ${puestosComuna.length} en la comuna)</div>
     ${grupos.length === 0 ? '<p style="color:#888;font-style:italic">No hay testigos registrados en ningún puesto de esta comuna.</p>' : sections}
-  </body></html>`);
-  win.document.close();
-  win.focus();
-  setTimeout(() => win.print(), 600);
+  </body></html>`;
+}
+
+async function _fetchComunaGrupos(municipioId, comunaId) {
+  const cacheKey = `${municipioId}:${comunaId}`;
+  let puestosComuna = _tPuestosCache[cacheKey];
+  if (!puestosComuna) {
+    puestosComuna = await window.api.get(`/puestos?municipioId=${municipioId}&comunaId=${comunaId}`);
+    _tPuestosCache[cacheKey] = puestosComuna;
+  }
+  if (!puestosComuna || !puestosComuna.length) return { puestosComuna: [], grupos: [] };
+  const results = await Promise.all(
+    puestosComuna.map(p =>
+      window.api.get(`/puestos/${p.id}/testigos`).then(ts => ({ puesto: p, testigos: ts || [] }))
+    )
+  );
+  return { puestosComuna, grupos: results.filter(g => g.testigos.length > 0) };
+}
+
+function _triggerHTMLDownload(html, filename) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function _downloadAllComunasPDF() {
+  if (!_tMunicipioId) {
+    alert('Selecciona primero un municipio.');
+    return;
+  }
+
+  const comunas = _tComunasCache[_tMunicipioId];
+  if (!comunas || !comunas.length) {
+    alert('No hay comunas cargadas para este municipio. Selecciónalo primero en el filtro.');
+    return;
+  }
+
+  const muniNombre = _tMunicipiosMap[_tMunicipioId] || `Municipio ${_tMunicipioId}`;
+  const safeStr = s => s.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s-]/g, '').trim().replace(/\s+/g, '_');
+
+  // Show progress indicator
+  const progressId = 't-download-progress';
+  let progEl = document.getElementById(progressId);
+  if (!progEl) {
+    progEl = document.createElement('div');
+    progEl.id = progressId;
+    progEl.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#1a3a6e;color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.3)';
+    document.body.appendChild(progEl);
+  }
+
+  let done = 0;
+  for (const comuna of comunas) {
+    progEl.textContent = `⬇️ Descargando ${done + 1}/${comunas.length}: ${comuna.name}...`;
+    try {
+      const { puestosComuna, grupos } = await _fetchComunaGrupos(_tMunicipioId, comuna.id);
+      const titulo = `${muniNombre} — ${comuna.name}`;
+      const html = _buildComunaHTML(titulo, puestosComuna, grupos);
+      const filename = `testigos_${safeStr(muniNombre)}_${safeStr(comuna.name)}.html`;
+      _triggerHTMLDownload(html, filename);
+      await new Promise(r => setTimeout(r, 400)); // small delay between downloads
+    } catch (err) {
+      console.error(`Error descargando ${comuna.name}:`, err);
+    }
+    done++;
+  }
+
+  progEl.textContent = `✅ ${done} archivos descargados`;
+  setTimeout(() => progEl.remove(), 3000);
+}
+
+async function _exportPDFComunaById(comunaId, comunaNombre) {
+  const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || '') : '';
+  const tituloFiltro = muniNombre ? `${muniNombre} — ${comunaNombre}` : comunaNombre;
+
+  const win = window.open('', '_blank', 'width=950,height=750');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cargando...</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">Cargando testigos de ${esc(tituloFiltro)}...</body></html>`);
+
+  try {
+    const { puestosComuna, grupos } = await _fetchComunaGrupos(_tMunicipioId, comunaId);
+    const html = _buildComunaHTML(tituloFiltro, puestosComuna, grupos);
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 600);
+  } catch (err) {
+    win.document.write(`<p style="color:red">Error: ${err.message || ''}</p>`);
+  }
 }
 
 // ── PDF export por comuna ──────────────────────────────────────────────────
@@ -894,100 +954,8 @@ async function _exportPDFComuna() {
     alert('Selecciona primero una comuna en el filtro para exportar el PDF por comuna.');
     return;
   }
-
   const comunaNombre = _tComunasList.find(c => c.id === _tComunaId)?.name || `Comuna ${_tComunaId}`;
-  const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || `Municipio ${_tMunicipioId}`) : '';
-  const tituloFiltro = muniNombre ? `${muniNombre} — ${comunaNombre}` : comunaNombre;
-
-  // Open window immediately (popup must be synchronous with user click)
-  const win = window.open('', '_blank', 'width=950,height=750');
-  if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cargando...</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">Cargando testigos de ${esc(tituloFiltro)}...</body></html>`);
-
-  // Get puestos for this commune from cache (loaded when user selected the commune)
-  const cacheKey = `${_tMunicipioId}:${_tComunaId}`;
-  let puestosComuna = _tPuestosCache[cacheKey];
-  if (!puestosComuna) {
-    try {
-      puestosComuna = await window.api.get(`/puestos?municipioId=${_tMunicipioId}&comunaId=${_tComunaId}`);
-      _tPuestosCache[cacheKey] = puestosComuna;
-    } catch (err) {
-      win.document.write(`<p style="color:red">Error cargando puestos: ${err.message || ''}</p>`);
-      return;
-    }
-  }
-
-  if (!puestosComuna || !puestosComuna.length) {
-    win.document.write(`<p>No se encontraron puestos para esta comuna.</p>`);
-    return;
-  }
-
-  // Fetch testigos for each puesto in parallel (endpoint returns ALL, no pagination)
-  let grupos = [];
-  try {
-    const results = await Promise.all(
-      puestosComuna.map(p =>
-        window.api.get(`/puestos/${p.id}/testigos`).then(ts => ({ puesto: p, testigos: ts || [] }))
-      )
-    );
-    grupos = results.filter(g => g.testigos.length > 0);
-  } catch (err) {
-    win.document.write(`<p style="color:red">Error cargando testigos: ${err.message || ''}</p>`);
-    return;
-  }
-
-  const totalTestigos = grupos.reduce((s, g) => s + g.testigos.length, 0);
-  const now = new Date().toLocaleString('es-CO');
-
-  const sections = grupos.map(({ puesto, testigos }) => {
-    const rows = testigos.map((t, i) => `
-      <tr>
-        <td style="text-align:center">${i + 1}</td>
-        <td>${esc(t.name || '—')}</td>
-        <td>${esc(t.cedula || '—')}</td>
-        <td>${esc(t.phone || '—')}</td>
-        <td>${esc(t.correo || '—')}</td>
-        <td style="text-align:center">${esc(t.status || '—')}</td>
-      </tr>
-    `).join('');
-    return `
-      <div class="puesto-block">
-        <div class="puesto-name">📍 ${esc(puesto.name)} <span class="puesto-count">(${testigos.length} testigo${testigos.length === 1 ? '' : 's'})</span></div>
-        <table>
-          <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Correo</th><th>Estado</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    `;
-  }).join('');
-
-  const noTestigosMsg = grupos.length === 0
-    ? `<p style="color:#888;font-style:italic">No hay testigos registrados en ningún puesto de esta comuna.</p>`
-    : '';
-
-  win.document.open();
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${esc(tituloFiltro)}</title>
-    <style>
-      body{font-family:Arial,sans-serif;padding:20px;font-size:12px;color:#111}
-      h1{font-size:17px;margin-bottom:3px}
-      .sub{font-size:10px;color:#666;margin-bottom:18px}
-      .puesto-block{margin-bottom:22px;page-break-inside:avoid}
-      .puesto-name{font-size:13px;font-weight:700;color:#1a3a6e;margin-bottom:6px;border-left:4px solid #1a3a6e;padding-left:8px}
-      .puesto-count{font-weight:400;font-size:11px;color:#555}
-      table{width:100%;border-collapse:collapse;margin-bottom:4px}
-      th{background:#e8edf5;padding:4px 7px;text-align:left;border:1px solid #ccc;font-size:10px;text-transform:uppercase;color:#1a3a6e}
-      td{padding:4px 7px;border:1px solid #ddd;font-size:11px}
-      tr:nth-child(even) td{background:#f7f9fc}
-      @media print{body{padding:8px}.puesto-block{page-break-inside:avoid}}
-    </style>
-  </head><body>
-    <h1>🧾 Testigos por puesto — ${esc(tituloFiltro)}</h1>
-    <div class="sub">Generado: ${now} | Total: ${totalTestigos} testigos en ${grupos.length} puesto${grupos.length === 1 ? '' : 's'} con testigos (de ${puestosComuna.length} puestos en la comuna)</div>
-    ${noTestigosMsg}${sections}
-  </body></html>`);
-  win.document.close();
-  win.focus();
-  setTimeout(() => win.print(), 600);
+  _exportPDFComunaById(_tComunaId, comunaNombre);
 }
 
 // ── PDF export ─────────────────────────────────────────────────────────────
