@@ -54,6 +54,7 @@ function _buildPanelHTML() {
         </div>
         <div class="dir-hd-btns">
           <button class="dir-pdf" data-action="t-send-pendientes">📲 Enviar a pendientes</button>
+          <button class="dir-pdf" data-action="t-export-pdf-comuna">🏘️ PDF por comuna</button>
           <button class="dir-pdf" data-action="t-export-pdf">📄 Exportar PDF</button>
           <button class="dir-close" data-action="close-testigos-page">Cerrar ✕</button>
         </div>
@@ -104,6 +105,7 @@ async function _loadTestigos(page) {
   if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
   if (_tSinPuesto) url += '&sinPuesto=true';
   if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
+  else if (_tComunaId) url += `&comunaId=${_tComunaId}`;
   else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
 
   try {
@@ -291,6 +293,8 @@ function _attachListeners() {
       _openEditModal(Number(btn.dataset.id));
     } else if (action === 't-export-pdf') {
       _exportPDF();
+    } else if (action === 't-export-pdf-comuna') {
+      _exportPDFComuna();
     } else if (action === 't-send-pendientes') {
       _openPendientesModal();
     }
@@ -737,6 +741,108 @@ async function _openPendientesModal() {
     const loadingEl = overlay.querySelector('#t-pend-loading');
     if (loadingEl) loadingEl.textContent = 'Error cargando testigos: ' + (err.message || '');
   }
+}
+
+// ── PDF export por comuna ──────────────────────────────────────────────────
+async function _exportPDFComuna() {
+  if (!_tComunaId && !_tMunicipioId) {
+    alert('Selecciona primero una comuna o municipio para exportar el PDF.');
+    return;
+  }
+
+  const comunaNombre = _tComunaId
+    ? (_tComunasList.find(c => c.id === _tComunaId)?.name || `Comuna ${_tComunaId}`)
+    : null;
+  const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || `Municipio ${_tMunicipioId}`) : null;
+  const tituloFiltro = comunaNombre ? `${muniNombre} — ${comunaNombre}` : muniNombre;
+
+  // Fetch ALL testigos for this filter (no pagination cap)
+  let all = [];
+  try {
+    let page = 1;
+    const limit = 200;
+    let total = Infinity;
+    while (all.length < total) {
+      let url = `/testigos?page=${page}&limit=${limit}`;
+      if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
+      else if (_tComunaId) url += `&comunaId=${_tComunaId}`;
+      else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
+      if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
+      const result = await window.api.get(url);
+      const data = result.data || [];
+      total = result.total || 0;
+      all = all.concat(data);
+      if (data.length < limit) break;
+      page++;
+    }
+  } catch (err) {
+    alert('Error cargando testigos: ' + (err.message || ''));
+    return;
+  }
+
+  if (!all.length) {
+    alert('No hay testigos para exportar con los filtros actuales.');
+    return;
+  }
+
+  // Group by puesto
+  const byPuesto = {};
+  const puestoOrder = [];
+  for (const t of all) {
+    const pKey = t.puestoId || '__sin_puesto__';
+    const pName = t.puesto ? t.puesto.name : 'Sin puesto asignado';
+    if (!byPuesto[pKey]) { byPuesto[pKey] = { name: pName, testigos: [] }; puestoOrder.push(pKey); }
+    byPuesto[pKey].testigos.push(t);
+  }
+
+  const now = new Date().toLocaleString('es-CO');
+
+  const sections = puestoOrder.map(pk => {
+    const g = byPuesto[pk];
+    const rows = g.testigos.map((t, i) => `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>${esc(t.name || '—')}</td>
+        <td>${esc(t.cedula || '—')}</td>
+        <td>${esc(t.phone || '—')}</td>
+        <td>${esc(t.correo || '—')}</td>
+        <td style="text-align:center">${esc(t.status || '—')}</td>
+      </tr>
+    `).join('');
+    return `
+      <div class="puesto-block">
+        <div class="puesto-name">📍 ${esc(g.name)} <span class="puesto-count">(${g.testigos.length} testigo${g.testigos.length === 1 ? '' : 's'})</span></div>
+        <table>
+          <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Correo</th><th>Estado</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  const win = window.open('', '_blank', 'width=950,height=750');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${tituloFiltro}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;font-size:12px;color:#111}
+      h1{font-size:17px;margin-bottom:3px}
+      .sub{font-size:10px;color:#666;margin-bottom:18px}
+      .puesto-block{margin-bottom:22px;page-break-inside:avoid}
+      .puesto-name{font-size:13px;font-weight:700;color:#1a3a6e;margin-bottom:6px;border-left:4px solid #1a3a6e;padding-left:8px}
+      .puesto-count{font-weight:400;font-size:11px;color:#555}
+      table{width:100%;border-collapse:collapse;margin-bottom:4px}
+      th{background:#e8edf5;padding:4px 7px;text-align:left;border:1px solid #ccc;font-size:10px;text-transform:uppercase;color:#1a3a6e}
+      td{padding:4px 7px;border:1px solid #ddd;font-size:11px}
+      tr:nth-child(even) td{background:#f7f9fc}
+      @media print{body{padding:8px}.puesto-block{page-break-inside:avoid}}
+    </style>
+  </head><body>
+    <h1>🧾 Testigos por puesto — ${esc(tituloFiltro || 'AMVA')}</h1>
+    <div class="sub">Generado: ${now} | Total: ${all.length} testigos en ${puestoOrder.length} puesto${puestoOrder.length === 1 ? '' : 's'}</div>
+    ${sections}
+  </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 600);
 }
 
 // ── PDF export ─────────────────────────────────────────────────────────────

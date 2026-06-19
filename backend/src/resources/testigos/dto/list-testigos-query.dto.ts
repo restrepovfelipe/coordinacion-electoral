@@ -29,6 +29,11 @@ export class ListTestigosQueryDto {
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? parseInt(value, 10) : value))
   puestoId?: number;
 
+  @IsInt()
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? parseInt(value, 10) : value))
+  comunaId?: number;
+
   @IsBoolean()
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => {

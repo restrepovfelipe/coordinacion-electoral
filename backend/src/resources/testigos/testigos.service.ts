@@ -42,9 +42,13 @@ export class TestigosService {
       where['puestoId'] = { in: [...accessibleIds] };
     }
 
-    // municipioId filter (only when not sinPuesto)
-    if (query.municipioId !== undefined && query.sinPuesto !== true) {
-      where['puesto'] = { municipioId: query.municipioId };
+    // municipioId / comunaId filter (only when not sinPuesto)
+    if (query.sinPuesto !== true) {
+      if (query.comunaId !== undefined) {
+        where['puesto'] = { comunaId: query.comunaId };
+      } else if (query.municipioId !== undefined) {
+        where['puesto'] = { municipioId: query.municipioId };
+      }
     }
 
     // search filter
