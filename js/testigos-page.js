@@ -756,6 +756,11 @@ async function _exportPDFComuna() {
   const muniNombre = _tMunicipioId ? (_tMunicipiosMap[_tMunicipioId] || `Municipio ${_tMunicipioId}`) : null;
   const tituloFiltro = comunaNombre ? `${muniNombre} — ${comunaNombre}` : muniNombre;
 
+  // Open the window immediately (must be synchronous relative to user click)
+  const win = window.open('', '_blank', 'width=950,height=750');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cargando...</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">Cargando testigos...</body></html>`);
+
   // Fetch ALL testigos for this filter (no pagination cap)
   let all = [];
   try {
@@ -776,12 +781,12 @@ async function _exportPDFComuna() {
       page++;
     }
   } catch (err) {
-    alert('Error cargando testigos: ' + (err.message || ''));
+    win.document.write(`<p style="color:red">Error cargando testigos: ${err.message || ''}</p>`);
     return;
   }
 
   if (!all.length) {
-    alert('No hay testigos para exportar con los filtros actuales.');
+    win.document.write(`<p>No hay testigos para exportar con los filtros actuales.</p>`);
     return;
   }
 
@@ -820,7 +825,7 @@ async function _exportPDFComuna() {
     `;
   }).join('');
 
-  const win = window.open('', '_blank', 'width=950,height=750');
+  win.document.open();
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos — ${tituloFiltro}</title>
     <style>
       body{font-family:Arial,sans-serif;padding:20px;font-size:12px;color:#111}
