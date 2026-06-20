@@ -1382,15 +1382,16 @@ function _migrateMovResps(mov) {
   });
 }
 const _movEditMode = new Set();
-const _movSubTab = new Map(); // id → 'all' | 'moto' | 'carro'
+const _movSubTab = new Map(); // id → 'all' | 'moto' | 'carro' | 'taxi'
 const _movSavingSet = new Set(); // guard against concurrent saveMovAll calls
 
-function _movTabBar(id, curTab, n, ck, mo, ca) {
+function _movTabBar(id, curTab, n, ck, mo, ca, tx) {
   const ckE = ck.replace(/'/g, "\\'");
   const tabs = [
-    { key: 'all',   lbl: `Todos (${mo + ca})` },
+    { key: 'all',   lbl: `Todos (${mo + ca + tx})` },
     { key: 'moto',  lbl: `🏍 Motos (${mo})` },
     { key: 'carro', lbl: `🚗 Carros (${ca})` },
+    { key: 'taxi',  lbl: `🚕 Taxis (${tx})` },
   ];
   return `<div style="display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--bdr);padding-bottom:6px;flex-wrap:wrap">
     ${tabs.map(t => `<button onclick="setMovSubTab('${id}','${t.key}','${n}','${ckE}')"
@@ -1410,32 +1411,36 @@ function renderMovPanel(n, ck, id) {
   const resps = mov.responsables;
   const totalMotosReg = resps.filter(r => r.tipo === 'moto').length;
   const totalCarrosReg = resps.filter(r => r.tipo === 'carro').length;
+  const totalTaxisReg = resps.filter(r => r.tipo === 'taxi').length;
   const motosNec = mov.motos_nec || 0; const carrosNec = mov.carros_nec || 0;
   const ckE = ck.replace(/'/g, "\\'");
   const curTab = _movSubTab.get(id) || 'all';
   // Start in edit mode if explicitly set OR no vehicles yet
   const isEdit = _movEditMode.has(id) || resps.length === 0;
 
+  function _tipoIcon(tipo) { return tipo === 'moto' ? '🏍' : tipo === 'taxi' ? '🚕' : '🚗'; }
+  function _tipoLabel(tipo) { return tipo === 'moto' ? 'Moto' : tipo === 'taxi' ? 'Taxi' : 'Carro'; }
+  function _emptyLabel(tab) { return tab === 'moto' ? 'motos' : tab === 'carro' ? 'carros' : tab === 'taxi' ? 'taxis' : 'vehículos'; }
+
   if (!isEdit) {
     // ── VIEW MODE ──
     const filteredView = curTab === 'all' ? resps : resps.filter(r => r.tipo === curTab);
     const viewCards = filteredView.map((r, i) => {
-      const tipoIcon = r.tipo === 'moto' ? '🏍' : '🚗';
-      const tipoLabel = r.tipo === 'moto' ? 'Moto' : 'Carro';
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:6px;background:var(--bg2);border-radius:7px;border:1px solid var(--bdr);flex-wrap:wrap">
         <span style="font-weight:700;color:var(--t2);font-size:12px;min-width:20px">#${i+1}</span>
-        <span style="font-size:12px;flex-shrink:0">${tipoIcon} <strong>${tipoLabel}</strong></span>
+        <span style="font-size:12px;flex-shrink:0">${_tipoIcon(r.tipo)} <strong>${_tipoLabel(r.tipo)}</strong></span>
         ${r.placa ? `<span style="font-size:11px;font-weight:600;color:var(--t1);background:var(--bg);border:1px solid var(--bdr);border-radius:4px;padding:2px 7px;letter-spacing:.5px">${esc(r.placa.toUpperCase())}</span>` : ''}
         <span style="font-size:12px;color:var(--t1);flex:1;min-width:120px">👤 ${esc(r.nombreConductor || '—')}</span>
         ${r.telefonoConductor ? `<span style="font-size:12px;color:var(--t2)">${esc(r.telefonoConductor)}</span>${_waBtn(r.telefonoConductor)}` : ''}
       </div>`;
-    }).join('') || `<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin ${curTab === 'moto' ? 'motos' : curTab === 'carro' ? 'carros' : 'vehículos'} registrados</div>`;
+    }).join('') || `<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin ${_emptyLabel(curTab)} registrados</div>`;
     pane.innerHTML = `<div class="mov-panel">
       <div class="mov-totals-row">
         <div class="mov-total mo"><span class="lbl">🏍 Registradas:</span><span class="tot-val">${totalMotosReg}</span><span class="sep">/ necesarias:</span><span style="font-weight:600;color:var(--t1)">${motosNec}</span></div>
         <div class="mov-total ca"><span class="lbl">🚗 Registrados:</span><span class="tot-val">${totalCarrosReg}</span><span class="sep">/ necesarios:</span><span style="font-weight:600;color:var(--t1)">${carrosNec}</span></div>
+        ${totalTaxisReg > 0 ? `<div class="mov-total ca"><span class="lbl">🚕 Taxis:</span><span class="tot-val">${totalTaxisReg}</span></div>` : ''}
       </div>
-      ${_movTabBar(id, curTab, n, ck, totalMotosReg, totalCarrosReg)}
+      ${_movTabBar(id, curTab, n, ck, totalMotosReg, totalCarrosReg, totalTaxisReg)}
       <div style="margin:4px 0 8px">${viewCards}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
         ${_isReadOnly() ? '' : `<button class="export-btn" onclick="editMov('${n}','${ckE}','${id}')">✏️ Editar</button>`}
@@ -1457,6 +1462,7 @@ function renderMovPanel(n, ck, id) {
             onchange="updateResp('${n}','${ckE}',${i},'tipo',this.value,'${id}')">
             <option value="moto" ${r.tipo === 'moto' ? 'selected' : ''}>🏍 Moto</option>
             <option value="carro" ${r.tipo === 'carro' ? 'selected' : ''}>🚗 Carro</option>
+            <option value="taxi" ${r.tipo === 'taxi' ? 'selected' : ''}>🚕 Taxi</option>
           </select>
           <input class="resp-name-inp" type="text" placeholder="Placa" value="${esc(r.placa || '')}"
             style="width:90px;font-size:12px;text-transform:uppercase;flex-shrink:0"
@@ -1476,8 +1482,8 @@ function renderMovPanel(n, ck, id) {
           <button class="del-btn" style="flex-shrink:0" onclick="delResp('${n}','${ckE}',${i},'${id}')">×</button>
         </div>
       </div>`).join('')
-    : `<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin ${curTab === 'moto' ? 'motos' : curTab === 'carro' ? 'carros' : 'vehículos'} registrados aún</div>`;
-  const addLabel = curTab === 'moto' ? '+ Agregar moto' : curTab === 'carro' ? '+ Agregar carro' : '+ Agregar vehículo';
+    : `<div style="font-size:11px;color:var(--t3);padding:8px 0;text-align:center">Sin ${_emptyLabel(curTab)} registrados aún</div>`;
+  const addLabel = curTab === 'moto' ? '+ Agregar moto' : curTab === 'carro' ? '+ Agregar carro' : curTab === 'taxi' ? '+ Agregar taxi' : '+ Agregar vehículo';
   const addTipo  = curTab === 'all' ? 'moto' : curTab;
   pane.innerHTML = `<div class="mov-panel">
     <div class="mov-totals-row">
@@ -1495,8 +1501,9 @@ function renderMovPanel(n, ck, id) {
         <input class="nec-inp" type="number" min="0" value="${carrosNec}"
           onchange="saveMovNec('${n}','${ckE}','carros_nec',this.value)">
       </div>
+      ${totalTaxisReg > 0 ? `<div class="mov-total ca"><span class="lbl">🚕 Taxis:</span><span class="tot-val">${totalTaxisReg}</span></div>` : ''}
     </div>
-    ${_movTabBar(id, curTab, n, ck, totalMotosReg, totalCarrosReg)}
+    ${_movTabBar(id, curTab, n, ck, totalMotosReg, totalCarrosReg, totalTaxisReg)}
     <div class="resp-list" id="${id}-resp-list">${respCards}</div>
     <button class="resp-add-btn" onclick="addResp('${n}','${ckE}','${id}','${addTipo}')">${addLabel}</button>
     <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
@@ -1550,6 +1557,7 @@ function _movComunaSection(n, ck, s) {
   const resps = mov.responsables;
   const motos = resps.filter(r => r.tipo === 'moto');
   const carros = resps.filter(r => r.tipo === 'carro');
+  const taxis = resps.filter(r => r.tipo === 'taxi');
   const sc = (s.comunas || {})[ck] || {};
   return `
     <div class="sec-hdr">
@@ -1559,12 +1567,14 @@ function _movComunaSection(n, ck, s) {
     <div class="stats">
       <div class="stat"><div class="val">${motos.length}</div><div class="lbl">🏍 Motos</div><div class="nec">/ ${mov.motos_nec||0} nec.</div></div>
       <div class="stat"><div class="val">${carros.length}</div><div class="lbl">🚗 Carros</div><div class="nec">/ ${mov.carros_nec||0} nec.</div></div>
-      <div class="stat"><div class="val">${motos.length+carros.length}</div><div class="lbl">Total</div></div>
+      ${taxis.length ? `<div class="stat"><div class="val">${taxis.length}</div><div class="lbl">🚕 Taxis</div></div>` : ''}
+      <div class="stat"><div class="val">${motos.length+carros.length+taxis.length}</div><div class="lbl">Total</div></div>
     </div>
     <h3>🏍 Motos (${motos.length})</h3>
     ${motos.length ? _movVehTable(motos) : '<p class="empty">Sin motos registradas</p>'}
     <h3>🚗 Carros (${carros.length})</h3>
-    ${carros.length ? _movVehTable(carros) : '<p class="empty">Sin carros registrados</p>'}`;
+    ${carros.length ? _movVehTable(carros) : '<p class="empty">Sin carros registrados</p>'}
+    ${taxis.length ? `<h3>🚕 Taxis (${taxis.length})</h3>${_movVehTable(taxis)}` : ''}`;
 }
 
 function _movOpenPrint(title, body) {
