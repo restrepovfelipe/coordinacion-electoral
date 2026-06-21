@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
  * import-from-excel.mjs
- * Import missing testigos from Consolidado_Valle_Aburra_agrupado.xlsx
+ * Import missing testigos from a Consolidado xlsx file (AMVA or full Antioquia).
+ * Pass --excel <path> to specify a different file.
  *
  * Flags:
- *   --dry-run    Simulate only, no DB writes
- *   --apply      Execute INSERT for missing testigos
+ *   --dry-run       Simulate only, no DB writes
+ *   --apply         Execute INSERT for missing testigos
+ *   --excel <path>  Path to xlsx (default: Consolidado_Valle_Aburra_agrupado.xlsx)
+ *   --all           Import all municipalities (default: AMVA only)
  */
 
 import fs from 'fs';
@@ -15,12 +18,22 @@ import ExcelJS from 'exceljs';
 
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run') || !args.includes('--apply');
-const EXCEL_PATH = path.resolve('/Users/feliperestrepo/Desktop/Consolidado_Valle_Aburra_agrupado.xlsx');
+const ALL_MUNIS = args.includes('--all');
+const excelIdx = args.indexOf('--excel');
+const EXCEL_PATH = excelIdx >= 0
+  ? path.resolve(args[excelIdx + 1])
+  : path.resolve('/Users/feliperestrepo/Desktop/Consolidado_Valle_Aburra_agrupado.xlsx');
 
 const DB_URL = process.env.DATABASE_URL ||
   'postgresql://app_user:nR2rTubtjDyjTizxRHu8X0jEnbbilF%2BVjq52W3cGg2U%3D@localhost:5432/defensores';
 
 const AMVA_NAMES = ['MEDELLIN','BELLO','ITAGUI','ENVIGADO','SABANETA','LA ESTRELLA','CALDAS','COPACABANA','GIRARDOTA','BARBOSA'];
+
+// Excel municipio name → DB municipio name (when they differ)
+const MUNI_NAME_MAP = {
+  'PEÑOL': 'EL PEÑOL',
+  'PUERTO NARE-LA MAGDALENA': 'PUERTO NARE',
+};
 
 // ─── Normalisation ────────────────────────────────────────────────────────────
 const ACCENT_MAP = { á:'a',é:'e',í:'i',ó:'o',ú:'u',Á:'A',É:'E',Í:'I',Ó:'O',Ú:'U',ñ:'n',Ñ:'N',ü:'u',Ü:'U' };
@@ -91,32 +104,36 @@ async function main() {
   // 1. Load Excel
   console.log('Reading Excel...');
   const excelRows = await readExcel();
-  const amvaRows = excelRows.filter(r => AMVA_NAMES.includes(r['MUNICIPIO']));
-  console.log(`Excel CONSOLIDADO total: ${excelRows.length}, AMVA: ${amvaRows.length}`);
+  const scopeRows = ALL_MUNIS ? excelRows : excelRows.filter(r => AMVA_NAMES.includes(r['MUNICIPIO']));
+  console.log(`Excel CONSOLIDADO total: ${excelRows.length}, scope: ${scopeRows.length}`);
 
   // 2. Connect DB
   const pool = new pg.Pool({ connectionString: DB_URL });
   const c = await pool.connect();
 
-  // 3. Load reference data
-  const { rows: dbMunis } = await c.query('SELECT id, name FROM "Municipio" WHERE name = ANY($1)', [AMVA_NAMES]);
+  // 3. Load reference data — all municipios if --all, else AMVA only
+  const { rows: dbMunis } = await c.query('SELECT id, name FROM "Municipio"');
   const muniMap = {};
   dbMunis.forEach(m => { muniMap[m.name] = m.id; });
-  console.log('Municipios:', Object.entries(muniMap).map(([k,v]) => `${k}=${v}`).join(', '));
+  // Apply Excel→DB name aliases
+  Object.entries(MUNI_NAME_MAP).forEach(([excelName, dbName]) => {
+    if (muniMap[dbName]) muniMap[excelName] = muniMap[dbName];
+  });
 
-  const muniIds = Object.values(muniMap);
-  const { rows: dbPuestos } = await c.query('SELECT id, name, "municipioId" FROM "Puesto" WHERE "municipioId" = ANY($1)', [muniIds]);
-  console.log(`DB puestos for AMVA: ${dbPuestos.length}`);
+  const muniIds = [...new Set(Object.values(muniMap))];
+  const { rows: dbPuestos } = await c.query('SELECT id, name, "municipioId" FROM "Puesto"');
+  console.log(`DB puestos total: ${dbPuestos.length}`);
 
-  // How many times each cedula appears in AMVA puestos of DB
-  const { rows: amvaTestigos } = await c.query(`
+  // How many times each cedula appears in the scope municipios of DB
+  const scopeMuniIds = ALL_MUNIS ? muniIds : muniIds.filter(id => Object.entries(muniMap).some(([n,i]) => i===id && AMVA_NAMES.includes(n)));
+  const { rows: scopeTestigos } = await c.query(`
     SELECT t.cedula FROM "Testigo" t
     JOIN "Puesto" p ON t."puestoId" = p.id
     WHERE p."municipioId" = ANY($1)
-  `, [muniIds]);
+  `, [scopeMuniIds]);
   const dbCedulaCount = {};
-  amvaTestigos.forEach(t => { dbCedulaCount[t.cedula] = (dbCedulaCount[t.cedula] || 0) + 1; });
-  console.log(`AMVA testigos in DB: ${amvaTestigos.length}`);
+  scopeTestigos.forEach(t => { dbCedulaCount[t.cedula] = (dbCedulaCount[t.cedula] || 0) + 1; });
+  console.log(`Scope testigos in DB: ${scopeTestigos.length}`);
 
   // 4. Find missing rows: rows where Excel has more occurrences than DB
   // Track how many times we've seen each cedula while iterating Excel
@@ -124,7 +141,7 @@ async function main() {
   const toInsert = [];
   const unmatched = [];
 
-  for (const row of amvaRows) {
+  for (const row of scopeRows) {
     const cedula = row['CEDULA'];
     if (!cedula) continue;
 
@@ -141,21 +158,19 @@ async function main() {
 
     const puestoName = row['PUESTO'];
     const match = findPuesto(puestoName, muniId, dbPuestos);
-    if (!match) {
-      unmatched.push({ row, reason: `no puesto match for "${puestoName}"` });
-      continue;
-    }
+    const puestoId = match ? match.puesto.id : null;
 
     toInsert.push({
-      puestoId: match.puesto.id,
+      puestoId,
       name: row['NOMBRE COMPLETO'] || '',
       cedula,
       phone: row['TELEFONO'] || null,
       correo: row['CORREO'] || null,
       status: 'pendiente',
-      score: match.score,
+      notes: match ? null : `Puesto sin match: ${puestoName}`,
+      score: match ? match.score : 0,
       excelPuesto: puestoName,
-      dbPuesto: match.puesto.name,
+      dbPuesto: match ? match.puesto.name : '(sin match)',
     });
   }
 
@@ -182,9 +197,9 @@ async function main() {
   for (const t of toInsert) {
     try {
       await c.query(
-        `INSERT INTO "Testigo" ("puestoId", name, cedula, phone, correo, status, token, "createdById", "createdAt", "updatedAt")
-         VALUES ($1,$2,$3,$4,$5,$6,gen_random_uuid(),$7,NOW(),NOW())`,
-        [t.puestoId, t.name, t.cedula, t.phone||null, t.correo||null, t.status, 14]
+        `INSERT INTO "Testigo" ("puestoId", name, cedula, phone, correo, status, notes, token, "createdById", "createdAt", "updatedAt")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,gen_random_uuid(),$8,NOW(),NOW())`,
+        [t.puestoId||null, t.name, t.cedula, t.phone||null, t.correo||null, t.status, t.notes||null, 14]
       );
       inserted++;
     } catch (e) {
