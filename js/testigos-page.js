@@ -1172,8 +1172,9 @@ async function _exportExcel(scope = 'all') {
     ].map(csvEsc).join(',');
   });
 
-  const csv = '﻿' + [headers.map(csvEsc).join(','), ...csvRows].join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const csvLines = [headers.map(csvEsc).join(','), ...csvRows];
+  const csvBytes = new TextEncoder().encode('\uFEFF' + csvLines.join('\r\n'));
+  const blob = new Blob([csvBytes], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const now = new Date();
