@@ -1025,7 +1025,7 @@ async function _exportPDF() {
   if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">⏳ Cargando resumen completo...</body></html>`);
 
-  // Fetch ALL testigos matching current filters to build the recuento
+  // Fetch ALL testigos matching current filters
   let allData = [];
   try {
     let page = 1;
@@ -1052,19 +1052,94 @@ async function _exportPDF() {
     return;
   }
 
-  // Build recuento from full dataset
-  const puestoMap = new Map();
+  // Build puesto → testigo count + puestoId map
+  const puestoCountMap = new Map(); // puestoName → count
+  const puestoIdMap = new Map();    // puestoName → puestoId
   allData.forEach(t => {
     const key = t.puesto ? t.puesto.name : '— Sin puesto asignado —';
-    puestoMap.set(key, (puestoMap.get(key) || 0) + 1);
+    puestoCountMap.set(key, (puestoCountMap.get(key) || 0) + 1);
+    if (t.puesto && !puestoIdMap.has(key)) puestoIdMap.set(key, t.puesto.id);
   });
-  const puestosSorted = [...puestoMap.entries()].sort((a, b) => b[1] - a[1]);
+  const puestosSorted = [...puestoCountMap.entries()].sort((a, b) => b[1] - a[1]);
   const sinPuestoCount = allData.filter(t => !t.puesto).length;
-  const resumenRows = puestosSorted.map(([nombre, cnt]) =>
-    `<tr><td>${esc(nombre)}</td><td style="text-align:center;font-weight:600">${cnt}</td></tr>`
-  ).join('');
 
-  // Build detail rows from full dataset
+  // Fetch coordinator data when a municipio is selected
+  let puestoCoordMap = new Map();   // puestoId → {nombre,telefono,nombre2,telefono2}
+  let puestoComunaMap = new Map();  // puestoId → comunaId
+  let comunaCoordMap = new Map();   // comunaId → {nombre,telefono}
+  let zonaCoordMap = new Map();     // zonaId → {nombre,telefono}
+  let comunaZonaMap = new Map();    // comunaId → zonaId
+  const hasCoords = !!_tMunicipioId;
+
+  if (hasCoords) {
+    try {
+      const [puestosRef, puestoCoords] = await Promise.all([
+        window.api.get(`/puestos?municipioId=${_tMunicipioId}`),
+        window.api.get(`/coordinador/puestos-by-muni/${_tMunicipioId}`),
+      ]);
+      // puestoComunaMap: puestoId → comunaId
+      (puestosRef || []).forEach(p => puestoComunaMap.set(p.id, p.comunaId));
+      // puestoCoordMap: puestoId → coord data
+      (puestoCoords || []).forEach(d => puestoCoordMap.set(d.puestoId, d));
+
+      // Collect unique comunaIds for puestos that have testigos
+      const comunaIds = new Set();
+      puestoIdMap.forEach((pId) => {
+        const cId = puestoComunaMap.get(pId);
+        if (cId) comunaIds.add(cId);
+      });
+
+      // Fetch all commune coordinators in parallel
+      const comunaCoords = await Promise.all(
+        [...comunaIds].map(cId =>
+          window.api.get(`/coordinador/COMUNA/${cId}/display`).catch(() => null).then(r => ({ cId, r }))
+        )
+      );
+      comunaCoords.forEach(({ cId, r }) => { if (r?.nombre) comunaCoordMap.set(cId, r); });
+
+      // Build comunaId → zonaId from _tComunasCache
+      const comunasList = _tComunasCache[_tMunicipioId] || [];
+      comunasList.forEach(c => { if (c.zonaId) comunaZonaMap.set(c.id, c.zonaId); });
+
+      // Collect unique zonaIds
+      const zonaIds = new Set();
+      comunaIds.forEach(cId => { const zId = comunaZonaMap.get(cId); if (zId) zonaIds.add(zId); });
+
+      const zonaCoords = await Promise.all(
+        [...zonaIds].map(zId =>
+          window.api.get(`/coordinador/ZONA/${zId}/display`).catch(() => null).then(r => ({ zId, r }))
+        )
+      );
+      zonaCoords.forEach(({ zId, r }) => { if (r?.nombre) zonaCoordMap.set(zId, r); });
+    } catch (e) { /* coordinator data is optional, proceed without it */ }
+  }
+
+  // Build recuento rows
+  const showCoordCols = hasCoords;
+  const resumenRows = puestosSorted.map(([nombre, cnt]) => {
+    const pId = puestoIdMap.get(nombre);
+    const pc = pId ? puestoCoordMap.get(pId) : null;
+    const cId = pId ? puestoComunaMap.get(pId) : null;
+    const cc = cId ? comunaCoordMap.get(cId) : null;
+    const zId = cId ? comunaZonaMap.get(cId) : null;
+    const zc = zId ? zonaCoordMap.get(zId) : null;
+    const coordPuesto = pc?.nombre
+      ? `${esc(pc.nombre)}${pc.telefono ? '<br><span style="color:#555">📞 ' + esc(pc.telefono) + '</span>' : ''}${pc.nombre2 ? '<br>' + esc(pc.nombre2) + (pc.telefono2 ? '<br><span style="color:#555">📞 ' + esc(pc.telefono2) + '</span>' : '') : ''}`
+      : '<span style="color:#aaa">—</span>';
+    const coordComuna = cc?.nombre
+      ? `${esc(cc.nombre)}${cc.telefono ? '<br><span style="color:#555">📞 ' + esc(cc.telefono) + '</span>' : ''}`
+      : '<span style="color:#aaa">—</span>';
+    const coordZona = zc?.nombre
+      ? `${esc(zc.nombre)}${zc.telefono ? '<br><span style="color:#555">📞 ' + esc(zc.telefono) + '</span>' : ''}`
+      : '<span style="color:#aaa">—</span>';
+    return `<tr>
+      <td>${esc(nombre)}</td>
+      <td style="text-align:center;font-weight:600">${cnt}</td>
+      ${showCoordCols ? `<td style="font-size:10px">${coordPuesto}</td><td style="font-size:10px">${coordComuna}</td><td style="font-size:10px">${coordZona}</td>` : ''}
+    </tr>`;
+  }).join('');
+
+  // Build detail rows
   const rows = allData.map(t => `
     <tr>
       <td>${t.id}</td>
@@ -1090,9 +1165,8 @@ async function _exportPDF() {
       .resumen-stat .lbl{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px}
       table{width:100%;border-collapse:collapse}
       th{background:#e8edf5;padding:5px 8px;text-align:left;border:1px solid #ddd;font-size:10px;text-transform:uppercase;color:#1a3a6e}
-      td{padding:5px 8px;border:1px solid #ddd}
+      td{padding:5px 8px;border:1px solid #ddd;vertical-align:top}
       tr:nth-child(even) td{background:#f7f9fc}
-      .puesto-table th{background:#f0f0f0;color:#333}
       @media print{body{padding:10px}.resumen-box{break-inside:avoid}}
     </style>
   </head><body>
@@ -1106,8 +1180,12 @@ async function _exportPDF() {
     </div>
 
     <h2>Recuento por puesto</h2>
-    <table class="puesto-table" style="width:auto;min-width:340px;margin-bottom:24px">
-      <thead><tr><th>Puesto</th><th style="text-align:center">Testigos</th></tr></thead>
+    <table style="margin-bottom:24px">
+      <thead><tr>
+        <th>Puesto</th>
+        <th style="text-align:center">Testigos</th>
+        ${showCoordCols ? '<th>Coord. Puesto</th><th>Coord. Comuna</th><th>Coord. Zona</th>' : ''}
+      </tr></thead>
       <tbody>${resumenRows}</tbody>
     </table>
 
