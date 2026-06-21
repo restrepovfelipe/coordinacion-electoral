@@ -1020,6 +1020,11 @@ async function _exportPDFComuna() {
 
 // ── Excel export ────────────────────────────────────────────────────────────
 async function _exportExcel() {
+  // Show loading state on button
+  const excelBtn = _testigosPanel?.querySelector('[data-action="t-export-excel"]');
+  const origLabel = excelBtn ? excelBtn.textContent : '';
+  if (excelBtn) { excelBtn.textContent = '⏳ Exportando...'; excelBtn.disabled = true; }
+
   // Fetch ALL testigos matching current filters
   let allData = [];
   try {
@@ -1041,6 +1046,7 @@ async function _exportExcel() {
       page++;
     }
   } catch (err) {
+    if (excelBtn) { excelBtn.textContent = origLabel; excelBtn.disabled = false; }
     alert('Error cargando datos: ' + (err.message || ''));
     return;
   }
@@ -1144,6 +1150,7 @@ async function _exportExcel() {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+  if (excelBtn) { excelBtn.textContent = origLabel; excelBtn.disabled = false; }
 }
 
 // ── PDF export ─────────────────────────────────────────────────────────────
