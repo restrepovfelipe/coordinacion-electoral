@@ -1068,7 +1068,7 @@ async function _exportExcel(scope = 'all') {
       while (true) {
         let url = `/testigos?page=${page}&limit=${limit}&_t=${_exportNonce}`;
         if (muniId !== null) url += `&municipioId=${muniId}`;
-        const result = await window.api.get(url);
+        const result = await window.api.get(url, { noCache: true });
         const data = result.data || [];
         allData = allData.concat(data);
         if (data.length < limit) break;
@@ -1209,7 +1209,7 @@ async function _exportPDF() {
       if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
       else if (_tComunaId) url += `&comunaId=${_tComunaId}`;
       else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
-      const result = await window.api.get(url);
+      const result = await window.api.get(url, { noCache: true });
       const data = result.data || [];
       total = result.total || 0;
       allData = allData.concat(data);

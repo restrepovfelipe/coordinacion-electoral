@@ -36,11 +36,12 @@ class ApiClient {
     };
   }
 
-  async get(path) {
+  async get(path, { noCache = false } = {}) {
     if (_isRefPath(path)) return this._cachedGet(path);
 
     const res = await fetch(`${API_BASE}${path}`, {
       headers: await this._headers(),
+      ...(noCache ? { cache: 'no-store' } : {}),
     });
     if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
     return res.json();
