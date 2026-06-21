@@ -62,6 +62,7 @@ function _buildPanelHTML() {
             </div>
           </div>
           <button class="dir-pdf" data-action="t-export-pdf">📄 Exportar PDF</button>
+          <button class="dir-pdf" data-action="t-export-excel">📊 Exportar Excel</button>
           <button class="dir-close" data-action="close-testigos-page">Cerrar ✕</button>
         </div>
       </div>
@@ -297,6 +298,8 @@ function _attachListeners() {
       _openPuestoPicker();
     } else if (action === 'edit-testigo') {
       _openEditModal(Number(btn.dataset.id));
+    } else if (action === 't-export-excel') {
+      _exportExcel();
     } else if (action === 't-export-pdf') {
       _exportPDF();
     } else if (action === 't-export-pdf-comuna') {
@@ -1013,6 +1016,134 @@ async function _exportPDFComuna() {
   }
   const comunaNombre = _tComunasList.find(c => c.id === _tComunaId)?.name || `Comuna ${_tComunaId}`;
   _exportPDFComunaById(_tComunaId, comunaNombre);
+}
+
+// ── Excel export ────────────────────────────────────────────────────────────
+async function _exportExcel() {
+  // Fetch ALL testigos matching current filters
+  let allData = [];
+  try {
+    let page = 1;
+    const limit = 200;
+    let total = Infinity;
+    while (allData.length < total) {
+      let url = `/testigos?page=${page}&limit=${limit}`;
+      if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
+      if (_tSinPuesto) url += '&sinPuesto=true';
+      if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
+      else if (_tComunaId) url += `&comunaId=${_tComunaId}`;
+      else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
+      const result = await window.api.get(url);
+      const data = result.data || [];
+      total = result.total || 0;
+      allData = allData.concat(data);
+      if (data.length < limit) break;
+      page++;
+    }
+  } catch (err) {
+    alert('Error cargando datos: ' + (err.message || ''));
+    return;
+  }
+
+  // Fetch coordinator + structural data when municipio is selected
+  let puestoCoordMap = new Map();
+  let puestoComunaMap = new Map();
+  let comunaCoordMap = new Map();
+  let zonaCoordMap = new Map();
+  let comunaZonaMap = new Map();
+  let comunaNameMap = new Map();
+  let zonaNameMap = new Map();
+
+  if (_tMunicipioId) {
+    try {
+      const [puestosRef, puestoCoords, zonasRef] = await Promise.all([
+        window.api.get(`/puestos?municipioId=${_tMunicipioId}`),
+        window.api.get(`/coordinador/puestos-by-muni/${_tMunicipioId}`),
+        window.api.get('/zonas'),
+      ]);
+      (puestosRef || []).forEach(p => puestoComunaMap.set(p.id, p.comunaId));
+      (puestoCoords || []).forEach(d => puestoCoordMap.set(d.puestoId, d));
+      (zonasRef || []).forEach(z => zonaNameMap.set(z.id, z.name));
+
+      const comunasList = _tComunasCache[_tMunicipioId] || [];
+      comunasList.forEach(c => {
+        comunaNameMap.set(c.id, c.name);
+        if (c.zonaId) comunaZonaMap.set(c.id, c.zonaId);
+      });
+
+      const puestoIdSet = new Set(allData.filter(t => t.puesto).map(t => t.puesto.id));
+      const comunaIds = new Set([...puestoIdSet].map(pId => puestoComunaMap.get(pId)).filter(Boolean));
+
+      const [comunaCoords, zonaCoords] = await Promise.all([
+        Promise.all([...comunaIds].map(cId =>
+          window.api.get(`/coordinador/COMUNA/${cId}/display`).catch(() => null).then(r => ({ cId, r }))
+        )),
+        Promise.all([...new Set([...comunaIds].map(cId => comunaZonaMap.get(cId)).filter(Boolean))].map(zId =>
+          window.api.get(`/coordinador/ZONA/${zId}/display`).catch(() => null).then(r => ({ zId, r }))
+        )),
+      ]);
+      comunaCoords.forEach(({ cId, r }) => { if (r?.nombre) comunaCoordMap.set(cId, r); });
+      zonaCoords.forEach(({ zId, r }) => { if (r?.nombre) zonaCoordMap.set(zId, r); });
+    } catch (e) { /* optional */ }
+  }
+
+  // Build CSV rows
+  const csvEsc = v => {
+    const s = (v == null ? '' : String(v)).replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  const headers = [
+    'ID', 'Nombre', 'Cédula', 'Teléfono', 'Correo', 'Estado',
+    'Puesto', 'Municipio', 'Zona', 'Comuna',
+    'Coord. Puesto 1', 'Tel. Coord. Puesto 1',
+    'Coord. Puesto 2', 'Tel. Coord. Puesto 2',
+    'Coord. Comuna', 'Tel. Coord. Comuna',
+    'Coord. Zona', 'Tel. Coord. Zona',
+  ];
+
+  const csvRows = allData.map(t => {
+    const pId = t.puesto?.id;
+    const cId = pId ? puestoComunaMap.get(pId) : null;
+    const zId = cId ? comunaZonaMap.get(cId) : null;
+    const pc = pId ? puestoCoordMap.get(pId) : null;
+    const cc = cId ? comunaCoordMap.get(cId) : null;
+    const zc = zId ? zonaCoordMap.get(zId) : null;
+    const muniName = t.puesto?.municipioId ? (_tMunicipiosMap[t.puesto.municipioId] || '') : '';
+    return [
+      t.id,
+      t.name || '',
+      t.cedula || '',
+      t.phone || '',
+      t.correo || '',
+      t.status || '',
+      t.puesto?.name || '',
+      muniName,
+      zId ? (zonaNameMap.get(zId) || '') : '',
+      cId ? (comunaNameMap.get(cId) || '') : '',
+      pc?.nombre || '',
+      pc?.telefono || '',
+      pc?.nombre2 || '',
+      pc?.telefono2 || '',
+      cc?.nombre || '',
+      cc?.telefono || '',
+      zc?.nombre || '',
+      zc?.telefono || '',
+    ].map(csvEsc).join(',');
+  });
+
+  const csv = '﻿' + [headers.map(csvEsc).join(','), ...csvRows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  a.href = url;
+  a.download = `testigos_AMVA_${ts}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 // ── PDF export ─────────────────────────────────────────────────────────────
