@@ -1081,10 +1081,6 @@ async function _exportExcel(scope = 'all') {
     return;
   }
 
-  // DEBUG: show fetch count before CSV build
-  console.log('[export-debug] allData.length:', allData.length, '| scope:', scope);
-  alert(`[DEBUG] Testigos cargados del API: ${allData.length} (esperado: 12848)`);
-
   // Fetch coordinator + structural data — per municipio in scope
   let puestoCoordMap = new Map();
   let puestoComunaMap = new Map();
