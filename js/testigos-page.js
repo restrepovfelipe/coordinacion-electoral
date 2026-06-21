@@ -1060,21 +1060,19 @@ async function _exportExcel(scope = 'all') {
 
   // Fetch ALL testigos for the scope
   let allData = [];
+  const _exportNonce = Date.now(); // bust HTTP cache for all export API calls
   try {
     for (const muniId of (scopeMuniIds || [null])) {
       let page = 1;
       const limit = 200;
-      let total = Infinity;
-      while (allData.length < total || muniId === null) {
-        let url = `/testigos?page=${page}&limit=${limit}`;
+      while (true) {
+        let url = `/testigos?page=${page}&limit=${limit}&_t=${_exportNonce}`;
         if (muniId !== null) url += `&municipioId=${muniId}`;
         const result = await window.api.get(url);
         const data = result.data || [];
-        if (muniId === null) total = result.total || 0;
         allData = allData.concat(data);
         if (data.length < limit) break;
         page++;
-        if (muniId === null && allData.length >= total) break;
       }
     }
   } catch (err) {
