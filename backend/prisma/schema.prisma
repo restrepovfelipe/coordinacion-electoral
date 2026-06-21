@@ -185,7 +185,7 @@ model Testigo {
   puestoId    Int?
   puesto      Puesto?  @relation(fields: [puestoId], references: [id])
   name        String
-  cedula      String?  @unique
+  cedula      String?
   phone       String?
   correo      String?
   status      String   @default("pendiente")

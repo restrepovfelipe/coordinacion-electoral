@@ -108,24 +108,32 @@ async function main() {
   const { rows: dbPuestos } = await c.query('SELECT id, name, "municipioId" FROM "Puesto" WHERE "municipioId" = ANY($1)', [muniIds]);
   console.log(`DB puestos for AMVA: ${dbPuestos.length}`);
 
-  const { rows: existingTestigos } = await c.query('SELECT cedula FROM "Testigo"');
-  const existingCedulas = new Set(existingTestigos.map(t => t.cedula));
-  console.log(`Existing testigos in DB: ${existingCedulas.size}`);
+  // How many times each cedula appears in AMVA puestos of DB
+  const { rows: amvaTestigos } = await c.query(`
+    SELECT t.cedula FROM "Testigo" t
+    JOIN "Puesto" p ON t."puestoId" = p.id
+    WHERE p."municipioId" = ANY($1)
+  `, [muniIds]);
+  const dbCedulaCount = {};
+  amvaTestigos.forEach(t => { dbCedulaCount[t.cedula] = (dbCedulaCount[t.cedula] || 0) + 1; });
+  console.log(`AMVA testigos in DB: ${amvaTestigos.length}`);
 
-  // 4. Find missing rows
+  // 4. Find missing rows: rows where Excel has more occurrences than DB
+  // Track how many times we've seen each cedula while iterating Excel
+  const excelCedulaSeen = {};
   const toInsert = [];
   const unmatched = [];
-  const skippedDupCedula = [];
-  const seenCedulas = new Set(existingCedulas); // track within-batch dups too
 
   for (const row of amvaRows) {
     const cedula = row['CEDULA'];
     if (!cedula) continue;
-    if (seenCedulas.has(cedula)) {
-      skippedDupCedula.push({ cedula, name: row['NOMBRE COMPLETO'] });
-      continue;
-    }
-    seenCedulas.add(cedula);
+
+    excelCedulaSeen[cedula] = (excelCedulaSeen[cedula] || 0) + 1;
+    const occurrence = excelCedulaSeen[cedula];
+    const inDb = dbCedulaCount[cedula] || 0;
+
+    // Skip this occurrence if DB already has as many (or more) entries for this cedula
+    if (occurrence <= inDb) continue;
 
     const muniName = row['MUNICIPIO'];
     const muniId = muniMap[muniName];
@@ -152,7 +160,6 @@ async function main() {
   }
 
   console.log(`\nTo insert: ${toInsert.length}`);
-  console.log(`Skipped (already in DB or dup cedula): ${skippedDupCedula.length}`);
   console.log(`Unmatched: ${unmatched.length}`);
 
   if (unmatched.length > 0) {
