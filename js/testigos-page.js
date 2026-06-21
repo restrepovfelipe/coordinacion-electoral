@@ -1063,33 +1063,38 @@ async function _exportPDF() {
   const puestosSorted = [...puestoCountMap.entries()].sort((a, b) => b[1] - a[1]);
   const sinPuestoCount = allData.filter(t => !t.puesto).length;
 
-  // Fetch coordinator data when a municipio is selected
+  // Fetch coordinator + structural data when a municipio is selected
   let puestoCoordMap = new Map();   // puestoId → {nombre,telefono,nombre2,telefono2}
   let puestoComunaMap = new Map();  // puestoId → comunaId
   let comunaCoordMap = new Map();   // comunaId → {nombre,telefono}
   let zonaCoordMap = new Map();     // zonaId → {nombre,telefono}
   let comunaZonaMap = new Map();    // comunaId → zonaId
+  let comunaNameMap = new Map();    // comunaId → name
+  let zonaNameMap = new Map();      // zonaId → name
   const hasCoords = !!_tMunicipioId;
 
   if (hasCoords) {
     try {
-      const [puestosRef, puestoCoords] = await Promise.all([
+      const [puestosRef, puestoCoords, zonasRef] = await Promise.all([
         window.api.get(`/puestos?municipioId=${_tMunicipioId}`),
         window.api.get(`/coordinador/puestos-by-muni/${_tMunicipioId}`),
+        window.api.get('/zonas'),
       ]);
-      // puestoComunaMap: puestoId → comunaId
       (puestosRef || []).forEach(p => puestoComunaMap.set(p.id, p.comunaId));
-      // puestoCoordMap: puestoId → coord data
       (puestoCoords || []).forEach(d => puestoCoordMap.set(d.puestoId, d));
+      (zonasRef || []).forEach(z => zonaNameMap.set(z.id, z.name));
 
-      // Collect unique comunaIds for puestos that have testigos
-      const comunaIds = new Set();
-      puestoIdMap.forEach((pId) => {
-        const cId = puestoComunaMap.get(pId);
-        if (cId) comunaIds.add(cId);
+      // comunaId → name and zonaId from cache
+      const comunasList = _tComunasCache[_tMunicipioId] || [];
+      comunasList.forEach(c => {
+        comunaNameMap.set(c.id, c.name);
+        if (c.zonaId) comunaZonaMap.set(c.id, c.zonaId);
       });
 
-      // Fetch all commune coordinators in parallel
+      // Unique comunaIds that have testigos
+      const comunaIds = new Set();
+      puestoIdMap.forEach(pId => { const cId = puestoComunaMap.get(pId); if (cId) comunaIds.add(cId); });
+
       const comunaCoords = await Promise.all(
         [...comunaIds].map(cId =>
           window.api.get(`/coordinador/COMUNA/${cId}/display`).catch(() => null).then(r => ({ cId, r }))
@@ -1097,11 +1102,6 @@ async function _exportPDF() {
       );
       comunaCoords.forEach(({ cId, r }) => { if (r?.nombre) comunaCoordMap.set(cId, r); });
 
-      // Build comunaId → zonaId from _tComunasCache
-      const comunasList = _tComunasCache[_tMunicipioId] || [];
-      comunasList.forEach(c => { if (c.zonaId) comunaZonaMap.set(c.id, c.zonaId); });
-
-      // Collect unique zonaIds
       const zonaIds = new Set();
       comunaIds.forEach(cId => { const zId = comunaZonaMap.get(cId); if (zId) zonaIds.add(zId); });
 
@@ -1111,33 +1111,118 @@ async function _exportPDF() {
         )
       );
       zonaCoords.forEach(({ zId, r }) => { if (r?.nombre) zonaCoordMap.set(zId, r); });
-    } catch (e) { /* coordinator data is optional, proceed without it */ }
+    } catch (e) { /* coordinator data is optional */ }
   }
 
-  // Build recuento rows
+  // Helper to format a coordinator cell
+  function _fmtCoord(c) {
+    if (!c?.nombre) return '<span style="color:#bbb;font-style:italic">Sin asignar</span>';
+    return `<b>${esc(c.nombre)}</b>${c.telefono ? '<br>📞 ' + esc(c.telefono) : ''}`;
+  }
+
+  // Build recuento HTML grouped by Zona → Comuna → Puestos
+  let recuentoHTML = '';
   const showCoordCols = hasCoords;
-  const resumenRows = puestosSorted.map(([nombre, cnt]) => {
-    const pId = puestoIdMap.get(nombre);
-    const pc = pId ? puestoCoordMap.get(pId) : null;
-    const cId = pId ? puestoComunaMap.get(pId) : null;
-    const cc = cId ? comunaCoordMap.get(cId) : null;
-    const zId = cId ? comunaZonaMap.get(cId) : null;
-    const zc = zId ? zonaCoordMap.get(zId) : null;
-    const coordPuesto = pc?.nombre
-      ? `${esc(pc.nombre)}${pc.telefono ? '<br><span style="color:#555">📞 ' + esc(pc.telefono) + '</span>' : ''}${pc.nombre2 ? '<br>' + esc(pc.nombre2) + (pc.telefono2 ? '<br><span style="color:#555">📞 ' + esc(pc.telefono2) + '</span>' : '') : ''}`
-      : '<span style="color:#aaa">—</span>';
-    const coordComuna = cc?.nombre
-      ? `${esc(cc.nombre)}${cc.telefono ? '<br><span style="color:#555">📞 ' + esc(cc.telefono) + '</span>' : ''}`
-      : '<span style="color:#aaa">—</span>';
-    const coordZona = zc?.nombre
-      ? `${esc(zc.nombre)}${zc.telefono ? '<br><span style="color:#555">📞 ' + esc(zc.telefono) + '</span>' : ''}`
-      : '<span style="color:#aaa">—</span>';
-    return `<tr>
-      <td>${esc(nombre)}</td>
-      <td style="text-align:center;font-weight:600">${cnt}</td>
-      ${showCoordCols ? `<td style="font-size:10px">${coordPuesto}</td><td style="font-size:10px">${coordComuna}</td><td style="font-size:10px">${coordZona}</td>` : ''}
-    </tr>`;
-  }).join('');
+  const colHeader = showCoordCols
+    ? '<th>Puesto</th><th style="text-align:center;width:60px">Test.</th><th>Coord. Puesto</th><th>Coord. Comuna</th><th>Coord. Zona</th>'
+    : '<th>Puesto</th><th style="text-align:center">Testigos</th>';
+
+  if (hasCoords) {
+    // Group puestos by zona → comuna
+    // zonaId → comunaId → [{name, count}]
+    const zonaMap = new Map(); // zonaId → Map<comunaId, [{name,cnt}]>
+    const sinZona = new Map(); // comunaId → [{name,cnt}]
+
+    puestosSorted.forEach(([nombre, cnt]) => {
+      if (nombre === '— Sin puesto asignado —') return;
+      const pId = puestoIdMap.get(nombre);
+      const cId = pId ? puestoComunaMap.get(pId) : null;
+      const zId = cId ? comunaZonaMap.get(cId) : null;
+
+      if (zId) {
+        if (!zonaMap.has(zId)) zonaMap.set(zId, new Map());
+        const cMap = zonaMap.get(zId);
+        if (!cMap.has(cId)) cMap.set(cId, []);
+        cMap.get(cId).push({ nombre, cnt, pId });
+      } else {
+        const bucket = cId || 0;
+        if (!sinZona.has(bucket)) sinZona.set(bucket, []);
+        sinZona.get(bucket).push({ nombre, cnt, pId });
+      }
+    });
+
+    // Render zona sections
+    zonaMap.forEach((cMap, zId) => {
+      const zName = zonaNameMap.get(zId) || `Zona ${zId}`;
+      const zc = zonaCoordMap.get(zId);
+      const zonaTotal = [...cMap.values()].flat().reduce((s, p) => s + p.cnt, 0);
+
+      recuentoHTML += `
+        <tr style="background:#1a3a6e;color:#fff">
+          <td colspan="${showCoordCols ? 5 : 2}" style="font-size:12px;font-weight:700;padding:7px 10px;border:none">
+            🗺 ${esc(zName)} — ${zonaTotal} testigos
+            ${zc ? `<span style="font-weight:400;margin-left:16px;font-size:10px">Coord. Zona: ${esc(zc.nombre)}${zc.telefono ? ' · 📞 ' + esc(zc.telefono) : ''}</span>` : ''}
+          </td>
+        </tr>`;
+
+      cMap.forEach((puestos, cId) => {
+        const cName = comunaNameMap.get(cId) || `Comuna ${cId}`;
+        const cc = comunaCoordMap.get(cId);
+        const comunaTotal = puestos.reduce((s, p) => s + p.cnt, 0);
+
+        recuentoHTML += `
+          <tr style="background:#dce6f5">
+            <td colspan="${showCoordCols ? 5 : 2}" style="font-size:11px;font-weight:700;padding:5px 10px;color:#1a3a6e;border-color:#b0c4de">
+              📍 ${esc(cName)} — ${comunaTotal} testigos
+              ${cc ? `<span style="font-weight:400;margin-left:12px;font-size:10px;color:#333">Coord. Comuna: ${esc(cc.nombre)}${cc.telefono ? ' · 📞 ' + esc(cc.telefono) : ''}</span>` : ''}
+            </td>
+          </tr>`;
+
+        puestos.forEach(({ nombre, cnt, pId }) => {
+          const pc = pId ? puestoCoordMap.get(pId) : null;
+          const coordPuesto = pc?.nombre
+            ? `<b>${esc(pc.nombre)}</b>${pc.telefono ? '<br>📞 ' + esc(pc.telefono) : ''}${pc.nombre2 ? '<br><b>' + esc(pc.nombre2) + '</b>' + (pc.telefono2 ? '<br>📞 ' + esc(pc.telefono2) : '') : ''}`
+            : '<span style="color:#bbb;font-style:italic">Sin asignar</span>';
+          recuentoHTML += `<tr>
+            <td style="padding-left:20px">${esc(nombre)}</td>
+            <td style="text-align:center;font-weight:700">${cnt}</td>
+            ${showCoordCols ? `<td style="font-size:10px">${coordPuesto}</td><td style="font-size:10px">${_fmtCoord(cc)}</td><td style="font-size:10px">${_fmtCoord(zc)}</td>` : ''}
+          </tr>`;
+        });
+      });
+    });
+
+    // Sin zona bucket
+    if (sinZona.size > 0) {
+      recuentoHTML += `<tr style="background:#e8e8e8"><td colspan="${showCoordCols ? 5 : 2}" style="font-weight:700;padding:5px 10px;font-size:11px">Sin zona asignada</td></tr>`;
+      sinZona.forEach((puestos, cId) => {
+        const cName = cId ? (comunaNameMap.get(cId) || `Comuna ${cId}`) : '';
+        const cc = cId ? comunaCoordMap.get(cId) : null;
+        if (cName) recuentoHTML += `<tr style="background:#f0f0f0"><td colspan="${showCoordCols ? 5 : 2}" style="font-size:11px;font-weight:600;padding:4px 10px;color:#444">${esc(cName)}</td></tr>`;
+        puestos.forEach(({ nombre, cnt, pId }) => {
+          const pc = pId ? puestoCoordMap.get(pId) : null;
+          const coordPuesto = pc?.nombre
+            ? `<b>${esc(pc.nombre)}</b>${pc.telefono ? '<br>📞 ' + esc(pc.telefono) : ''}`
+            : '<span style="color:#bbb;font-style:italic">Sin asignar</span>';
+          recuentoHTML += `<tr>
+            <td style="padding-left:20px">${esc(nombre)}</td>
+            <td style="text-align:center;font-weight:700">${cnt}</td>
+            ${showCoordCols ? `<td style="font-size:10px">${coordPuesto}</td><td style="font-size:10px">${_fmtCoord(cc)}</td><td style="font-size:10px">—</td>` : ''}
+          </tr>`;
+        });
+      });
+    }
+
+    // Sin puesto row
+    if (sinPuestoCount > 0) {
+      recuentoHTML += `<tr style="background:#fff3cd"><td colspan="${showCoordCols ? 5 : 2}" style="font-style:italic;color:#856404;padding:5px 10px">Sin puesto asignado: ${sinPuestoCount} testigos</td></tr>`;
+    }
+  } else {
+    // No municipio filter: simple flat list sorted by count
+    recuentoHTML = puestosSorted.map(([nombre, cnt]) =>
+      `<tr><td>${esc(nombre)}</td><td style="text-align:center;font-weight:700">${cnt}</td></tr>`
+    ).join('');
+  }
 
   // Build detail rows
   const rows = allData.map(t => `
@@ -1181,12 +1266,8 @@ async function _exportPDF() {
 
     <h2>Recuento por puesto</h2>
     <table style="margin-bottom:24px">
-      <thead><tr>
-        <th>Puesto</th>
-        <th style="text-align:center">Testigos</th>
-        ${showCoordCols ? '<th>Coord. Puesto</th><th>Coord. Comuna</th><th>Coord. Zona</th>' : ''}
-      </tr></thead>
-      <tbody>${resumenRows}</tbody>
+      <thead><tr>${colHeader}</tr></thead>
+      <tbody>${recuentoHTML}</tbody>
     </table>
 
     <h2>Detalle de testigos</h2>
