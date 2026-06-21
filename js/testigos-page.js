@@ -1127,7 +1127,7 @@ async function _exportExcel(scope = 'all') {
 
   // Build CSV rows
   const csvEsc = v => {
-    const s = (v == null ? '' : String(v)).replace(/"/g, '""');
+    const s = (v == null ? '' : String(v)).replace(/\r\n|\r|\n/g, ' ').replace(/"/g, '""');
     return `"${s}"`;
   };
 
