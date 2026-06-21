@@ -1033,21 +1033,52 @@ function _exportPDF() {
   const totalPages = Math.ceil(_tTotal / _T_LIMIT);
   const subtitle = _tSearch ? ` | Búsqueda: "${esc(_tSearch)}"` : '';
 
+  // Recuento por puesto (de la página actual)
+  const puestoMap = new Map();
+  _tAllData.forEach(t => {
+    const key = t.puesto ? t.puesto.name : '— Sin puesto asignado —';
+    puestoMap.set(key, (puestoMap.get(key) || 0) + 1);
+  });
+  const puestosSorted = [...puestoMap.entries()].sort((a, b) => b[1] - a[1]);
+  const resumenRows = puestosSorted.map(([nombre, cnt]) =>
+    `<tr><td>${esc(nombre)}</td><td style="text-align:center;font-weight:600">${cnt}</td></tr>`
+  ).join('');
+
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos</title>
     <style>
       body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
       h1{font-size:16px;margin-bottom:4px}
+      h2{font-size:13px;color:#1a3a6e;margin:20px 0 8px}
       .sub{font-size:10px;color:#666;margin-bottom:16px}
+      .resumen-box{display:flex;gap:28px;flex-wrap:wrap;background:#eef2f9;border:1px solid #c5d0e8;border-radius:6px;padding:10px 14px;margin-bottom:18px}
+      .resumen-stat{text-align:center}
+      .resumen-stat .val{font-size:22px;font-weight:700;color:#1a3a6e}
+      .resumen-stat .lbl{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.5px}
       table{width:100%;border-collapse:collapse}
-      th{background:#f0f0f0;padding:5px 8px;text-align:left;border:1px solid #ddd;font-size:10px;text-transform:uppercase}
+      th{background:#e8edf5;padding:5px 8px;text-align:left;border:1px solid #ddd;font-size:10px;text-transform:uppercase;color:#1a3a6e}
       td{padding:5px 8px;border:1px solid #ddd}
-      tr:nth-child(even) td{background:#f9f9f9}
-      @media print{body{padding:10px}}
+      tr:nth-child(even) td{background:#f7f9fc}
+      .puesto-table th{background:#f0f0f0;color:#333}
+      @media print{body{padding:10px}.resumen-box{break-inside:avoid}}
     </style>
   </head><body>
     <h1>🧾 Listado de Testigos — AMVA 2026</h1>
     <div class="sub">Generado: ${now}${subtitle} | Página ${_tPage} de ${totalPages} (${_tAllData.length} registros mostrados de ${_tTotal})</div>
+
+    <div class="resumen-box">
+      <div class="resumen-stat"><div class="val">${_tTotal}</div><div class="lbl">Total testigos</div></div>
+      <div class="resumen-stat"><div class="val">${puestosSorted.filter(([k]) => k !== '— Sin puesto asignado —').length}</div><div class="lbl">Puestos en esta página</div></div>
+      <div class="resumen-stat"><div class="val">${_tAllData.filter(t => !t.puesto).length || 0}</div><div class="lbl">Sin puesto asignado</div></div>
+    </div>
+
+    <h2>Recuento por puesto (página actual)</h2>
+    <table class="puesto-table" style="width:auto;min-width:340px;margin-bottom:24px">
+      <thead><tr><th>Puesto</th><th style="text-align:center">Testigos</th></tr></thead>
+      <tbody>${resumenRows}</tbody>
+    </table>
+
+    <h2>Detalle de testigos</h2>
     <table>
       <thead><tr><th>ID</th><th>Nombre</th><th>Cédula</th><th>Teléfono</th><th>Correo</th><th>Estado</th><th>Puesto</th></tr></thead>
       <tbody>${rows}</tbody>
