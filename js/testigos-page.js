@@ -1016,9 +1016,56 @@ async function _exportPDFComuna() {
 }
 
 // ── PDF export ─────────────────────────────────────────────────────────────
-function _exportPDF() {
+async function _exportPDF() {
   const now = new Date().toLocaleString('es-CO');
-  const rows = _tAllData.map(t => `
+  const subtitle = _tSearch ? ` | Búsqueda: "${esc(_tSearch)}"` : '';
+
+  // Open window early to avoid popup blocker
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Permite popups para este sitio.'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos</title></head><body style="font-family:Arial,sans-serif;padding:30px;color:#555">⏳ Cargando resumen completo...</body></html>`);
+
+  // Fetch ALL testigos matching current filters to build the recuento
+  let allData = [];
+  try {
+    let page = 1;
+    const limit = 200;
+    let total = Infinity;
+    while (allData.length < total) {
+      let url = `/testigos?page=${page}&limit=${limit}`;
+      if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
+      if (_tSinPuesto) url += '&sinPuesto=true';
+      if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
+      else if (_tComunaId) url += `&comunaId=${_tComunaId}`;
+      else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
+      const result = await window.api.get(url);
+      const data = result.data || [];
+      total = result.total || 0;
+      allData = allData.concat(data);
+      if (data.length < limit) break;
+      page++;
+    }
+  } catch (err) {
+    win.document.open();
+    win.document.write(`<p style="color:red;font-family:Arial,sans-serif;padding:20px">Error cargando datos: ${esc(err.message || '')}</p>`);
+    win.document.close();
+    return;
+  }
+
+  // Build recuento from full dataset
+  const puestoMap = new Map();
+  allData.forEach(t => {
+    const key = t.puesto ? t.puesto.name : '— Sin puesto asignado —';
+    puestoMap.set(key, (puestoMap.get(key) || 0) + 1);
+  });
+  const puestosSorted = [...puestoMap.entries()].sort((a, b) => b[1] - a[1]);
+  const sinPuestoCount = allData.filter(t => !t.puesto).length;
+  const resumenRows = puestosSorted.map(([nombre, cnt]) =>
+    `<tr><td>${esc(nombre)}</td><td style="text-align:center;font-weight:600">${cnt}</td></tr>`
+  ).join('');
+
+  // Build detail rows from full dataset
+  const rows = allData.map(t => `
     <tr>
       <td>${t.id}</td>
       <td>${esc(t.name || '—')}</td>
@@ -1030,21 +1077,7 @@ function _exportPDF() {
     </tr>
   `).join('');
 
-  const totalPages = Math.ceil(_tTotal / _T_LIMIT);
-  const subtitle = _tSearch ? ` | Búsqueda: "${esc(_tSearch)}"` : '';
-
-  // Recuento por puesto (de la página actual)
-  const puestoMap = new Map();
-  _tAllData.forEach(t => {
-    const key = t.puesto ? t.puesto.name : '— Sin puesto asignado —';
-    puestoMap.set(key, (puestoMap.get(key) || 0) + 1);
-  });
-  const puestosSorted = [...puestoMap.entries()].sort((a, b) => b[1] - a[1]);
-  const resumenRows = puestosSorted.map(([nombre, cnt]) =>
-    `<tr><td>${esc(nombre)}</td><td style="text-align:center;font-weight:600">${cnt}</td></tr>`
-  ).join('');
-
-  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.open();
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Testigos</title>
     <style>
       body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
@@ -1064,15 +1097,15 @@ function _exportPDF() {
     </style>
   </head><body>
     <h1>🧾 Listado de Testigos — AMVA 2026</h1>
-    <div class="sub">Generado: ${now}${subtitle} | Página ${_tPage} de ${totalPages} (${_tAllData.length} registros mostrados de ${_tTotal})</div>
+    <div class="sub">Generado: ${now}${subtitle} | ${allData.length} testigos</div>
 
     <div class="resumen-box">
-      <div class="resumen-stat"><div class="val">${_tTotal}</div><div class="lbl">Total testigos</div></div>
-      <div class="resumen-stat"><div class="val">${puestosSorted.filter(([k]) => k !== '— Sin puesto asignado —').length}</div><div class="lbl">Puestos en esta página</div></div>
-      <div class="resumen-stat"><div class="val">${_tAllData.filter(t => !t.puesto).length || 0}</div><div class="lbl">Sin puesto asignado</div></div>
+      <div class="resumen-stat"><div class="val">${allData.length}</div><div class="lbl">Total testigos</div></div>
+      <div class="resumen-stat"><div class="val">${puestosSorted.filter(([k]) => k !== '— Sin puesto asignado —').length}</div><div class="lbl">Puestos con testigos</div></div>
+      <div class="resumen-stat"><div class="val">${sinPuestoCount}</div><div class="lbl">Sin puesto asignado</div></div>
     </div>
 
-    <h2>Recuento por puesto (página actual)</h2>
+    <h2>Recuento por puesto</h2>
     <table class="puesto-table" style="width:auto;min-width:340px;margin-bottom:24px">
       <thead><tr><th>Puesto</th><th style="text-align:center">Testigos</th></tr></thead>
       <tbody>${resumenRows}</tbody>
