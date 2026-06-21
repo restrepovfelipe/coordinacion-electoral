@@ -62,7 +62,14 @@ function _buildPanelHTML() {
             </div>
           </div>
           <button class="dir-pdf" data-action="t-export-pdf">📄 Exportar PDF</button>
-          <button class="dir-pdf" data-action="t-export-excel">📊 Exportar Excel</button>
+          <div style="position:relative;display:inline-block">
+            <button class="dir-pdf" data-action="t-toggle-excel-menu">📊 Exportar Excel ▾</button>
+            <div id="t-excel-menu" style="display:none;position:absolute;top:calc(100%+4px);right:0;z-index:400;background:var(--bg2);border:1px solid var(--bdr);border-radius:8px;min-width:200px;box-shadow:0 4px 18px rgba(0,0,0,.18);padding:4px 0">
+              <div data-action="t-export-excel" data-scope="medellin" style="padding:8px 14px;cursor:pointer;font-size:12px;color:var(--fg)" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">🏙️ Medellín</div>
+              <div data-action="t-export-excel" data-scope="amva" style="padding:8px 14px;cursor:pointer;font-size:12px;color:var(--fg)" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">🗺️ AMVA (10 municipios)</div>
+              <div data-action="t-export-excel" data-scope="all" style="padding:8px 14px;cursor:pointer;font-size:12px;color:var(--fg)" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">🌎 Todo Antioquia</div>
+            </div>
+          </div>
           <button class="dir-close" data-action="close-testigos-page">Cerrar ✕</button>
         </div>
       </div>
@@ -298,8 +305,12 @@ function _attachListeners() {
       _openPuestoPicker();
     } else if (action === 'edit-testigo') {
       _openEditModal(Number(btn.dataset.id));
+    } else if (action === 't-toggle-excel-menu') {
+      const m = document.getElementById('t-excel-menu');
+      if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
     } else if (action === 't-export-excel') {
-      _exportExcel();
+      document.getElementById('t-excel-menu').style.display = 'none';
+      _exportExcel(btn.dataset.scope || 'all');
     } else if (action === 't-export-pdf') {
       _exportPDF();
     } else if (action === 't-export-pdf-comuna') {
@@ -356,11 +367,15 @@ function _attachListeners() {
 
   });
 
-  // Close comunas PDF menu on outside click
+  // Close dropdown menus on outside click
   document.addEventListener('click', e => {
-    const menu = document.getElementById('t-comunas-pdf-menu');
-    if (menu && menu.style.display !== 'none' && !menu.contains(e.target) && !e.target.closest('[data-action="t-toggle-comunas-menu"]')) {
-      menu.style.display = 'none';
+    const cm = document.getElementById('t-comunas-pdf-menu');
+    if (cm && cm.style.display !== 'none' && !cm.contains(e.target) && !e.target.closest('[data-action="t-toggle-comunas-menu"]')) {
+      cm.style.display = 'none';
+    }
+    const em = document.getElementById('t-excel-menu');
+    if (em && em.style.display !== 'none' && !em.contains(e.target) && !e.target.closest('[data-action="t-toggle-excel-menu"]')) {
+      em.style.display = 'none';
     }
   });
 
@@ -1018,40 +1033,57 @@ async function _exportPDFComuna() {
   _exportPDFComunaById(_tComunaId, comunaNombre);
 }
 
-// ── Excel export ────────────────────────────────────────────────────────────
-async function _exportExcel() {
-  // Show loading state on button
-  const excelBtn = _testigosPanel?.querySelector('[data-action="t-export-excel"]');
-  const origLabel = excelBtn ? excelBtn.textContent : '';
-  if (excelBtn) { excelBtn.textContent = '⏳ Exportando...'; excelBtn.disabled = true; }
+// AMVA municipio IDs (subregionId=1)
+const _AMVA_MUNI_NAMES = ['MEDELLIN','BELLO','ITAGUI','ENVIGADO','SABANETA','LA ESTRELLA','CALDAS','COPACABANA','GIRARDOTA','BARBOSA'];
 
-  // Fetch ALL testigos matching current filters
+// ── Excel export ────────────────────────────────────────────────────────────
+async function _exportExcel(scope = 'all') {
+  // Show loading state on toggle button
+  const toggleBtn = _testigosPanel?.querySelector('[data-action="t-toggle-excel-menu"]');
+  const origLabel = toggleBtn ? toggleBtn.textContent : '';
+  if (toggleBtn) { toggleBtn.textContent = '⏳ Exportando...'; toggleBtn.disabled = true; }
+
+  // Resolve which municipioIds to include
+  let scopeMuniIds = null; // null = no filter (all)
+  let scopeLabel = 'antioquia';
+  if (scope === 'medellin') {
+    // Find Medellín in the map
+    const medId = Object.entries(_tMunicipiosMap).find(([, name]) => name === 'MEDELLIN')?.[0];
+    scopeMuniIds = medId ? [Number(medId)] : null;
+    scopeLabel = 'medellin';
+  } else if (scope === 'amva') {
+    scopeMuniIds = Object.entries(_tMunicipiosMap)
+      .filter(([, name]) => _AMVA_MUNI_NAMES.includes(name))
+      .map(([id]) => Number(id));
+    scopeLabel = 'amva';
+  }
+
+  // Fetch ALL testigos for the scope
   let allData = [];
   try {
-    let page = 1;
-    const limit = 200;
-    let total = Infinity;
-    while (allData.length < total) {
-      let url = `/testigos?page=${page}&limit=${limit}`;
-      if (_tSearch) url += `&search=${encodeURIComponent(_tSearch)}`;
-      if (_tSinPuesto) url += '&sinPuesto=true';
-      if (_tPuestoId) url += `&puestoId=${_tPuestoId}`;
-      else if (_tComunaId) url += `&comunaId=${_tComunaId}`;
-      else if (_tMunicipioId) url += `&municipioId=${_tMunicipioId}`;
-      const result = await window.api.get(url);
-      const data = result.data || [];
-      total = result.total || 0;
-      allData = allData.concat(data);
-      if (data.length < limit) break;
-      page++;
+    for (const muniId of (scopeMuniIds || [null])) {
+      let page = 1;
+      const limit = 200;
+      let total = Infinity;
+      while (allData.length < total || muniId === null) {
+        let url = `/testigos?page=${page}&limit=${limit}`;
+        if (muniId !== null) url += `&municipioId=${muniId}`;
+        const result = await window.api.get(url);
+        const data = result.data || [];
+        if (muniId === null) total = result.total || 0;
+        allData = allData.concat(data);
+        if (data.length < limit) break;
+        page++;
+        if (muniId === null && allData.length >= total) break;
+      }
     }
   } catch (err) {
-    if (excelBtn) { excelBtn.textContent = origLabel; excelBtn.disabled = false; }
+    if (toggleBtn) { toggleBtn.textContent = origLabel; toggleBtn.disabled = false; }
     alert('Error cargando datos: ' + (err.message || ''));
     return;
   }
 
-  // Fetch coordinator + structural data when municipio is selected
+  // Fetch coordinator + structural data — per municipio in scope
   let puestoCoordMap = new Map();
   let puestoComunaMap = new Map();
   let comunaCoordMap = new Map();
@@ -1060,38 +1092,40 @@ async function _exportExcel() {
   let comunaNameMap = new Map();
   let zonaNameMap = new Map();
 
-  if (_tMunicipioId) {
-    try {
-      const [puestosRef, puestoCoords, zonasRef] = await Promise.all([
-        window.api.get(`/puestos?municipioId=${_tMunicipioId}`),
-        window.api.get(`/coordinador/puestos-by-muni/${_tMunicipioId}`),
-        window.api.get('/zonas'),
-      ]);
-      (puestosRef || []).forEach(p => puestoComunaMap.set(p.id, p.comunaId));
-      (puestoCoords || []).forEach(d => puestoCoordMap.set(d.puestoId, d));
-      (zonasRef || []).forEach(z => zonaNameMap.set(z.id, z.name));
-
-      const comunasList = _tComunasCache[_tMunicipioId] || [];
+  // Fetch coordinator data for all municipios in scope
+  const muniIdsForCoords = scopeMuniIds || Object.keys(_tMunicipiosMap).map(Number);
+  try {
+    const [zonasRef, ...coordResults] = await Promise.all([
+      window.api.get('/zonas'),
+      ...muniIdsForCoords.map(mId => Promise.all([
+        window.api.get(`/puestos?municipioId=${mId}`),
+        window.api.get(`/coordinador/puestos-by-muni/${mId}`),
+      ]).then(([pRef, pCoord]) => ({ mId, pRef, pCoord }))),
+    ]);
+    (zonasRef || []).forEach(z => zonaNameMap.set(z.id, z.name));
+    coordResults.forEach(({ mId, pRef, pCoord }) => {
+      (pRef || []).forEach(p => puestoComunaMap.set(p.id, p.comunaId));
+      (pCoord || []).forEach(d => puestoCoordMap.set(d.puestoId, d));
+      const comunasList = _tComunasCache[mId] || [];
       comunasList.forEach(c => {
         comunaNameMap.set(c.id, c.name);
         if (c.zonaId) comunaZonaMap.set(c.id, c.zonaId);
       });
+    });
 
-      const puestoIdSet = new Set(allData.filter(t => t.puesto).map(t => t.puesto.id));
-      const comunaIds = new Set([...puestoIdSet].map(pId => puestoComunaMap.get(pId)).filter(Boolean));
-
-      const [comunaCoords, zonaCoords] = await Promise.all([
-        Promise.all([...comunaIds].map(cId =>
-          window.api.get(`/coordinador/COMUNA/${cId}/display`).catch(() => null).then(r => ({ cId, r }))
-        )),
-        Promise.all([...new Set([...comunaIds].map(cId => comunaZonaMap.get(cId)).filter(Boolean))].map(zId =>
-          window.api.get(`/coordinador/ZONA/${zId}/display`).catch(() => null).then(r => ({ zId, r }))
-        )),
-      ]);
-      comunaCoords.forEach(({ cId, r }) => { if (r?.nombre) comunaCoordMap.set(cId, r); });
-      zonaCoords.forEach(({ zId, r }) => { if (r?.nombre) zonaCoordMap.set(zId, r); });
-    } catch (e) { /* optional */ }
-  }
+    const puestoIdSet = new Set(allData.filter(t => t.puesto).map(t => t.puesto.id));
+    const comunaIds = new Set([...puestoIdSet].map(pId => puestoComunaMap.get(pId)).filter(Boolean));
+    const [comunaCoords, zonaCoords] = await Promise.all([
+      Promise.all([...comunaIds].map(cId =>
+        window.api.get(`/coordinador/COMUNA/${cId}/display`).catch(() => null).then(r => ({ cId, r }))
+      )),
+      Promise.all([...new Set([...comunaIds].map(cId => comunaZonaMap.get(cId)).filter(Boolean))].map(zId =>
+        window.api.get(`/coordinador/ZONA/${zId}/display`).catch(() => null).then(r => ({ zId, r }))
+      )),
+    ]);
+    comunaCoords.forEach(({ cId, r }) => { if (r?.nombre) comunaCoordMap.set(cId, r); });
+    zonaCoords.forEach(({ zId, r }) => { if (r?.nombre) zonaCoordMap.set(zId, r); });
+  } catch (e) { /* coordinator data is optional */ }
 
   // Build CSV rows
   const csvEsc = v => {
@@ -1145,12 +1179,12 @@ async function _exportExcel() {
   const now = new Date();
   const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
   a.href = url;
-  a.download = `testigos_AMVA_${ts}.csv`;
+  a.download = `testigos_${scopeLabel}_${ts}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  if (excelBtn) { excelBtn.textContent = origLabel; excelBtn.disabled = false; }
+  if (toggleBtn) { toggleBtn.textContent = origLabel; toggleBtn.disabled = false; }
 }
 
 // ── PDF export ─────────────────────────────────────────────────────────────
